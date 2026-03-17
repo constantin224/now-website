@@ -3,6 +3,7 @@ import { Cormorant_Garamond } from "next/font/google";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import Navigation from "@/components/navigation";
 import Footer from "@/components/footer";
+import NewReleasePopup from "@/components/new-release-popup";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -31,6 +32,7 @@ export default async function LocaleLayout({
         <Navigation locale={locale as Locale} />
         <main>{children}</main>
         <Footer locale={locale as Locale} />
+        <NewReleasePopup locale={locale as Locale} />
       </body>
     </html>
   );
