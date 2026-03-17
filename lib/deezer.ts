@@ -18,7 +18,7 @@ export async function getLatestRelease(): Promise<LatestRelease | null> {
     // Alle Alben/Singles des Artists holen, sortiert nach Release-Datum
     const res = await fetch(
       `https://api.deezer.com/artist/${ARTIST_ID}/albums?limit=50`,
-      { next: { revalidate: 86400 } } // 1x pro Tag neu fetchen
+      { next: { revalidate: 3600 } } // Stündlich Cache, wird via Cron täglich revalidiert
     );
     if (!res.ok) return null;
 
