@@ -4,6 +4,7 @@ import { isValidLocale, type Locale } from "@/lib/i18n";
 import Navigation from "@/components/navigation";
 import Footer from "@/components/footer";
 import NewReleasePopup from "@/components/new-release-popup";
+import { getLatestRelease } from "@/lib/deezer";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -26,13 +27,17 @@ export default async function LocaleLayout({
   const { locale } = await params;
   if (!isValidLocale(locale)) notFound();
 
+  const latestRelease = await getLatestRelease();
+
   return (
     <html lang={locale} className={cormorant.variable}>
       <body>
         <Navigation locale={locale as Locale} />
         <main>{children}</main>
         <Footer locale={locale as Locale} />
-        <NewReleasePopup locale={locale as Locale} />
+        {latestRelease && (
+          <NewReleasePopup release={latestRelease} locale={locale} />
+        )}
       </body>
     </html>
   );

@@ -3,45 +3,51 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { X } from "lucide-react";
-import { getMessages, type Locale } from "@/lib/i18n";
-
-const SINGLE = {
-  title: "Checkmate Time",
-  releaseDate: "2026-03-13",
-  cover: "https://cdn-images.dzcdn.net/images/cover/6a69f2be5ee31aee43bf588eb472f472/500x500-000000-80-0-0.jpg",
-  links: {
-    spotify: "https://open.spotify.com/intl-de/artist/46Z2az8XmrXnhr0ej2sr3Q",
-    apple: "https://music.apple.com/at/artist/now/1603132645",
-    deezer: "https://www.deezer.com/track/3865112001",
-  },
-};
+import type { LatestRelease } from "@/lib/deezer";
 
 const STORAGE_KEY = "now-release-popup-dismissed";
 
-export default function NewReleasePopup({ locale }: { locale: Locale }) {
+type Props = {
+  release: LatestRelease;
+  locale: string;
+};
+
+export default function NewReleasePopup({ release, locale }: Props) {
   const [visible, setVisible] = useState(false);
-  const t = getMessages(locale);
 
   useEffect(() => {
-    // Nur einmal pro Session zeigen
+    // Nur einmal pro Session zeigen, und nur wenn sich der Release geändert hat
     const dismissed = sessionStorage.getItem(STORAGE_KEY);
-    if (dismissed) return;
+    if (dismissed === release.title) return;
 
-    // Nach 3 Sekunden einblenden (nach dem Ladescreen)
     const timer = setTimeout(() => setVisible(true), 3000);
     return () => clearTimeout(timer);
-  }, []);
+  }, [release.title]);
 
   const dismiss = () => {
     setVisible(false);
-    sessionStorage.setItem(STORAGE_KEY, "true");
+    sessionStorage.setItem(STORAGE_KEY, release.title);
   };
 
   if (!visible) return null;
 
-  const newSingleText = locale === "de" ? "Neue Single" : "New Single";
-  const listenNowText = locale === "de" ? "Jetzt anhören" : "Listen Now";
-  const outNowText = locale === "de" ? "Ab sofort überall verfügbar" : "Available now on all platforms";
+  const typeLabel =
+    release.type === "single"
+      ? locale === "de"
+        ? "Neue Single"
+        : "New Single"
+      : release.type === "ep"
+        ? locale === "de"
+          ? "Neue EP"
+          : "New EP"
+        : locale === "de"
+          ? "Neues Album"
+          : "New Album";
+
+  const outNowText =
+    locale === "de"
+      ? "Ab sofort überall verfügbar"
+      : "Available now on all platforms";
 
   return (
     <div className="fixed bottom-6 right-6 z-[90] animate-slide-up max-w-sm">
@@ -59,8 +65,8 @@ export default function NewReleasePopup({ locale }: { locale: Locale }) {
           {/* Cover */}
           <div className="shrink-0 relative w-20 h-20 rounded overflow-hidden">
             <Image
-              src={SINGLE.cover}
-              alt={SINGLE.title}
+              src={release.cover}
+              alt={release.title}
               fill
               className="object-cover"
               unoptimized
@@ -68,23 +74,21 @@ export default function NewReleasePopup({ locale }: { locale: Locale }) {
           </div>
 
           {/* Info */}
-          <div className="flex flex-col justify-center min-w-0">
+          <div className="flex flex-col justify-center min-w-0 pr-6">
             <span className="text-terracotta text-[9px] uppercase tracking-[3px] mb-1">
-              {newSingleText}
+              {typeLabel}
             </span>
             <h3 className="text-sand text-sm font-medium tracking-wide truncate">
-              {SINGLE.title}
+              {release.title}
             </h3>
-            <p className="text-sand-38 text-[10px] mt-1">
-              {outNowText}
-            </p>
+            <p className="text-sand-38 text-[10px] mt-1">{outNowText}</p>
           </div>
         </div>
 
         {/* Streaming-Links */}
         <div className="flex border-t border-line">
           <a
-            href={SINGLE.links.spotify}
+            href={release.links.spotify}
             target="_blank"
             rel="noopener noreferrer"
             onClick={dismiss}
@@ -93,7 +97,7 @@ export default function NewReleasePopup({ locale }: { locale: Locale }) {
             Spotify
           </a>
           <a
-            href={SINGLE.links.apple}
+            href={release.links.apple}
             target="_blank"
             rel="noopener noreferrer"
             onClick={dismiss}
@@ -102,7 +106,7 @@ export default function NewReleasePopup({ locale }: { locale: Locale }) {
             Apple
           </a>
           <a
-            href={SINGLE.links.deezer}
+            href={release.links.deezer}
             target="_blank"
             rel="noopener noreferrer"
             onClick={dismiss}
