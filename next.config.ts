@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  async redirects() {
+    return [
+      // Alte WordPress-URLs → neue Seiten (ergänzen bei Go-Live)
+    ];
+  },
 };
 
 export default nextConfig;

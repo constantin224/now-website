@@ -20,6 +20,7 @@ export const metadata: Metadata = {
     locale: "de_AT",
     url: "https://now-music.at",
     siteName: "Now.",
+    images: [{ url: "/og-image.jpg", width: 1200, height: 630 }],
   },
 };
 
