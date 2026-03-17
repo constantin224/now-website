@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { socialLinks } from "@/data/social";
-import { Instagram, Facebook, Music, Youtube, Apple } from "lucide-react";
+import { SpotifyIcon, InstagramIcon, FacebookIcon, YoutubeIcon, AppleMusicIcon } from "@/components/social-icons";
 
-// Icon-Mapping: social.ts icon-String → Lucide-Komponente
+// Icon-Mapping: social.ts icon-String → Brand-SVG-Komponente
 const iconMap: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
-  instagram: Instagram,
-  facebook: Facebook,
-  music: Music,
-  youtube: Youtube,
-  apple: Apple,
+  instagram: InstagramIcon,
+  facebook: FacebookIcon,
+  music: SpotifyIcon,
+  youtube: YoutubeIcon,
+  apple: AppleMusicIcon,
 };
 
 export default function Footer() {
