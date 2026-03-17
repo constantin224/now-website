@@ -12,9 +12,15 @@ const cormorant = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "Now. — Pop Rock aus Wien",
+  title: { default: "Now. — Pop Rock aus Wien", template: "%s | Now." },
   description:
     "Now. ist eine Pop-Rock-Band aus Wien. Erdige Songs, ehrliche Texte, live auf der Bühne zuhause.",
+  openGraph: {
+    type: "website",
+    locale: "de_AT",
+    url: "https://now-music.at",
+    siteName: "Now.",
+  },
 };
 
 export default function RootLayout({
