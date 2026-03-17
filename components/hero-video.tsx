@@ -30,7 +30,7 @@ export function HeroVideo({ locale }: { locale: Locale }) {
 
   return (
     <section className="h-svh w-full relative overflow-hidden">
-      {/* Video — nur Desktop, nur ohne reduced-motion */}
+      {/* Video Desktop — nur ohne reduced-motion */}
       {!prefersReducedMotion && (
         <video
           ref={videoRef}
@@ -46,14 +46,30 @@ export function HeroVideo({ locale }: { locale: Locale }) {
         </video>
       )}
 
-      {/* Mobile-Fallback / Reduced-Motion-Fallback: Poster-Bild */}
-      <Image
-        src="/album-cover-out.jpg"
-        alt="Now. Band"
-        fill
-        priority
-        className={`object-cover ${prefersReducedMotion ? "block" : "block md:hidden"}`}
-      />
+      {/* Video Mobile — komprimierte Version */}
+      {!prefersReducedMotion && (
+        <video
+          playsInline
+          autoPlay
+          muted
+          loop
+          poster="/video-poster.jpg"
+          className="object-cover absolute inset-0 w-full h-full block md:hidden"
+        >
+          <source src="/video-mobile.mp4" type="video/mp4" />
+        </video>
+      )}
+
+      {/* Reduced-Motion-Fallback: Poster-Bild */}
+      {prefersReducedMotion && (
+        <Image
+          src="/album-cover-out.jpg"
+          alt="Now. Band"
+          fill
+          priority
+          className="object-cover"
+        />
+      )}
 
       {/* Dunkles Overlay */}
       <div className="absolute inset-0 bg-black/50" />
