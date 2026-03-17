@@ -93,21 +93,9 @@ export function HeroVideo({ locale }: { locale: Locale }) {
           loading ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
-        {/* Logo — faded ein */}
-        <div className="animate-loader-logo">
-          <Image
-            src="/logo.png"
-            alt="Now."
-            width={120}
-            height={48}
-            style={{ filter: "invert(1) brightness(0.8)" }}
-            priority
-          />
-        </div>
-
         {/* Terracotta Linie — wächst von links nach rechts */}
-        <div className="mt-8 w-40 h-px bg-line overflow-hidden">
-          <div className="h-full bg-terracotta/60 animate-loader-line" />
+        <div className="w-32 h-px bg-line overflow-hidden">
+          <div className="h-full bg-terracotta/50 animate-loader-line" />
         </div>
       </div>
 
