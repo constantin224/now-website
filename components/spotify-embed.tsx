@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { getMessages, type Locale } from "@/lib/i18n";
 
 type SpotifyEmbedProps = {
   artistId: string;
+  locale: Locale;
 };
 
-export default function SpotifyEmbed({ artistId }: SpotifyEmbedProps) {
+export default function SpotifyEmbed({ artistId, locale }: SpotifyEmbedProps) {
   const [loaded, setLoaded] = useState(false);
+  const t = getMessages(locale);
 
   if (loaded) {
     return (
@@ -28,7 +31,7 @@ export default function SpotifyEmbed({ artistId }: SpotifyEmbedProps) {
       className="w-full h-[352px] rounded-xl bg-bg-section border border-terracotta/20 flex items-center justify-center gap-3 hover:border-terracotta/40 transition-colors"
     >
       <span className="text-terracotta tracking-[2px] uppercase text-[11px]">
-        Auf Spotify anhören
+        {t.music.listen_spotify}
       </span>
     </button>
   );

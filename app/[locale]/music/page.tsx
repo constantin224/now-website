@@ -3,12 +3,27 @@ import Image from "next/image";
 import { releases, videos } from "@/data/releases";
 import YouTubeFacade from "@/components/youtube-facade";
 import SpotifyEmbed from "@/components/spotify-embed";
+import { getMessages, type Locale } from "@/lib/i18n";
 
-export const metadata: Metadata = {
-  title: "Music",
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = getMessages(locale as Locale);
+  return {
+    title: t.music.title,
+  };
+}
 
-export default function MusicPage() {
+export default async function MusicPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  const t = getMessages(locale as Locale);
   const album = releases[0];
 
   return (
@@ -16,7 +31,7 @@ export default function MusicPage() {
       <div className="max-w-4xl mx-auto">
         {/* Section Label */}
         <p className="text-terracotta uppercase tracking-[4px] text-[11px] text-center mb-12">
-          Music
+          {t.music.title}
         </p>
 
         {/* Release Card */}
@@ -92,7 +107,7 @@ export default function MusicPage() {
         {/* Spotify Embed */}
         {album.spotifyEmbedId && (
           <div className="mb-16">
-            <SpotifyEmbed artistId={album.spotifyEmbedId} />
+            <SpotifyEmbed artistId={album.spotifyEmbedId} locale={locale as Locale} />
           </div>
         )}
 
@@ -100,7 +115,7 @@ export default function MusicPage() {
         {videos.length > 0 && (
           <div>
             <p className="text-terracotta uppercase tracking-[4px] text-[11px] mb-8">
-              Videos
+              {t.music.videos_label}
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {videos.map((video) => (

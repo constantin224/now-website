@@ -1,11 +1,26 @@
 import type { Metadata } from "next";
 import { getUpcomingShows, getPastShows, formatShowDate } from "@/lib/shows";
+import { getMessages, type Locale } from "@/lib/i18n";
 
-export const metadata: Metadata = {
-  title: "Shows",
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = getMessages(locale as Locale);
+  return {
+    title: t.shows.title,
+  };
+}
 
-export default function ShowsPage() {
+export default async function ShowsPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  const t = getMessages(locale as Locale);
   const upcoming = getUpcomingShows();
   const past = getPastShows();
 
@@ -14,14 +29,14 @@ export default function ShowsPage() {
       <div className="max-w-4xl mx-auto">
         {/* Section Label */}
         <p className="text-terracotta uppercase tracking-[4px] text-[11px] text-center mb-12">
-          Shows
+          {t.shows.title}
         </p>
 
         {/* Upcoming Shows */}
         {upcoming.length > 0 ? (
           <div className="mb-16">
             <p className="text-terracotta uppercase tracking-[4px] text-[11px] mb-6">
-              Upcoming Shows
+              {t.shows.upcoming}
             </p>
             <div>
               {upcoming.map((show) => (
@@ -43,11 +58,11 @@ export default function ShowsPage() {
                       rel="noopener noreferrer"
                       className="bg-terracotta/10 text-terracotta border border-terracotta/20 text-[8px] tracking-[2px] uppercase px-3 py-1 rounded-full hover:bg-terracotta/20 transition-colors"
                     >
-                      Tickets
+                      {t.shows.tickets}
                     </a>
                   ) : (
                     <span className="bg-terracotta/10 text-terracotta border border-terracotta/20 text-[8px] tracking-[2px] uppercase px-3 py-1 rounded-full">
-                      Free Entry
+                      {t.shows.free_entry}
                     </span>
                   )}
                 </div>
@@ -57,14 +72,14 @@ export default function ShowsPage() {
         ) : (
           /* Booking CTA wenn keine Upcoming Shows */
           <div className="text-center mb-16 py-12">
-            <p className="text-sand/50 mb-2">Keine Shows geplant.</p>
+            <p className="text-sand/50 mb-2">{t.shows.no_shows}</p>
             <p className="text-sand/50">
-              Für Booking-Anfragen:{" "}
+              {t.shows.booking_cta}{" "}
               <a
-                href="mailto:booking@now-music.at"
+                href={`mailto:${t.shows.booking_email}`}
                 className="text-terracotta hover:text-terracotta/80 transition-colors"
               >
-                booking@now-music.at
+                {t.shows.booking_email}
               </a>
             </p>
           </div>
@@ -74,7 +89,7 @@ export default function ShowsPage() {
         {past.length > 0 && (
           <div>
             <p className="text-sand-38 uppercase tracking-[4px] text-[11px] mb-6">
-              Past Shows
+              {t.shows.past}
             </p>
             <div>
               {past.map((show) => (
@@ -90,7 +105,7 @@ export default function ShowsPage() {
                     <span className="text-sand/35 text-sm">{show.city}</span>
                   </div>
                   <span className="bg-sand/5 text-sand-38 border border-sand/8 text-[8px] tracking-[2px] uppercase px-3 py-1 rounded-full">
-                    Played
+                    {t.shows.played}
                   </span>
                 </div>
               ))}
@@ -102,12 +117,12 @@ export default function ShowsPage() {
         {(upcoming.length > 0 || past.length > 0) && (
           <div className="text-center mt-16 pt-12 border-t border-line">
             <p className="text-sand/40 text-sm">
-              Booking:{" "}
+              {t.shows.booking_label}{" "}
               <a
-                href="mailto:booking@now-music.at"
+                href={`mailto:${t.shows.booking_email}`}
                 className="text-terracotta hover:text-terracotta/80 transition-colors"
               >
-                booking@now-music.at
+                {t.shows.booking_email}
               </a>
             </p>
           </div>

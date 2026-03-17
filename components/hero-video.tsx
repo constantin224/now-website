@@ -4,11 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Volume2, VolumeX } from "lucide-react";
+import { getMessages, type Locale } from "@/lib/i18n";
 
-export function HeroVideo() {
+export function HeroVideo({ locale }: { locale: Locale }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isMuted, setIsMuted] = useState(true);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const t = getMessages(locale);
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -70,22 +72,22 @@ export function HeroVideo() {
 
         {/* Subtitle */}
         <p className="mt-4 text-[10px] uppercase tracking-[3px] text-sand-38">
-          Pop Rock aus Wien
+          {t.hero.tagline}
         </p>
 
         {/* CTA Buttons */}
         <div className="mt-8 flex gap-4">
           <Link
-            href="/music"
+            href={`/${locale}/music`}
             className="border border-terracotta/30 bg-terracotta/15 text-terracotta px-7 py-3 text-[10px] tracking-[3px] uppercase hover:bg-terracotta/25 transition"
           >
-            Album anhören
+            {t.hero.cta_album}
           </Link>
           <Link
-            href="/shows"
+            href={`/${locale}/shows`}
             className="border border-sand/10 text-sand-38 px-7 py-3 text-[10px] tracking-[3px] uppercase hover:text-sand transition"
           >
-            Live Termine
+            {t.hero.cta_shows}
           </Link>
         </div>
       </div>
@@ -94,7 +96,7 @@ export function HeroVideo() {
       <div className="absolute bottom-6 left-6 right-6 z-10 flex items-end justify-between">
         {/* Links: Video-Label */}
         <span className="text-sand-38 text-[9px] tracking-[2px]">
-          LIVE AT ARENA WIEN
+          {t.hero.video_label}
         </span>
 
         {/* Mitte: Scroll-Indikator */}
@@ -112,7 +114,7 @@ export function HeroVideo() {
           ) : (
             <Volume2 className="w-3 h-3" />
           )}
-          {isMuted ? "UNMUTE" : "MUTE"}
+          {isMuted ? t.hero.unmute : t.hero.mute}
         </button>
       </div>
     </section>

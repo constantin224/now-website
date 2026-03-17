@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond } from "next/font/google";
-import Navigation from "@/components/navigation";
-import Footer from "@/components/footer";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -24,18 +22,13 @@ export const metadata: Metadata = {
   },
 };
 
+// Font-Variable exportieren für Locale-Layout
+export const fontVariable = cormorant.variable;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <html lang="de" className={cormorant.variable}>
-      <body>
-        <Navigation />
-        <main>{children}</main>
-        <Footer />
-      </body>
-    </html>
-  );
+  return children;
 }

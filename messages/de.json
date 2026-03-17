@@ -1,0 +1,70 @@
+{
+  "nav": {
+    "home": "Home",
+    "about": "About",
+    "music": "Music",
+    "shows": "Shows",
+    "press": "Press"
+  },
+  "hero": {
+    "tagline": "Pop Rock aus Wien",
+    "cta_album": "Album anhören",
+    "cta_shows": "Live Termine",
+    "video_label": "LIVE AT ARENA WIEN",
+    "unmute": "UNMUTE",
+    "mute": "MUTE"
+  },
+  "about": {
+    "title": "About",
+    "description": "Über Now. — Pop-Rock-Band aus Wien",
+    "bio_1": "Now. sind drei Musiker aus Wien, die seit 2019 gemeinsam erdigen Pop-Rock machen. Was als lockere Jam-Sessions begann, wurde schnell zur Band mit eigenem Sound — irgendwo zwischen Alternative Rock und Indie Pop, immer mit Bodenhaftung.",
+    "bio_2": "Mit ihrem Deb\u00fctalbum \u201eOut\u201c (2024, Tonherd Music) haben Now. ihren Weg auf Platte gebracht: ehrliche Songs \u00fcber das Leben, die Liebe und alles dazwischen. Live sind Now. in ihrem Element \u2014 energiegeladen, direkt und nah am Publikum.",
+    "bio_members": "Die Band: [Mitglieder werden ergänzt]"
+  },
+  "music": {
+    "title": "Music",
+    "videos_label": "Videos",
+    "listen_spotify": "Auf Spotify anhören"
+  },
+  "shows": {
+    "title": "Shows",
+    "upcoming": "Upcoming Shows",
+    "past": "Past Shows",
+    "tickets": "Tickets",
+    "free_entry": "Free Entry",
+    "played": "Played",
+    "no_shows": "Keine Shows geplant.",
+    "booking_cta": "Für Booking-Anfragen:",
+    "booking_label": "Booking:",
+    "booking_email": "booking@now-music.at"
+  },
+  "press": {
+    "title": "Press / EPK",
+    "description": "Electronic Press Kit — Now.",
+    "photo_label": "Pressefoto 2",
+    "download_all": "Alle Pressefotos herunterladen (ZIP)",
+    "download_onesheet": "One-Sheet herunterladen (PDF)",
+    "booking": "Booking",
+    "management": "Management",
+    "label": "Label",
+    "press_bio": "Now. sind eine Pop-Rock-Band aus Wien. Seit 2019 machen die drei Musiker erdige, ehrliche Songs \u2014 irgendwo zwischen Alternative Rock und Indie Pop. Ihr Deb\u00fctalbum \u201eOut\u201c erschien 2024 auf Tonherd Music. Live sind Now. in ihrem Element: energiegeladen, direkt, nah am Publikum."
+  },
+  "impressum": {
+    "title": "Impressum",
+    "legal_note": "Informationspflicht laut §5 E-Commerce Gesetz (ECG)",
+    "business": "Unternehmensgegenstand: Tonstudio und Musiklabel",
+    "privacy_title": "Datenschutz",
+    "privacy_text_1": "Diese Website verwendet keine Cookies und sammelt keine personenbezogenen Daten.",
+    "privacy_text_2": "Externe Inhalte (YouTube, Spotify) werden erst nach Interaktion geladen.",
+    "address_tbd": "[Adresse wird ergänzt]",
+    "uid_tbd": "[wird ergänzt]"
+  },
+  "footer": {
+    "released_via": "Released via",
+    "impressum": "Impressum"
+  },
+  "meta": {
+    "site_title": "Now. — Pop Rock aus Wien",
+    "site_description": "Now. ist eine Pop-Rock-Band aus Wien. Erdige Songs, ehrliche Texte, live auf der Bühne zuhause."
+  }
+}

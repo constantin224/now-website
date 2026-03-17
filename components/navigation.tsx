@@ -5,21 +5,26 @@ import { usePathname } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
+import { getMessages, type Locale } from "@/lib/i18n";
 
-const navLinks = [
-  { label: "Home", href: "/" },
-  { label: "About", href: "/about" },
-  { label: "Music", href: "/music" },
-  { label: "Shows", href: "/shows" },
-  { label: "Press", href: "/press" },
-];
-
-export default function Navigation() {
+export default function Navigation({ locale }: { locale: Locale }) {
   const pathname = usePathname();
+  const t = getMessages(locale);
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const isHome = pathname === "/";
+  const navLinks = [
+    { label: t.nav.home, href: `/${locale}` },
+    { label: t.nav.about, href: `/${locale}/about` },
+    { label: t.nav.music, href: `/${locale}/music` },
+    { label: t.nav.shows, href: `/${locale}/shows` },
+    { label: t.nav.press, href: `/${locale}/press` },
+  ];
+
+  // Aktuellen Pfad ohne Locale-Prefix ermitteln
+  const pathnameWithoutLocale = pathname.replace(/^\/(de|en)/, "") || "/";
+
+  const isHome = pathname === `/${locale}` || pathname === `/${locale}/`;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -46,6 +51,25 @@ export default function Navigation() {
   // Hintergrund: transparent auf Homepage wenn nicht gescrollt, sonst solid
   const showBg = !isHome || scrolled;
 
+  // Sprachwechsler-Komponente
+  const LanguageSwitcher = ({ className }: { className?: string }) => (
+    <div className={`flex items-center gap-2 text-[10px] tracking-[2px] ${className || ""}`}>
+      <Link
+        href={`/de${pathnameWithoutLocale === "/" ? "" : pathnameWithoutLocale}`}
+        className={locale === "de" ? "text-terracotta" : "text-sand-38 hover:text-sand transition-colors"}
+      >
+        DE
+      </Link>
+      <span className="text-sand/20">|</span>
+      <Link
+        href={`/en${pathnameWithoutLocale === "/" ? "" : pathnameWithoutLocale}`}
+        className={locale === "en" ? "text-terracotta" : "text-sand-38 hover:text-sand transition-colors"}
+      >
+        EN
+      </Link>
+    </div>
+  );
+
   return (
     <>
       <nav
@@ -55,7 +79,7 @@ export default function Navigation() {
       >
         <div className="mx-auto flex items-center justify-between px-6 py-4 max-w-7xl">
           {/* Logo */}
-          <Link href="/">
+          <Link href={`/${locale}`}>
             <Image
               src="/logo.png"
               alt="Now. Logo"
@@ -66,23 +90,26 @@ export default function Navigation() {
             />
           </Link>
 
-          {/* Desktop-Links */}
-          <ul className="hidden md:flex items-center gap-8">
-            {navLinks.map((link) => (
-              <li key={link.href}>
-                <Link
-                  href={link.href}
-                  className={`uppercase tracking-[3px] text-[10px] transition-colors ${
-                    pathname === link.href
-                      ? "text-terracotta"
-                      : "text-sand-38 hover:text-sand"
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          {/* Desktop-Links + Sprachwechsler */}
+          <div className="hidden md:flex items-center">
+            <ul className="flex items-center gap-8">
+              {navLinks.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className={`uppercase tracking-[3px] text-[10px] transition-colors ${
+                      pathname === link.href
+                        ? "text-terracotta"
+                        : "text-sand-38 hover:text-sand"
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <LanguageSwitcher className="ml-6" />
+          </div>
 
           {/* Mobile Hamburger */}
           <button
@@ -122,6 +149,8 @@ export default function Navigation() {
               </li>
             ))}
           </ul>
+          {/* Sprachwechsler im Mobile-Menü */}
+          <LanguageSwitcher className="mt-8" />
         </div>
       )}
     </>

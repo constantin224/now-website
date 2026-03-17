@@ -1,0 +1,70 @@
+{
+  "nav": {
+    "home": "Home",
+    "about": "About",
+    "music": "Music",
+    "shows": "Shows",
+    "press": "Press"
+  },
+  "hero": {
+    "tagline": "Pop Rock from Vienna",
+    "cta_album": "Listen to Album",
+    "cta_shows": "Live Dates",
+    "video_label": "LIVE AT ARENA WIEN",
+    "unmute": "UNMUTE",
+    "mute": "MUTE"
+  },
+  "about": {
+    "title": "About",
+    "description": "About Now. — Pop rock band from Vienna",
+    "bio_1": "Now. are three musicians from Vienna who have been making earthy pop rock together since 2019. What started as casual jam sessions quickly became a band with their own sound — somewhere between alternative rock and indie pop, always grounded.",
+    "bio_2": "With their debut album 'Out' (2024, Tonherd Music), Now. put their journey on record: honest songs about life, love, and everything in between. Live, Now. are in their element — energetic, direct, and close to the audience.",
+    "bio_members": "The Band: [members to be added]"
+  },
+  "music": {
+    "title": "Music",
+    "videos_label": "Videos",
+    "listen_spotify": "Listen on Spotify"
+  },
+  "shows": {
+    "title": "Shows",
+    "upcoming": "Upcoming Shows",
+    "past": "Past Shows",
+    "tickets": "Tickets",
+    "free_entry": "Free Entry",
+    "played": "Played",
+    "no_shows": "No shows planned.",
+    "booking_cta": "For booking inquiries:",
+    "booking_label": "Booking:",
+    "booking_email": "booking@now-music.at"
+  },
+  "press": {
+    "title": "Press / EPK",
+    "description": "Electronic Press Kit — Now.",
+    "photo_label": "Press Photo 2",
+    "download_all": "Download all press photos (ZIP)",
+    "download_onesheet": "Download one-sheet (PDF)",
+    "booking": "Booking",
+    "management": "Management",
+    "label": "Label",
+    "press_bio": "Now. are a pop rock band from Vienna. Since 2019, the three musicians have been crafting earthy, honest songs — somewhere between alternative rock and indie pop. Their debut album 'Out' was released in 2024 on Tonherd Music. Live, Now. are in their element: energetic, direct, close to the audience."
+  },
+  "impressum": {
+    "title": "Legal Notice",
+    "legal_note": "Information obligation according to §5 E-Commerce Act (ECG)",
+    "business": "Business purpose: Recording studio and music label",
+    "privacy_title": "Privacy",
+    "privacy_text_1": "This website does not use cookies and does not collect personal data.",
+    "privacy_text_2": "External content (YouTube, Spotify) is only loaded after interaction.",
+    "address_tbd": "[Address to be added]",
+    "uid_tbd": "[to be added]"
+  },
+  "footer": {
+    "released_via": "Released via",
+    "impressum": "Legal Notice"
+  },
+  "meta": {
+    "site_title": "Now. — Pop Rock from Vienna",
+    "site_description": "Now. is a pop rock band from Vienna. Earthy songs, honest lyrics, at home on stage."
+  }
+}

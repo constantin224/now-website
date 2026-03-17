@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { socialLinks } from "@/data/social";
 import { SpotifyIcon, InstagramIcon, FacebookIcon, YoutubeIcon, AppleMusicIcon } from "@/components/social-icons";
+import { getMessages, type Locale } from "@/lib/i18n";
 
 // Icon-Mapping: social.ts icon-String → Brand-SVG-Komponente
 const iconMap: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -11,7 +12,9 @@ const iconMap: Record<string, React.ComponentType<{ size?: number; className?: s
   apple: AppleMusicIcon,
 };
 
-export default function Footer() {
+export default function Footer({ locale }: { locale: Locale }) {
+  const t = getMessages(locale);
+
   return (
     <footer className="bg-bg-section border-t border-line">
       <div className="mx-auto max-w-7xl px-6 py-16 flex flex-col items-center gap-8">
@@ -37,7 +40,7 @@ export default function Footer() {
 
         {/* Label Branding */}
         <p className="text-sand-38 text-xs tracking-wide">
-          Released via{" "}
+          {t.footer.released_via}{" "}
           <a
             href="https://tonherd.com"
             target="_blank"
@@ -52,10 +55,10 @@ export default function Footer() {
         <div className="flex flex-col items-center gap-2 text-sand-38 text-[11px] tracking-wide">
           <p>&copy; 2026 Now. &middot; Tonherd Music &middot; Wien</p>
           <Link
-            href="/impressum"
+            href={`/${locale}/impressum`}
             className="hover:text-terracotta transition-colors"
           >
-            Impressum
+            {t.footer.impressum}
           </Link>
         </div>
       </div>
