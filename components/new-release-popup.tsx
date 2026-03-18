@@ -16,7 +16,6 @@ export default function NewReleasePopup({ release, locale }: Props) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    // Nur einmal pro Session zeigen, und nur wenn sich der Release geändert hat
     const dismissed = sessionStorage.getItem(STORAGE_KEY);
     if (dismissed === release.title) return;
 
@@ -50,72 +49,140 @@ export default function NewReleasePopup({ release, locale }: Props) {
       : "Available now on all platforms";
 
   return (
-    <div className="fixed bottom-6 right-6 z-[90] animate-slide-up max-w-sm">
-      <div className="bg-bg-section/95 backdrop-blur-md border border-line rounded-lg shadow-2xl shadow-black/50 overflow-hidden">
-        {/* Schließen-Button */}
-        <button
-          onClick={dismiss}
-          className="absolute top-3 right-3 z-10 text-sand-38 hover:text-sand transition-colors cursor-pointer"
-          aria-label="Schließen"
-        >
-          <X size={16} />
-        </button>
+    <>
+      {/* Desktop: Kompaktes Pop-up unten rechts */}
+      <div className="hidden md:block fixed bottom-6 right-6 z-[90] animate-slide-up max-w-sm">
+        <div className="bg-bg-section/95 backdrop-blur-md border border-line rounded-lg shadow-2xl shadow-black/50 overflow-hidden">
+          <button
+            onClick={dismiss}
+            className="absolute top-3 right-3 z-10 text-sand-38 hover:text-sand transition-colors cursor-pointer"
+            aria-label="Schließen"
+          >
+            <X size={16} />
+          </button>
 
-        <div className="flex gap-4 p-4">
-          {/* Cover */}
-          <div className="shrink-0 relative w-20 h-20 rounded overflow-hidden">
-            <Image
-              src={release.cover}
-              alt={release.title}
-              fill
-              className="object-cover"
-              unoptimized
-            />
+          <div className="flex gap-4 p-4">
+            <div className="shrink-0 relative w-20 h-20 rounded overflow-hidden">
+              <Image
+                src={release.cover}
+                alt={release.title}
+                fill
+                className="object-cover"
+                unoptimized
+              />
+            </div>
+            <div className="flex flex-col justify-center min-w-0 pr-6">
+              <span className="text-terracotta text-[9px] uppercase tracking-[3px] mb-1">
+                {typeLabel}
+              </span>
+              <h3 className="text-sand text-sm font-medium tracking-wide truncate">
+                {release.title}
+              </h3>
+              <p className="text-sand-38 text-[10px] mt-1">{outNowText}</p>
+            </div>
           </div>
 
-          {/* Info */}
-          <div className="flex flex-col justify-center min-w-0 pr-6">
-            <span className="text-terracotta text-[9px] uppercase tracking-[3px] mb-1">
-              {typeLabel}
-            </span>
-            <h3 className="text-sand text-sm font-medium tracking-wide truncate">
-              {release.title}
-            </h3>
-            <p className="text-sand-38 text-[10px] mt-1">{outNowText}</p>
+          <div className="flex border-t border-line">
+            <a
+              href={release.links.spotify}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={dismiss}
+              className="flex-1 text-center py-2.5 text-[9px] uppercase tracking-[2px] text-terracotta hover:bg-terracotta/10 transition-colors border-r border-line"
+            >
+              Spotify
+            </a>
+            <a
+              href={release.links.apple}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={dismiss}
+              className="flex-1 text-center py-2.5 text-[9px] uppercase tracking-[2px] text-terracotta hover:bg-terracotta/10 transition-colors border-r border-line"
+            >
+              Apple
+            </a>
+            <a
+              href={release.links.deezer}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={dismiss}
+              className="flex-1 text-center py-2.5 text-[9px] uppercase tracking-[2px] text-terracotta hover:bg-terracotta/10 transition-colors"
+            >
+              Deezer
+            </a>
           </div>
-        </div>
-
-        {/* Streaming-Links */}
-        <div className="flex border-t border-line">
-          <a
-            href={release.links.spotify}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={dismiss}
-            className="flex-1 text-center py-2.5 text-[9px] uppercase tracking-[2px] text-terracotta hover:bg-terracotta/10 transition-colors border-r border-line"
-          >
-            Spotify
-          </a>
-          <a
-            href={release.links.apple}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={dismiss}
-            className="flex-1 text-center py-2.5 text-[9px] uppercase tracking-[2px] text-terracotta hover:bg-terracotta/10 transition-colors border-r border-line"
-          >
-            Apple
-          </a>
-          <a
-            href={release.links.deezer}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={dismiss}
-            className="flex-1 text-center py-2.5 text-[9px] uppercase tracking-[2px] text-terracotta hover:bg-terracotta/10 transition-colors"
-          >
-            Deezer
-          </a>
         </div>
       </div>
-    </div>
+
+      {/* Mobile: Full-Width-Banner von unten */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-[90] animate-slide-up">
+        <div className="bg-bg-section/98 backdrop-blur-lg border-t border-line shadow-2xl shadow-black/60">
+          {/* Schließen */}
+          <button
+            onClick={dismiss}
+            className="absolute top-3 right-4 z-10 text-sand-38 hover:text-sand transition-colors cursor-pointer"
+            aria-label="Schließen"
+          >
+            <X size={18} />
+          </button>
+
+          {/* Content */}
+          <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+            {/* Cover */}
+            <div className="shrink-0 relative w-14 h-14 rounded overflow-hidden">
+              <Image
+                src={release.cover}
+                alt={release.title}
+                fill
+                className="object-cover"
+                unoptimized
+              />
+            </div>
+
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <span className="text-terracotta text-[8px] uppercase tracking-[3px]">
+                {typeLabel}
+              </span>
+              <h3 className="text-sand text-[13px] font-medium tracking-wide truncate mt-0.5">
+                {release.title}
+              </h3>
+              <p className="text-sand-38 text-[9px] mt-0.5">{outNowText}</p>
+            </div>
+          </div>
+
+          {/* Streaming-Links als Buttons */}
+          <div className="flex gap-2 px-4 pb-4 pt-1">
+            <a
+              href={release.links.spotify}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={dismiss}
+              className="flex-1 text-center py-2.5 text-[9px] uppercase tracking-[2px] text-terracotta bg-terracotta/8 border border-terracotta/15 rounded-md active:bg-terracotta/20 transition-colors"
+            >
+              Spotify
+            </a>
+            <a
+              href={release.links.apple}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={dismiss}
+              className="flex-1 text-center py-2.5 text-[9px] uppercase tracking-[2px] text-terracotta bg-terracotta/8 border border-terracotta/15 rounded-md active:bg-terracotta/20 transition-colors"
+            >
+              Apple
+            </a>
+            <a
+              href={release.links.deezer}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={dismiss}
+              className="flex-1 text-center py-2.5 text-[9px] uppercase tracking-[2px] text-terracotta bg-terracotta/8 border border-terracotta/15 rounded-md active:bg-terracotta/20 transition-colors"
+            >
+              Deezer
+            </a>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
