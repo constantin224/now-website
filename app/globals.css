@@ -20,7 +20,7 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  html { scroll-behavior: smooth; }
+  /* scroll-behavior entfernt -- Lenis uebernimmt auf Desktop, Mobile braucht es nicht */
   ::selection {
     background-color: rgba(160, 115, 82, 0.3);
     color: var(--color-sand);
