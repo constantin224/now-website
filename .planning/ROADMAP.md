@@ -28,11 +28,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. User mit `prefers-reduced-motion` sieht keine Animationen -- Seite funktioniert statisch einwandfrei
   3. Parallax, Grain und Cursor-Effekte werden auf Mobile/Touch-Geraeten nicht geladen oder ausgefuehrt
   4. Ein wiederverwendbarer Scroll-Reveal-Hook existiert und raeumt bei Route-Wechsel sauber auf (kein Memory Leak)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md — GSAP + Lenis Infrastruktur, SmoothScrollProvider, Layout-Integration
+- [ ] 01-02-PLAN.md — useScrollReveal Hook, Media-Query Utilities, manuelle Verifikation
 
 ### Phase 2: Scroll Reveals & Typografie
 **Goal**: Jede Sektion der Website erscheint beim Scrollen mit einer smooth Animation, die Typografie wirkt mutig und professionell, und der Content-Flow fuehlt sich durchdacht an
