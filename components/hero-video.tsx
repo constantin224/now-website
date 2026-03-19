@@ -79,10 +79,10 @@ export function HeroVideo({ locale }: { locale: Locale }) {
   }, [prefersReducedMotion]);
 
   const toggleMute = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !videoRef.current.muted;
-      setIsMuted(videoRef.current.muted);
-    }
+    const newMuted = !isMuted;
+    if (videoRef.current) videoRef.current.muted = newMuted;
+    if (mobileVideoRef.current) mobileVideoRef.current.muted = newMuted;
+    setIsMuted(newMuted);
   };
 
   return (
@@ -114,7 +114,6 @@ export function HeroVideo({ locale }: { locale: Locale }) {
               revealHero ? "opacity-100" : "opacity-0"
             }`}
           >
-            <source src="/video.webm" type="video/webm" />
             <source src="/video.mp4" type="video/mp4" />
           </video>
         )}

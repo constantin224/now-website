@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SpotifyIcon } from "@/components/social-icons";
 import { getMessages, type Locale } from "@/lib/i18n";
 
 type SpotifyEmbedProps = {
@@ -28,9 +29,10 @@ export default function SpotifyEmbed({ artistId, locale }: SpotifyEmbedProps) {
   return (
     <button
       onClick={() => setLoaded(true)}
-      className="w-full h-[352px] rounded-xl bg-bg-section border border-terracotta/20 flex items-center justify-center gap-3 hover:border-terracotta/40 transition-colors"
+      className="w-full h-20 rounded-xl bg-bg-section border border-line hover:border-terracotta/30 transition-colors flex items-center justify-center gap-3 group cursor-pointer"
     >
-      <span className="text-terracotta tracking-[2px] uppercase text-[11px]">
+      <SpotifyIcon size={22} className="text-[#1DB954] opacity-70 group-hover:opacity-100 transition-opacity" />
+      <span className="text-sand/50 group-hover:text-sand/70 tracking-[2px] uppercase text-[10px] transition-colors">
         {t.music.listen_spotify}
       </span>
     </button>

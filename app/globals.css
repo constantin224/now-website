@@ -71,3 +71,82 @@
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Bandsintown Widget — Design-Overrides */
+.bit-widget .bit-top-track-button,
+.bit-widget .bit-follow-section {
+  display: none !important;
+}
+
+/* Event-Zeilen */
+.bit-widget .bit-event {
+  border-bottom: 1px solid rgba(160, 115, 82, 0.12) !important;
+  padding: 1rem 0 !important;
+}
+
+/* Datum */
+.bit-widget .bit-date {
+  font-size: 0.8rem !important;
+  letter-spacing: 0.05em !important;
+  color: rgba(212, 203, 190, 0.7) !important;
+}
+
+/* Venue & Location */
+.bit-widget .bit-venue,
+.bit-widget .bit-location {
+  font-size: 0.85rem !important;
+  color: rgba(212, 203, 190, 0.5) !important;
+}
+
+.bit-widget .bit-venue {
+  color: rgba(160, 115, 82, 0.9) !important;
+}
+
+/* RSVP/Ticket Buttons — schlank und passend */
+.bit-widget .bit-rsvp,
+.bit-widget .bit-ticket,
+.bit-widget a[class*="ticket"],
+.bit-widget a[class*="rsvp"],
+.bit-widget .bit-button {
+  background: rgba(160, 115, 82, 0.1) !important;
+  border: 1px solid rgba(160, 115, 82, 0.2) !important;
+  color: rgba(160, 115, 82, 1) !important;
+  font-size: 8px !important;
+  letter-spacing: 2px !important;
+  text-transform: uppercase !important;
+  padding: 6px 14px !important;
+  border-radius: 9999px !important;
+  transition: background 0.2s !important;
+  min-width: auto !important;
+  height: auto !important;
+  line-height: 1.4 !important;
+}
+
+.bit-widget .bit-rsvp:hover,
+.bit-widget .bit-ticket:hover,
+.bit-widget a[class*="ticket"]:hover,
+.bit-widget a[class*="rsvp"]:hover,
+.bit-widget .bit-button:hover {
+  background: rgba(160, 115, 82, 0.2) !important;
+}
+
+/* No-shows Text */
+.bit-widget .bit-no-dates-container,
+.bit-widget .bit-no-dates {
+  color: rgba(212, 203, 190, 0.4) !important;
+  font-size: 0.875rem !important;
+}
+
+/* Widget-Hintergrund transparent */
+.bit-widget {
+  background: transparent !important;
+}
+
+/* Logos/Branding vom Widget ausblenden */
+.bit-widget .bit-logo,
+.bit-widget .bit-powered-by,
+.bit-widget img[src*="bandsintown"],
+.bit-widget [class*="powered"],
+.bit-widget [class*="branding"] {
+  display: none !important;
+}

@@ -17,14 +17,20 @@
   "about": {
     "title": "About",
     "description": "Über Now. — Pop-Rock-Band aus Wien",
-    "bio_1": "Now. sind drei Musiker aus Wien, die seit 2019 gemeinsam erdigen Pop-Rock machen. Was als lockere Jam-Sessions begann, wurde schnell zur Band mit eigenem Sound — irgendwo zwischen Alternative Rock und Indie Pop, immer mit Bodenhaftung.",
-    "bio_2": "Mit ihrem Deb\u00fctalbum \u201eOut\u201c (2024, Tonherd Music) haben Now. ihren Weg auf Platte gebracht: ehrliche Songs \u00fcber das Leben, die Liebe und alles dazwischen. Live sind Now. in ihrem Element \u2014 energiegeladen, direkt und nah am Publikum.",
-    "bio_members": "Die Band: [Mitglieder werden ergänzt]"
+    "bio_1": "Now. steht für PopRock aus Österreich, der mitreißt, berührt und nach vorne geht — ehrlich, handgemacht und voller Energie. Valentin Bröderbauer (Gesang, Gitarre), Chris Sztrakati (Drums) und Constantin Kaiser (Bass, Synth) vereinen eingängige Hooks mit Tiefgang und schaffen Songs, die sofort ins Ohr gehen und lange nachhallen.",
+    "bio_2": "Nach über zehn Jahren Erfahrung als Musiker, Produzenten und Songwriter für renommierte Künstler:innen wie Josh., Ina Regen, Conchita, Thorsteinn Einarsson oder Lemo fiel 2020 der Startschuss: Zeit für den eigenen Weg. Zeit für Now.",
+    "bio_3": "Die Debütsingle \u201eWastin' Days\u201c fand direkt ihren Weg ins Airplay mehrerer österreichischer Radiostationen. Mit weiteren Releases wie \u201eStay\u201c, \u201eLet Go\u201c und \u201eLay It Down\u201c festigte die Band ihren Sound — regelmäßig in Playlists und auf Sendern wie Radio Wien, 88.6 und Life Radio.",
+    "bio_4": "Gemeinsam mit Produzent Florian Koch begann 2023 die intensive Arbeit am Debütalbum. Das Ergebnis: \u201eOUT\u201c, erschienen im Oktober 2024 — ein kraftvolles Album mit 15 Songs, die Ehrlichkeit, Tiefe und Leichtigkeit auf einzigartige Weise verbinden. Spätestens beim ausverkauften Release-Konzert im Aera Wien war klar: Now. trifft den Nerv der Zeit.",
+    "bio_5": "Im Herbst 2026 erscheint das zweite Album. Alle Songs entstehen im bandeigenen Studio — jede Note, jeder Beat, jede Zeile trägt ihre unverwechselbare Handschrift.",
+    "bio_members": "Valentin Bröderbauer — Gesang, Gitarre\nChris Sztrakati — Drums\nConstantin Kaiser — Bass, Synth"
   },
   "music": {
     "title": "Music",
+    "discography": "Discography",
+    "latest_release": "Aktuelles Release",
     "videos_label": "Videos",
-    "listen_spotify": "Auf Spotify anhören"
+    "listen_spotify": "Auf Spotify anhören",
+    "listen_on": "Anhören"
   },
   "shows": {
     "title": "Shows",
@@ -47,7 +53,7 @@
     "booking": "Booking",
     "management": "Management",
     "label": "Label",
-    "press_bio": "Now. sind eine Pop-Rock-Band aus Wien. Seit 2019 machen die drei Musiker erdige, ehrliche Songs \u2014 irgendwo zwischen Alternative Rock und Indie Pop. Ihr Deb\u00fctalbum \u201eOut\u201c erschien 2024 auf Tonherd Music. Live sind Now. in ihrem Element: energiegeladen, direkt, nah am Publikum."
+    "press_bio": "Now. steht für PopRock aus Österreich, der mitreißt, berührt und nach vorne geht — ehrlich, handgemacht und voller Energie. Valentin Bröderbauer (Gesang, Gitarre), Chris Sztrakati (Drums) und Constantin Kaiser (Bass, Synth) vereinen eingängige Hooks mit Tiefgang. Nach über zehn Jahren Erfahrung als Musiker und Songwriter für Künstler:innen wie Josh., Ina Regen und Conchita fiel 2020 der Startschuss für den eigenen Weg. Das Debütalbum \u201eOUT\u201c erschien im Oktober 2024 — 15 Songs, die Ehrlichkeit, Tiefe und Leichtigkeit verbinden. Im Herbst 2026 folgt das zweite Album."
   },
   "impressum": {
     "title": "Impressum",

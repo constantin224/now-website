@@ -51,7 +51,7 @@ export default function NewReleasePopup({ release, locale }: Props) {
   return (
     <>
       {/* Desktop: Kompaktes Pop-up unten rechts */}
-      <div className="hidden md:block fixed bottom-6 right-6 z-[90] animate-slide-up max-w-sm">
+      <div className="hidden md:block fixed bottom-20 right-6 z-[90] animate-slide-up max-w-sm">
         <div className="bg-bg-section/95 backdrop-blur-md border border-line rounded-lg shadow-2xl shadow-black/50 overflow-hidden">
           <button
             onClick={dismiss}

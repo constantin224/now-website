@@ -1,17 +1,10 @@
 import { notFound } from "next/navigation";
-import { Cormorant_Garamond } from "next/font/google";
 import { isValidLocale, type Locale } from "@/lib/i18n";
+import { fontVariable } from "@/app/layout";
 import Navigation from "@/components/navigation";
 import Footer from "@/components/footer";
 import NewReleasePopup from "@/components/new-release-popup";
 import { getLatestRelease } from "@/lib/deezer";
-
-const cormorant = Cormorant_Garamond({
-  subsets: ["latin"],
-  weight: ["300", "400", "600"],
-  variable: "--font-heading",
-  display: "swap",
-});
 
 export function generateStaticParams() {
   return [{ locale: "de" }, { locale: "en" }];
@@ -30,7 +23,7 @@ export default async function LocaleLayout({
   const latestRelease = await getLatestRelease();
 
   return (
-    <html lang={locale} className={cormorant.variable}>
+    <html lang={locale} className={fontVariable}>
       <body>
         <Navigation locale={locale as Locale} />
         <main>{children}</main>
