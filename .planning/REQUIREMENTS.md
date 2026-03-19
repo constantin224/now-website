@@ -79,32 +79,32 @@ Deferred für zukünftige Releases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ANIM-01 | — | Pending |
-| ANIM-02 | — | Pending |
-| ANIM-03 | — | Pending |
-| ANIM-04 | — | Pending |
-| ANIM-05 | — | Pending |
-| TYPO-01 | — | Pending |
-| TYPO-02 | — | Pending |
-| TYPO-03 | — | Pending |
-| TYPO-04 | — | Pending |
-| INTX-01 | — | Pending |
-| INTX-02 | — | Pending |
-| INTX-03 | — | Pending |
-| DPTH-01 | — | Pending |
-| DPTH-02 | — | Pending |
-| DPTH-03 | — | Pending |
-| DPTH-04 | — | Pending |
-| PAGE-01 | — | Pending |
-| PAGE-02 | — | Pending |
-| STRUC-01 | — | Pending |
-| STRUC-02 | — | Pending |
+| ANIM-01 | Phase 2 | Pending |
+| ANIM-02 | Phase 1 | Pending |
+| ANIM-03 | Phase 1 | Pending |
+| ANIM-04 | Phase 1 | Pending |
+| ANIM-05 | Phase 1 | Pending |
+| TYPO-01 | Phase 2 | Pending |
+| TYPO-02 | Phase 2 | Pending |
+| TYPO-03 | Phase 2 | Pending |
+| TYPO-04 | Phase 2 | Pending |
+| INTX-01 | Phase 4 | Pending |
+| INTX-02 | Phase 4 | Pending |
+| INTX-03 | Phase 4 | Pending |
+| DPTH-01 | Phase 3 | Pending |
+| DPTH-02 | Phase 3 | Pending |
+| DPTH-03 | Phase 3 | Pending |
+| DPTH-04 | Phase 3 | Pending |
+| PAGE-01 | Phase 4 | Pending |
+| PAGE-02 | Phase 4 | Pending |
+| STRUC-01 | Phase 2 | Pending |
+| STRUC-02 | Phase 2 | Pending |
 
 **Coverage:**
 - v1 requirements: 20 total
-- Mapped to phases: 0
-- Unmapped: 20 ⚠️
+- Mapped to phases: 20
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-19*
-*Last updated: 2026-03-19 after initial definition*
+*Last updated: 2026-03-19 after roadmap creation*
