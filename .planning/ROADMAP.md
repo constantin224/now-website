@@ -12,7 +12,7 @@ Die bestehende Now.-Website wird in 4 Phasen zum cinematischen Premium-Erlebnis 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Animation Foundation** - GSAP + Lenis Setup, Mobile Guard, Accessibility, Core Hooks
+- [x] **Phase 1: Animation Foundation** - GSAP + Lenis Setup, Mobile Guard, Accessibility, Core Hooks (completed 2026-03-19)
 - [ ] **Phase 2: Scroll Reveals & Typografie** - Section-Reveals, Typografie-Overhaul, Content-Flow und Spacing
 - [ ] **Phase 3: Visuelle Tiefe** - Parallax, Staggered Grids, Grain Overlay, Section-Uebergaenge
 - [ ] **Phase 4: Polish & Delight** - Hover-Feedback, Magnetic Buttons, Custom Cursor, Page Transitions
@@ -88,7 +88,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Animation Foundation | 0/2 | Not started | - |
+| 1. Animation Foundation | 2/2 | Complete   | 2026-03-19 |
 | 2. Scroll Reveals & Typografie | 0/3 | Not started | - |
 | 3. Visuelle Tiefe | 0/2 | Not started | - |
 | 4. Polish & Delight | 0/2 | Not started | - |
