@@ -10,10 +10,10 @@ Requirements für das Premium Visual Upgrade. Jede mapped zu einer Roadmap-Phase
 ### Animation Foundation
 
 - [ ] **ANIM-01**: Scroll-triggered Fade/Slide Reveals auf allen Content-Sektionen mit GSAP ScrollTrigger
-- [ ] **ANIM-02**: Smooth Scroll via Lenis mit korrektem GSAP Ticker Sync (Desktop only, Mobile native)
+- [x] **ANIM-02**: Smooth Scroll via Lenis mit korrektem GSAP Ticker Sync (Desktop only, Mobile native)
 - [ ] **ANIM-03**: `prefers-reduced-motion` Support — alle Animationen respektieren User-Einstellung
 - [ ] **ANIM-04**: useScrollReveal Hook mit IntersectionObserver/ScrollTrigger und automatischem Cleanup via useGSAP
-- [ ] **ANIM-05**: Mobile Guard — Parallax, Grain, Cursor-Effekte nur auf Desktop via matchMedia
+- [x] **ANIM-05**: Mobile Guard — Parallax, Grain, Cursor-Effekte nur auf Desktop via matchMedia
 
 ### Typografie & Spacing
 
@@ -80,10 +80,10 @@ Deferred für zukünftige Releases.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | ANIM-01 | Phase 2 | Pending |
-| ANIM-02 | Phase 1 | Pending |
+| ANIM-02 | Phase 1 | Complete |
 | ANIM-03 | Phase 1 | Pending |
 | ANIM-04 | Phase 1 | Pending |
-| ANIM-05 | Phase 1 | Pending |
+| ANIM-05 | Phase 1 | Complete |
 | TYPO-01 | Phase 2 | Pending |
 | TYPO-02 | Phase 2 | Pending |
 | TYPO-03 | Phase 2 | Pending |
