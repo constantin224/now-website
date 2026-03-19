@@ -5,6 +5,7 @@ import YouTubeFacade from "@/components/youtube-facade";
 import SpotifyEmbed from "@/components/spotify-embed";
 import { getMessages, type Locale } from "@/lib/i18n";
 import { getAllReleases } from "@/lib/deezer";
+import { ScrollReveal } from "@/components/scroll-reveal";
 
 export async function generateMetadata({
   params,
@@ -42,7 +43,7 @@ export default async function MusicPage({
   const discography = allReleases.slice(1);
 
   return (
-    <section className="pt-32 pb-20 px-6">
+    <section className="pt-[var(--spacing-section-lg)] pb-[var(--spacing-section)] px-6">
       <div className="max-w-5xl mx-auto">
         {/* Section Label */}
         <p className="text-terracotta uppercase tracking-[4px] text-[11px] text-center mb-16">
@@ -51,11 +52,11 @@ export default async function MusicPage({
 
         {/* Featured / Neuestes Release */}
         {featured && (
-          <>
+          <ScrollReveal className="mb-[var(--spacing-block)]">
             <p className="text-terracotta uppercase tracking-[4px] text-[11px] mb-8">
               {t.music.latest_release}
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-14 mb-20 items-center">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-14 items-center">
               {/* Cover — groß & prominent */}
               <a
                 href="https://hypeddit.com/now-music"
@@ -80,7 +81,7 @@ export default async function MusicPage({
                   <p className="text-terracotta text-[9px] uppercase tracking-[3px] mb-2">
                     {typeLabel(featured.type, locale)}
                   </p>
-                  <h2 className="font-heading text-4xl md:text-5xl text-sand/90 mb-2">
+                  <h2 className="font-heading text-[length:var(--text-h1)] tracking-[var(--tracking-heading)] leading-[var(--leading-heading)] text-sand/90 mb-2">
                     {featured.title}
                   </h2>
                   <p className="text-sand/45 text-sm tracking-wide">
@@ -101,17 +102,17 @@ export default async function MusicPage({
                 </div>
               </div>
             </div>
-          </>
+          </ScrollReveal>
         )}
 
         {/* Spotify Embed */}
-        <div className="mb-20">
+        <ScrollReveal className="mb-[var(--spacing-block)]">
           <SpotifyEmbed artistId="46Z2az8XmrXnhr0ej2sr3Q" locale={locale as Locale} />
-        </div>
+        </ScrollReveal>
 
         {/* Discography — alle weiteren Releases */}
         {discography.length > 0 && (
-          <div className="mb-20">
+          <ScrollReveal className="mb-[var(--spacing-block)]">
             <p className="text-terracotta uppercase tracking-[4px] text-[11px] mb-10">
               {t.music.discography}
             </p>
@@ -151,12 +152,12 @@ export default async function MusicPage({
                 </a>
               ))}
             </div>
-          </div>
+          </ScrollReveal>
         )}
 
         {/* Video Grid */}
         {videos.length > 0 && (
-          <div>
+          <ScrollReveal>
             <p className="text-terracotta uppercase tracking-[4px] text-[11px] mb-8">
               {t.music.videos_label}
             </p>
@@ -182,7 +183,7 @@ export default async function MusicPage({
                 ))}
               </div>
             )}
-          </div>
+          </ScrollReveal>
         )}
       </div>
     </section>
