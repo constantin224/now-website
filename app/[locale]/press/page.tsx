@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { Download } from "lucide-react";
 import { getMessages, type Locale } from "@/lib/i18n";
+import { ScrollReveal } from "@/components/scroll-reveal";
 
 export async function generateMetadata({
   params,
@@ -25,14 +26,14 @@ export default async function PressPage({
   const t = getMessages(locale as Locale);
 
   return (
-    <section className="pt-32 pb-20 px-6 max-w-5xl mx-auto">
+    <section className="pt-[var(--spacing-section-lg)] pb-[var(--spacing-section)] px-6 max-w-5xl mx-auto">
       {/* Section Label */}
       <p className="text-terracotta uppercase tracking-[4px] text-[11px] text-center mb-16">
         {t.press.title}
       </p>
 
       {/* Pressefotos */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <ScrollReveal className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <a
           href="/band-photo.jpg"
           download
@@ -65,7 +66,7 @@ export default async function PressPage({
             <Download className="w-8 h-8 text-white" />
           </div>
         </a>
-      </div>
+      </ScrollReveal>
 
       {/* Download-Link — nur anzeigen wenn Datei existiert */}
       {/* TODO: /press/photos.zip erstellen, dann diesen Block aktivieren
@@ -79,14 +80,14 @@ export default async function PressPage({
       */}
 
       {/* Pressetext */}
-      <div className="border-l-2 border-terracotta/30 pl-6 mb-20 mt-12">
+      <ScrollReveal className="border-l-2 border-terracotta/30 pl-6 mb-[var(--spacing-block)] mt-12">
         <p className="text-sand/70 text-lg leading-relaxed">
           {t.press.press_bio}
         </p>
-      </div>
+      </ScrollReveal>
 
       {/* Info Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-16">
+      <ScrollReveal className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-[var(--spacing-block)]" delay={0.15}>
         <div>
           <p className="text-terracotta uppercase tracking-[4px] text-[11px] mb-2">
             {t.press.booking}
@@ -117,7 +118,7 @@ export default async function PressPage({
             Tonherd Music
           </a>
         </div>
-      </div>
+      </ScrollReveal>
 
       {/* One-Sheet — auskommentiert bis PDF existiert
       <a

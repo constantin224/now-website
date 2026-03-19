@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getMessages, type Locale } from "@/lib/i18n";
 import BandsintownWidget from "@/components/bandsintown-widget";
+import { ScrollReveal } from "@/components/scroll-reveal";
 
 export async function generateMetadata({
   params,
@@ -23,7 +24,7 @@ export default async function ShowsPage({
   const t = getMessages(locale as Locale);
 
   return (
-    <section className="pt-32 pb-20 px-6">
+    <section className="pt-[var(--spacing-section-lg)] pb-[var(--spacing-section)] px-6">
       <div className="max-w-4xl mx-auto">
         {/* Section Label */}
         <p className="text-terracotta uppercase tracking-[4px] text-[11px] text-center mb-12">
@@ -31,12 +32,12 @@ export default async function ShowsPage({
         </p>
 
         {/* Bandsintown Widget — automatisch synchronisiert */}
-        <div className="min-h-[200px]">
+        <ScrollReveal className="min-h-[200px]">
           <BandsintownWidget />
-        </div>
+        </ScrollReveal>
 
         {/* Booking CTA */}
-        <div className="text-center mt-16 pt-12 border-t border-line">
+        <ScrollReveal className="text-center mt-[var(--spacing-block)] pt-12 border-t border-line">
           <p className="text-sand/40 text-sm">
             {t.shows.booking_label}{" "}
             <a
@@ -46,7 +47,7 @@ export default async function ShowsPage({
               {t.shows.booking_email}
             </a>
           </p>
-        </div>
+        </ScrollReveal>
       </div>
     </section>
   );
