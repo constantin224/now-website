@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getMessages, type Locale } from "@/lib/i18n";
 import { socialLinks } from "@/data/social";
 import { SpotifyIcon, InstagramIcon, FacebookIcon, YoutubeIcon, AppleMusicIcon } from "@/components/social-icons";
+import { ScrollReveal } from "@/components/scroll-reveal";
 
 const iconMap: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   instagram: InstagramIcon,
@@ -35,27 +36,29 @@ export default async function AboutPage({
   const t = getMessages(locale as Locale);
 
   return (
-    <section className="pt-32 pb-20 px-6">
-      {/* Section Label */}
+    <section className="pt-[var(--spacing-section-lg)] pb-[var(--spacing-section)] px-6">
+      {/* Section Label -- kein ScrollReveal, sofort sichtbar */}
       <p className="text-terracotta uppercase tracking-[4px] text-[11px] text-center mb-16">
         {t.about.title}
       </p>
 
-      {/* Hero-Bild — volle Breite mit Gradient */}
-      <div className="relative h-[50vh] md:h-[60vh] max-w-5xl mx-auto rounded-lg overflow-hidden mb-20">
-        <Image
-          src="/band-photo-3.jpg"
-          alt="Now. — Bandfoto"
-          fill
-          sizes="(max-width: 768px) 100vw, 1024px"
-          className="object-cover"
-          priority
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-bg-base via-bg-base/20 to-transparent" />
-      </div>
+      {/* Hero-Bild — Full-Bleed mit Gradient (STRUC-02) */}
+      <ScrollReveal className="full-bleed mb-[var(--spacing-block)]">
+        <div className="relative h-[50vh] md:h-[70vh] overflow-hidden">
+          <Image
+            src="/band-photo-3.jpg"
+            alt="Now. — Bandfoto"
+            fill
+            sizes="100vw"
+            className="object-cover"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-bg-base via-bg-base/20 to-transparent" />
+        </div>
+      </ScrollReveal>
 
       {/* Bio — zentriert, gut lesbar */}
-      <div className="max-w-2xl mx-auto mb-20">
+      <ScrollReveal className="max-w-2xl mx-auto mb-[var(--spacing-block)]" y={40} duration={1}>
         <p className="text-sand/70 text-lg leading-relaxed mb-8">
           {t.about.bio_1}
         </p>
@@ -71,11 +74,11 @@ export default async function AboutPage({
         <p className="text-sand/70 text-lg leading-relaxed mb-10">
           {t.about.bio_5}
         </p>
+      </ScrollReveal>
 
-        {/* Trennlinie */}
+      {/* Bandmitglieder */}
+      <ScrollReveal className="max-w-2xl mx-auto mb-[var(--spacing-block)]" delay={0.2}>
         <div className="w-12 h-px bg-terracotta/30 mx-auto mb-10" />
-
-        {/* Bandmitglieder */}
         <div className="text-center space-y-1">
           {t.about.bio_members.split("\n").map((member: string) => (
             <p key={member} className="text-sand/45 leading-relaxed tracking-wide">
@@ -83,10 +86,10 @@ export default async function AboutPage({
             </p>
           ))}
         </div>
-      </div>
+      </ScrollReveal>
 
       {/* Social Links + CTA */}
-      <div className="max-w-2xl mx-auto text-center">
+      <ScrollReveal className="max-w-2xl mx-auto text-center" delay={0.1}>
         {/* Social Icons */}
         <div className="flex items-center justify-center gap-6 mb-8">
           {socialLinks.map((link) => {
@@ -122,7 +125,7 @@ export default async function AboutPage({
             Press / EPK
           </Link>
         </div>
-      </div>
+      </ScrollReveal>
 
       {/* JSON-LD MusicGroup Schema */}
       <script
