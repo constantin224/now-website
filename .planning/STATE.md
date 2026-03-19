@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-03-19T11:38:13.192Z"
-last_activity: 2026-03-19 -- Completed 02-01-PLAN.md
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-03-19T11:41:31Z"
+last_activity: 2026-03-19 -- Completed 02-02-PLAN.md
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 5
-  completed_plans: 3
-  percent: 60
+  completed_plans: 4
+  percent: 80
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** Die Website muss sich anfuehlen wie die Homepage eines international etablierten Acts -- smooth, cinematisch, mit Liebe zum Detail -- und dabei auf Mobile einwandfrei performen.
-**Current focus:** Phase 2: Scroll Reveals & Typografie -- Plan 01 complete, continuing with Plan 02
+**Current focus:** Phase 2: Scroll Reveals & Typografie -- Plan 02 complete, continuing with Plan 03
 
 ## Current Position
 
 Phase: 2 of 4 (Scroll Reveals & Typografie)
-Plan: 1 of 3 in current phase
-Status: Plan 02-01 Complete
-Last activity: 2026-03-19 -- Completed 02-01-PLAN.md
+Plan: 2 of 3 in current phase
+Status: Plan 02-02 Complete
+Last activity: 2026-03-19 -- Completed 02-02-PLAN.md
 
-Progress: [██████░░░░] 60%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [██████░░░░] 60%
 | Phase 01 P01 | 2min | 2 tasks | 5 files |
 | Phase 01 P02 | 5min | 3 tasks | 2 files |
 | Phase 02 P01 | 2min | 2 tasks | 3 files |
+| Phase 02 P02 | 2min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,9 @@ Recent decisions affecting current work:
 - 01-02: useGSAP mit scope statt useEffect -- automatisches Cleanup bei Route-Wechsel
 - 02-01: Font-Variable von --font-heading zu --font-cormorant umbenannt fuer saubere Indirektion
 - 02-01: Inter als Body-Font statt system-ui fuer konsistentes Schriftbild
+- 02-02: ScrollReveal als polymorphe Komponente mit 'as' Prop fuer semantisch korrekte Tags
+- 02-02: About Full-Bleed Foto 70vh auf Desktop fuer maximalen visuellen Impact
+- 02-02: Bandmitglieder als eigener ScrollReveal-Block mit delay fuer gestaffeltes Reveal
 
 ### Pending Todos
 
@@ -84,6 +88,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T11:38:13.190Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-03-19T11:41:31Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None

@@ -9,7 +9,7 @@ Requirements für das Premium Visual Upgrade. Jede mapped zu einer Roadmap-Phase
 
 ### Animation Foundation
 
-- [ ] **ANIM-01**: Scroll-triggered Fade/Slide Reveals auf allen Content-Sektionen mit GSAP ScrollTrigger
+- [x] **ANIM-01**: Scroll-triggered Fade/Slide Reveals auf allen Content-Sektionen mit GSAP ScrollTrigger
 - [x] **ANIM-02**: Smooth Scroll via Lenis mit korrektem GSAP Ticker Sync (Desktop only, Mobile native)
 - [x] **ANIM-03**: `prefers-reduced-motion` Support — alle Animationen respektieren User-Einstellung
 - [x] **ANIM-04**: useScrollReveal Hook mit IntersectionObserver/ScrollTrigger und automatischem Cleanup via useGSAP
@@ -42,8 +42,8 @@ Requirements für das Premium Visual Upgrade. Jede mapped zu einer Roadmap-Phase
 
 ### Seitenstruktur
 
-- [ ] **STRUC-01**: Überarbeiteter Content-Flow — Sektionsreihenfolge und -gewichtung für besseren Gesamteindruck
-- [ ] **STRUC-02**: Full-bleed Momente auch außerhalb des Hero (Edge-to-Edge Sektionen)
+- [x] **STRUC-01**: Überarbeiteter Content-Flow — Sektionsreihenfolge und -gewichtung für besseren Gesamteindruck
+- [x] **STRUC-02**: Full-bleed Momente auch außerhalb des Hero (Edge-to-Edge Sektionen)
 
 ## v2 Requirements
 
@@ -79,7 +79,7 @@ Deferred für zukünftige Releases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ANIM-01 | Phase 2 | Pending |
+| ANIM-01 | Phase 2 | Complete |
 | ANIM-02 | Phase 1 | Complete |
 | ANIM-03 | Phase 1 | Complete |
 | ANIM-04 | Phase 1 | Complete |
@@ -97,8 +97,8 @@ Deferred für zukünftige Releases.
 | DPTH-04 | Phase 3 | Pending |
 | PAGE-01 | Phase 4 | Pending |
 | PAGE-02 | Phase 4 | Pending |
-| STRUC-01 | Phase 2 | Pending |
-| STRUC-02 | Phase 2 | Pending |
+| STRUC-01 | Phase 2 | Complete |
+| STRUC-02 | Phase 2 | Complete |
 
 **Coverage:**
 - v1 requirements: 20 total
