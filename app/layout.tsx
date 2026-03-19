@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond } from "next/font/google";
+import { Cormorant_Garamond, Inter } from "next/font/google";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
-  weight: ["300", "400", "600"],
-  variable: "--font-heading",
+  weight: ["300", "400", "600", "700"],
+  variable: "--font-cormorant",
+  display: "swap",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
   display: "swap",
 });
 
@@ -22,8 +28,8 @@ export const metadata: Metadata = {
   },
 };
 
-// Font-Variable exportieren für Locale-Layout
-export const fontVariable = cormorant.variable;
+// Font-Variablen exportieren fuer Locale-Layout
+export const fontVariables = `${cormorant.variable} ${inter.variable}`;
 
 export default function RootLayout({
   children,

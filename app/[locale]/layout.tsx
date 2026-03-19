@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { isValidLocale, type Locale } from "@/lib/i18n";
-import { fontVariable } from "@/app/layout";
+import { fontVariables } from "@/app/layout";
 import Navigation from "@/components/navigation";
 import Footer from "@/components/footer";
 import NewReleasePopup from "@/components/new-release-popup";
@@ -24,7 +24,7 @@ export default async function LocaleLayout({
   const latestRelease = await getLatestRelease();
 
   return (
-    <html lang={locale} className={fontVariable}>
+    <html lang={locale} className={fontVariables}>
       <body>
         <Navigation locale={locale as Locale} />
         <SmoothScrollProvider>
