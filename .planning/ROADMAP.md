@@ -44,12 +44,12 @@ Plans:
   3. Sections haben grosszuegiges, konsistentes Spacing mit einem erkennbaren vertikalen Rhythmus
   4. Font-Loading verursacht keinen sichtbaren Layout Shift (CLS nahe 0)
   5. Es gibt mindestens eine Full-Bleed-Sektion ausserhalb des Hero die Edge-to-Edge laeuft
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
-- [ ] 02-03: TBD
+- [ ] 02-01-PLAN.md — Typography Design Tokens (clamp-Scale, Spacing, Tracking, Leading) und Font-Setup (Inter + Cormorant 700)
+- [ ] 02-02-PLAN.md — ScrollReveal Wrapper-Komponente, About-Page (Full-Bleed + Reveals), Music-Page (Reveals + Typography)
+- [ ] 02-03-PLAN.md — Shows-Page und Press-Page (Reveals + Spacing), visuelle Gesamtverifikation
 
 ### Phase 3: Visuelle Tiefe
 **Goal**: Die Website bekommt cinematische Tiefe durch Parallax-Ebenen, gestaffelte Grid-Animationen, Film-Grain und weiche Section-Uebergaenge
