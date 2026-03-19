@@ -17,10 +17,10 @@ Requirements für das Premium Visual Upgrade. Jede mapped zu einer Roadmap-Phase
 
 ### Typografie & Spacing
 
-- [ ] **TYPO-01**: Überarbeitete Headlines — mutige, übergroße Typografie mit `clamp()` für fluide Größen
-- [ ] **TYPO-02**: Konsistenter Section-Spacing-Rhythmus mit Design Tokens (großzügiges Padding)
-- [ ] **TYPO-03**: Verfeinertes Letter-Spacing und Line-Height System für bessere Lesbarkeit
-- [ ] **TYPO-04**: `next/font` Integration mit size-adjust für CLS-freies Font-Loading
+- [x] **TYPO-01**: Überarbeitete Headlines — mutige, übergroße Typografie mit `clamp()` für fluide Größen
+- [x] **TYPO-02**: Konsistenter Section-Spacing-Rhythmus mit Design Tokens (großzügiges Padding)
+- [x] **TYPO-03**: Verfeinertes Letter-Spacing und Line-Height System für bessere Lesbarkeit
+- [x] **TYPO-04**: `next/font` Integration mit size-adjust für CLS-freies Font-Loading
 
 ### Interaktion & Hover
 
@@ -84,10 +84,10 @@ Deferred für zukünftige Releases.
 | ANIM-03 | Phase 1 | Complete |
 | ANIM-04 | Phase 1 | Complete |
 | ANIM-05 | Phase 1 | Complete |
-| TYPO-01 | Phase 2 | Pending |
-| TYPO-02 | Phase 2 | Pending |
-| TYPO-03 | Phase 2 | Pending |
-| TYPO-04 | Phase 2 | Pending |
+| TYPO-01 | Phase 2 | Complete |
+| TYPO-02 | Phase 2 | Complete |
+| TYPO-03 | Phase 2 | Complete |
+| TYPO-04 | Phase 2 | Complete |
 | INTX-01 | Phase 4 | Pending |
 | INTX-02 | Phase 4 | Pending |
 | INTX-03 | Phase 4 | Pending |

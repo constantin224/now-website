@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 01-02-PLAN.md (Phase 1 Animation Foundation complete)
-last_updated: "2026-03-19T11:16:53.329Z"
-last_activity: 2026-03-19 -- Completed 01-02-PLAN.md
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-03-19T11:38:13.192Z"
+last_activity: 2026-03-19 -- Completed 02-01-PLAN.md
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 100
+  total_plans: 5
+  completed_plans: 3
+  percent: 60
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** Die Website muss sich anfuehlen wie die Homepage eines international etablierten Acts -- smooth, cinematisch, mit Liebe zum Detail -- und dabei auf Mobile einwandfrei performen.
-**Current focus:** Phase 1 complete -- ready for Phase 2: Scroll Reveals & Typografie
+**Current focus:** Phase 2: Scroll Reveals & Typografie -- Plan 01 complete, continuing with Plan 02
 
 ## Current Position
 
-Phase: 1 of 4 (Animation Foundation) -- COMPLETE
-Plan: 2 of 2 in current phase
-Status: Phase 1 Complete
-Last activity: 2026-03-19 -- Completed 01-02-PLAN.md
+Phase: 2 of 4 (Scroll Reveals & Typografie)
+Plan: 1 of 3 in current phase
+Status: Plan 02-01 Complete
+Last activity: 2026-03-19 -- Completed 02-01-PLAN.md
 
-Progress: [██████████] 100%
+Progress: [██████░░░░] 60%
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [██████████] 100%
 *Updated after each plan completion*
 | Phase 01 P01 | 2min | 2 tasks | 5 files |
 | Phase 01 P02 | 5min | 3 tasks | 2 files |
+| Phase 02 P01 | 2min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,8 @@ Recent decisions affecting current work:
 - 01-02: gsap.matchMedia statt manueller reduced-motion Checks -- automatisches Context-Revert
 - 01-02: gsap.from statt gsap.to -- Progressive Enhancement (Content sichtbar ohne JS)
 - 01-02: useGSAP mit scope statt useEffect -- automatisches Cleanup bei Route-Wechsel
+- 02-01: Font-Variable von --font-heading zu --font-cormorant umbenannt fuer saubere Indirektion
+- 02-01: Inter als Body-Font statt system-ui fuer konsistentes Schriftbild
 
 ### Pending Todos
 
@@ -81,6 +84,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19
-Stopped at: Completed 01-02-PLAN.md (Phase 1 Animation Foundation complete)
+Last session: 2026-03-19T11:38:13.190Z
+Stopped at: Completed 02-01-PLAN.md
 Resume file: None

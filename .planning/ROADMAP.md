@@ -89,6 +89,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Animation Foundation | 2/2 | Complete    | 2026-03-19 |
-| 2. Scroll Reveals & Typografie | 0/3 | Not started | - |
+| 2. Scroll Reveals & Typografie | 1/3 | In Progress|  |
 | 3. Visuelle Tiefe | 0/2 | Not started | - |
 | 4. Polish & Delight | 0/2 | Not started | - |
