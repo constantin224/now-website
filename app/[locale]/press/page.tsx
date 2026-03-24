@@ -91,30 +91,51 @@ export default async function PressPage({
           <p className="text-terracotta uppercase tracking-[4px] text-[11px] mb-2">
             {t.press.booking}
           </p>
+          <p className="text-sand/70 text-sm mb-1">OTon Agentur</p>
           <a
             href="mailto:andreas@oton-agentur.at"
-            className="text-sand/70 hover:text-sand transition-colors text-sm"
+            className="text-sand/50 hover:text-sand transition-colors text-xs"
           >
             andreas@oton-agentur.at
           </a>
+          <p className="text-sand/30 text-xs mt-2">
+            via{" "}
+            <a href="mailto:label@tonherd.at" className="text-sand/40 hover:text-sand/60 transition-colors">
+              Tonherd Music
+            </a>
+          </p>
         </div>
         <div>
           <p className="text-terracotta uppercase tracking-[4px] text-[11px] mb-2">
             {t.press.management}
           </p>
-          <p className="text-sand/70 text-sm">Tonherd Music</p>
+          <p className="text-sand/70 text-sm mb-1">Tonherd Music</p>
+          <a
+            href="mailto:label@tonherd.at"
+            className="text-sand/50 hover:text-sand transition-colors text-xs"
+          >
+            label@tonherd.at
+          </a>
         </div>
         <div>
           <p className="text-terracotta uppercase tracking-[4px] text-[11px] mb-2">
             {t.press.label}
           </p>
+          <p className="text-sand/70 text-sm mb-1">
+            <a
+              href="https://tonherd.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sand/70 hover:text-sand transition-colors"
+            >
+              Tonherd Music
+            </a>
+          </p>
           <a
-            href="https://tonherd.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sand/70 hover:text-sand transition-colors text-sm"
+            href="mailto:label@tonherd.at"
+            className="text-sand/50 hover:text-sand transition-colors text-xs"
           >
-            Tonherd Music
+            label@tonherd.at
           </a>
         </div>
       </ScrollReveal>
