@@ -53,8 +53,8 @@ export default function BandsintownWidget() {
         const bg = getComputedStyle(html).backgroundColor;
         const text = html.textContent?.toLowerCase().trim() || "";
 
-        // "Request a Show" verstecken
-        if (text.includes("request") && text.includes("show")) {
+        // "Request a Show" Link verstecken (nur exakter Match)
+        if (text === "request a show" || text === "request a show →") {
           html.style.display = "none";
         }
 
@@ -91,7 +91,7 @@ export default function BandsintownWidget() {
           doc.querySelectorAll("a, div, button, span").forEach((el) => {
             const html = el as HTMLElement;
             const text = html.textContent?.toLowerCase().trim() || "";
-            if (text.includes("request") && text.includes("show")) {
+            if (text === "request a show" || text === "request a show →") {
               html.style.display = "none";
             }
           });
