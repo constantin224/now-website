@@ -3,6 +3,7 @@ import Image from "next/image";
 import { videos } from "@/data/releases";
 import YouTubeFacade from "@/components/youtube-facade";
 import SpotifyEmbed from "@/components/spotify-embed";
+import ReleaseLinkPopup from "@/components/release-links-popup";
 import { getMessages, type Locale } from "@/lib/i18n";
 import { localeMetadata } from "@/lib/seo";
 import { getAllReleases } from "@/lib/deezer";
@@ -59,52 +60,48 @@ export default async function MusicPage({
             <p className="text-terracotta uppercase tracking-[4px] text-[11px] mb-8">
               {t.music.latest_release}
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-14 items-center">
-              {/* Cover — groß & prominent */}
-              <a
-                href="https://hypeddit.com/now-music"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="relative aspect-square max-w-md mx-auto md:mx-0 w-full rounded-lg overflow-hidden shadow-2xl shadow-black/40 group"
-              >
-                <Image
-                  src={featured.cover}
-                  alt={`${featured.title} — Cover`}
-                  fill
-                  sizes="(max-width: 768px) 90vw, 400px"
-                  className="object-cover group-hover:scale-105 transition-transform duration-500"
-                  priority
-                  unoptimized
-                />
-              </a>
-
-              {/* Info */}
-              <div className="flex flex-col gap-6">
-                <div>
-                  <p className="text-terracotta text-[9px] uppercase tracking-[3px] mb-2">
-                    {typeLabel(featured.type, locale)}
-                  </p>
-                  <h2 className="font-heading text-[length:var(--text-h1)] tracking-[var(--tracking-heading)] leading-[var(--leading-heading)] text-sand/90 mb-2">
-                    {featured.title}
-                  </h2>
-                  <p className="text-sand/45 text-sm tracking-wide">
-                    {featured.releaseDate.slice(0, 4)} · Tonherd Music
-                  </p>
+            <ReleaseLinkPopup
+              release={featured}
+              typeLabel={typeLabel(featured.type, locale)}
+              listenLabel={t.music.listen_on}
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-14 items-center">
+                {/* Cover — groß & prominent */}
+                <div className="relative aspect-square max-w-md mx-auto md:mx-0 w-full rounded-lg overflow-hidden shadow-2xl shadow-black/40 group">
+                  <Image
+                    src={featured.cover}
+                    alt={`${featured.title} — Now. ${typeLabel(featured.type, locale)} (${featured.releaseDate.slice(0, 4)})`}
+                    fill
+                    sizes="(max-width: 768px) 90vw, 400px"
+                    className="object-cover group-hover:scale-105 transition-transform duration-500"
+                    priority
+                    unoptimized
+                  />
                 </div>
 
-                {/* Streaming Link */}
-                <div className="flex flex-wrap gap-3">
-                  <a
-                    href="https://hypeddit.com/now-music"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-terracotta/10 text-terracotta border border-terracotta/20 text-[10px] tracking-[2px] uppercase px-5 py-2.5 rounded-full hover:bg-terracotta/20 transition-colors"
-                  >
-                    {t.music.listen_on}
-                  </a>
+                {/* Info */}
+                <div className="flex flex-col gap-6">
+                  <div>
+                    <p className="text-terracotta text-[9px] uppercase tracking-[3px] mb-2">
+                      {typeLabel(featured.type, locale)}
+                    </p>
+                    <h2 className="font-heading text-[length:var(--text-h1)] tracking-[var(--tracking-heading)] leading-[var(--leading-heading)] text-sand/90 mb-2">
+                      {featured.title}
+                    </h2>
+                    <p className="text-sand/45 text-sm tracking-wide">
+                      {featured.releaseDate.slice(0, 4)} · Tonherd Music
+                    </p>
+                  </div>
+
+                  {/* Streaming Link */}
+                  <div className="flex flex-wrap gap-3">
+                    <span className="bg-terracotta/10 text-terracotta border border-terracotta/20 text-[10px] tracking-[2px] uppercase px-5 py-2.5 rounded-full group-hover:bg-terracotta/20 transition-colors">
+                      {t.music.listen_on}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+            </ReleaseLinkPopup>
           </ScrollReveal>
         )}
 
@@ -121,18 +118,17 @@ export default async function MusicPage({
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5 md:gap-6">
               {discography.map((release) => (
-                <a
+                <ReleaseLinkPopup
                   key={release.id}
-                  href="https://hypeddit.com/now-music"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group"
+                  release={release}
+                  typeLabel={typeLabel(release.type, locale)}
+                  listenLabel={t.music.listen_on}
                 >
                   {/* Cover */}
                   <div className="relative aspect-square rounded-lg overflow-hidden mb-3 shadow-lg shadow-black/30">
                     <Image
                       src={release.cover}
-                      alt={`${release.title} — Cover`}
+                      alt={`${release.title} — Now. ${typeLabel(release.type, locale)} (${release.releaseDate.slice(0, 4)})`}
                       fill
                       sizes="(max-width: 640px) 45vw, (max-width: 768px) 30vw, 220px"
                       className="object-cover group-hover:scale-105 transition-transform duration-500"
@@ -152,7 +148,7 @@ export default async function MusicPage({
                   <p className="text-sand/38 text-[10px] tracking-wide mt-0.5">
                     {release.releaseDate.slice(0, 4)} · {typeLabel(release.type, locale)}
                   </p>
-                </a>
+                </ReleaseLinkPopup>
               ))}
             </div>
           </ScrollReveal>
