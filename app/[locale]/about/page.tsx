@@ -36,7 +36,7 @@ export default async function AboutPage({
   const t = getMessages(locale as Locale);
 
   return (
-    <section className="pt-[var(--spacing-section-lg)] pb-[var(--spacing-section)] px-6">
+    <section className="pt-28 md:pt-36 pb-[var(--spacing-section)] px-6">
       {/* Section Label -- kein ScrollReveal, sofort sichtbar */}
       <p className="text-terracotta uppercase tracking-[4px] text-[11px] text-center mb-16">
         {t.about.title}

@@ -26,7 +26,7 @@ export default async function PressPage({
   const t = getMessages(locale as Locale);
 
   return (
-    <section className="pt-[var(--spacing-section-lg)] pb-[var(--spacing-section)] px-6 max-w-5xl mx-auto">
+    <section className="pt-28 md:pt-36 pb-[var(--spacing-section)] px-6 max-w-5xl mx-auto">
       {/* Section Label */}
       <p className="text-terracotta uppercase tracking-[4px] text-[11px] text-center mb-16">
         {t.press.title}
@@ -68,16 +68,15 @@ export default async function PressPage({
         </a>
       </ScrollReveal>
 
-      {/* Download-Link — nur anzeigen wenn Datei existiert */}
-      {/* TODO: /press/photos.zip erstellen, dann diesen Block aktivieren
+      {/* Download-Link für alle Pressefotos */}
       <a
         href="/press/photos.zip"
+        download
         className="inline-flex items-center gap-2 text-terracotta hover:text-sand transition-colors text-sm mb-16"
       >
         <Download className="w-4 h-4" />
         {t.press.download_all}
       </a>
-      */}
 
       {/* Pressetext */}
       <ScrollReveal className="border-l-2 border-terracotta/30 pl-6 mb-[var(--spacing-block)] mt-12">

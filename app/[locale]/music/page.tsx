@@ -43,7 +43,7 @@ export default async function MusicPage({
   const discography = allReleases.slice(1);
 
   return (
-    <section className="pt-[var(--spacing-section-lg)] pb-[var(--spacing-section)] px-6">
+    <section className="pt-28 md:pt-36 pb-[var(--spacing-section)] px-6">
       <div className="max-w-5xl mx-auto">
         {/* Section Label */}
         <p className="text-terracotta uppercase tracking-[4px] text-[11px] text-center mb-16">
