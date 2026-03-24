@@ -187,7 +187,7 @@ export function HeroVideo({ locale }: { locale: Locale }) {
               href={`/${locale}/shows`}
               className="border border-sand/10 text-sand-38 px-7 py-3 text-[10px] tracking-[3px] uppercase hover:text-sand transition"
             >
-              {t.hero.cta_shows}
+              Live Shows
             </Link>
           </div>
         </div>
