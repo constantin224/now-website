@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { getMessages, type Locale } from "@/lib/i18n";
@@ -79,12 +80,13 @@ export default function Navigation({ locale }: { locale: Locale }) {
         <div className="mx-auto flex items-center justify-between px-6 py-4 max-w-7xl">
           {/* Logo */}
           <Link href={`/${locale}`}>
-            <img
-              src="/logo.svg"
+            <Image
+              src="/logo.png"
               alt="Now. Logo"
               width={60}
-              height={22}
-              className="text-white"
+              height={24}
+              className="invert"
+              priority
             />
           </Link>
 
