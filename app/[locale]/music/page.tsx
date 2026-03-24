@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { videos } from "@/data/releases";
 import YouTubeFacade from "@/components/youtube-facade";
-import SpotifyEmbed from "@/components/spotify-embed";
 import ReleaseLinkPopup from "@/components/release-links-popup";
 import { getMessages, type Locale } from "@/lib/i18n";
 import { localeMetadata } from "@/lib/seo";
@@ -104,11 +103,6 @@ export default async function MusicPage({
             </ReleaseLinkPopup>
           </ScrollReveal>
         )}
-
-        {/* Spotify Embed */}
-        <ScrollReveal className="mb-[var(--spacing-block)]">
-          <SpotifyEmbed artistId="46Z2az8XmrXnhr0ej2sr3Q" locale={locale as Locale} />
-        </ScrollReveal>
 
         {/* Discography — alle weiteren Releases */}
         {discography.length > 0 && (
