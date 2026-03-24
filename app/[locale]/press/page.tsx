@@ -119,15 +119,15 @@ export default async function PressPage({
         </div>
       </ScrollReveal>
 
-      {/* One-Sheet — auskommentiert bis PDF existiert
+      {/* Press Kit PDF */}
       <a
         href="/press/onesheet.pdf"
+        download
         className="inline-flex items-center gap-2 text-terracotta hover:text-sand transition-colors text-sm"
       >
         <Download className="w-4 h-4" />
         {t.press.download_onesheet}
       </a>
-      */}
     </section>
   );
 }
