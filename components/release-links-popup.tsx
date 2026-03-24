@@ -95,10 +95,10 @@ export default function ReleaseLinkPopup({
 
       {/* Popup-Overlay */}
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-0 sm:px-4">
           <div
             ref={popupRef}
-            className="bg-[#161210] border border-sand/10 rounded-xl max-w-xs w-full p-6 shadow-2xl"
+            className="bg-[#161210] border border-sand/10 rounded-t-xl sm:rounded-xl max-w-sm w-full p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6 shadow-2xl"
           >
             {/* Header mit Cover */}
             <div className="flex items-start gap-4 mb-5">
@@ -139,7 +139,7 @@ export default function ReleaseLinkPopup({
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-sand/5 hover:bg-sand/10 transition-colors text-sand/70 hover:text-sand text-sm"
+                  className="flex items-center gap-3 px-4 py-3.5 rounded-lg bg-sand/5 hover:bg-sand/10 active:bg-sand/15 transition-colors text-sand/70 hover:text-sand text-sm"
                 >
                   <span className="text-terracotta">{link.icon}</span>
                   {link.name}
