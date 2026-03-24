@@ -7,6 +7,27 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { getMessages, type Locale } from "@/lib/i18n";
 
+// Sprachwechsler als eigene Komponente (nicht innerhalb Navigation definieren)
+function LanguageSwitcher({ locale, path, className }: { locale: string; path: string; className?: string }) {
+  return (
+    <div className={`flex items-center gap-2 text-[10px] tracking-[2px] ${className || ""}`}>
+      <Link
+        href={`/de${path === "/" ? "" : path}`}
+        className={locale === "de" ? "text-terracotta" : "text-sand-38 hover:text-sand transition-colors"}
+      >
+        DE
+      </Link>
+      <span className="text-sand/20">|</span>
+      <Link
+        href={`/en${path === "/" ? "" : path}`}
+        className={locale === "en" ? "text-terracotta" : "text-sand-38 hover:text-sand transition-colors"}
+      >
+        EN
+      </Link>
+    </div>
+  );
+}
+
 export default function Navigation({ locale }: { locale: Locale }) {
   const pathname = usePathname();
   const t = getMessages(locale);
@@ -51,25 +72,6 @@ export default function Navigation({ locale }: { locale: Locale }) {
   // Hintergrund: transparent auf Homepage wenn nicht gescrollt, sonst solid
   const showBg = !isHome || scrolled;
 
-  // Sprachwechsler-Komponente
-  const LanguageSwitcher = ({ className }: { className?: string }) => (
-    <div className={`flex items-center gap-2 text-[10px] tracking-[2px] ${className || ""}`}>
-      <Link
-        href={`/de${pathnameWithoutLocale === "/" ? "" : pathnameWithoutLocale}`}
-        className={locale === "de" ? "text-terracotta" : "text-sand-38 hover:text-sand transition-colors"}
-      >
-        DE
-      </Link>
-      <span className="text-sand/20">|</span>
-      <Link
-        href={`/en${pathnameWithoutLocale === "/" ? "" : pathnameWithoutLocale}`}
-        className={locale === "en" ? "text-terracotta" : "text-sand-38 hover:text-sand transition-colors"}
-      >
-        EN
-      </Link>
-    </div>
-  );
-
   return (
     <>
       <nav
@@ -108,7 +110,7 @@ export default function Navigation({ locale }: { locale: Locale }) {
                 </li>
               ))}
             </ul>
-            <LanguageSwitcher className="ml-6" />
+            <LanguageSwitcher locale={locale} path={pathnameWithoutLocale} className="ml-6" />
           </div>
 
           {/* Mobile Hamburger */}
@@ -150,7 +152,7 @@ export default function Navigation({ locale }: { locale: Locale }) {
             ))}
           </ul>
           {/* Sprachwechsler im Mobile-Menü */}
-          <LanguageSwitcher className="mt-8" />
+          <LanguageSwitcher locale={locale} path={pathnameWithoutLocale} className="mt-8" />
         </div>
       )}
     </>

@@ -53,7 +53,7 @@ export default function Footer({ locale }: { locale: Locale }) {
 
         {/* Copyright & Impressum */}
         <div className="flex flex-col items-center gap-2 text-sand-38 text-[11px] tracking-wide">
-          <p>&copy; 2026 Now. &middot; Tonherd Music &middot; Wien</p>
+          <p>&copy; {new Date().getFullYear()} Now. &middot; Tonherd Music &middot; Wien</p>
           <Link
             href={`/${locale}/impressum`}
             className="hover:text-terracotta transition-colors"

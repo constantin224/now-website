@@ -93,7 +93,7 @@ export default async function PressPage({
           <p className="text-terracotta uppercase tracking-[4px] text-[11px] mb-2">
             {t.press.booking}
           </p>
-          <p className="text-sand/70 text-sm mb-1">OTon Agentur</p>
+          <p className="text-sand/70 text-sm mb-1">{t.press.booking_agency}</p>
           <a
             href="mailto:andreas@oton-agentur.at"
             className="text-sand/50 hover:text-sand transition-colors text-xs"
@@ -101,7 +101,7 @@ export default async function PressPage({
             andreas@oton-agentur.at
           </a>
           <p className="text-sand/30 text-xs mt-2">
-            oder direkt bei{" "}
+            {t.press.booking_alt}{" "}
             <a href="mailto:label@tonherd.at" className="text-sand/40 hover:text-sand/60 transition-colors">
               Tonherd Music
             </a>

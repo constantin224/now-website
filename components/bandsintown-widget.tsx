@@ -119,7 +119,7 @@ export default function BandsintownWidget() {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 bg-terracotta/10 text-terracotta border border-terracotta/20 text-[10px] tracking-[2px] uppercase px-6 py-3 rounded-full hover:bg-terracotta/20 transition-colors"
           >
-            Shows auf Bandsintown ansehen
+            Shows on Bandsintown
           </a>
         </div>
       )}

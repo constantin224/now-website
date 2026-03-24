@@ -23,11 +23,12 @@ export default async function Home({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
+  const t = getMessages(locale as Locale);
 
   return (
     <>
       {/* Visuell verstecktes H1 für SEO — Logo übernimmt die visuelle Rolle */}
-      <h1 className="sr-only">Now. — Pop Rock Band aus Wien</h1>
+      <h1 className="sr-only">{t.meta.site_title}</h1>
       <HeroVideo locale={locale as Locale} />
     </>
   );
