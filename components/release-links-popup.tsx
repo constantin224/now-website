@@ -87,11 +87,11 @@ export default function ReleaseLinkPopup({
         {children}
       </button>
 
-      {/* Inline-Popover — über dem Cover */}
+      {/* Popover — schwebt über dem Cover */}
       {open && (
         <div
           ref={popupRef}
-          className="absolute left-0 right-0 bottom-full mb-2 z-40 bg-[#161210] border border-sand/10 rounded-xl p-4 shadow-2xl shadow-black/50 animate-slide-up"
+          className="absolute inset-0 z-40 bg-[#161210]/95 backdrop-blur-sm border border-sand/10 rounded-lg p-4 flex flex-col justify-center"
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-3">
