@@ -7,8 +7,11 @@ export const siteConfig = {
   label: { name: "Tonherd Music", url: "https://tonherd.com" },
   impressum: {
     firma: "Tonherd OG",
-    adresse: "Wien, Österreich",
-    uid: "",
-    kontakt: "office@tonherd.com",
+    adresse: "Liechtensteinstraße 22/3/13, 1090 Wien, Österreich",
+    uid: "ATU74189718",
+    fn: "FN 490716 t",
+    gericht: "Handelsgericht Wien",
+    kontakt: "info@tonherd.com",
+    gesellschafter: "Constantin Kaiser, Florian Koch, Valentin Bröderbauer",
   },
 };

@@ -60,12 +60,10 @@
   "impressum": {
     "title": "Impressum",
     "legal_note": "Informationspflicht laut §5 E-Commerce Gesetz (ECG)",
-    "business": "Unternehmensgegenstand: Tonstudio und Musiklabel",
+    "business": "Unternehmensgegenstand: Künstlerisches Schaffen im Bereich der Tonkunst",
     "privacy_title": "Datenschutz",
     "privacy_text_1": "Diese Website verwendet keine Cookies und sammelt keine personenbezogenen Daten.",
-    "privacy_text_2": "Externe Inhalte (YouTube, Spotify) werden erst nach Interaktion geladen.",
-    "address_tbd": "[Adresse wird ergänzt]",
-    "uid_tbd": "[wird ergänzt]"
+    "privacy_text_2": "Externe Inhalte (YouTube, Spotify) werden erst nach Interaktion geladen."
   },
   "footer": {
     "released_via": "Released via",

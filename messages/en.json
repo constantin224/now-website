@@ -60,12 +60,10 @@
   "impressum": {
     "title": "Legal Notice",
     "legal_note": "Information obligation according to §5 E-Commerce Act (ECG)",
-    "business": "Business purpose: Recording studio and music label",
+    "business": "Business purpose: Artistic creation in the field of music",
     "privacy_title": "Privacy",
     "privacy_text_1": "This website does not use cookies and does not collect personal data.",
-    "privacy_text_2": "External content (YouTube, Spotify) is only loaded after interaction.",
-    "address_tbd": "[Address to be added]",
-    "uid_tbd": "[to be added]"
+    "privacy_text_2": "External content (YouTube, Spotify) is only loaded after interaction."
   },
   "footer": {
     "released_via": "Released via",
