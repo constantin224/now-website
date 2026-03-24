@@ -37,7 +37,7 @@ export default async function ShowsPage({
         </ScrollReveal>
 
         {/* Booking CTA */}
-        <ScrollReveal className="text-center mt-[var(--spacing-block)] pt-12 border-t border-line">
+        <ScrollReveal className="text-center mt-[var(--spacing-block)] pt-12">
           <p className="text-sand/40 text-sm">
             {t.shows.booking_label}{" "}
             <a
