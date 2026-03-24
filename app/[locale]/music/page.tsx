@@ -189,6 +189,64 @@ export default async function MusicPage({
           </ScrollReveal>
         )}
       </div>
+
+      {/* JSON-LD VideoObject Schema — GEO für AI-Suchmaschinen */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            name: "Now. — Musikvideos",
+            itemListElement: videos.map((video, i) => ({
+              "@type": "ListItem",
+              position: i + 1,
+              item: {
+                "@type": "VideoObject",
+                name: video.title,
+                description: `${video.title} — Offizielles Musikvideo von Now., Pop-Rock-Band aus Wien`,
+                uploadDate: `${video.year}-01-01`,
+                thumbnailUrl: `https://img.youtube.com/vi/${video.youtubeId}/maxresdefault.jpg`,
+                embedUrl: `https://www.youtube.com/embed/${video.youtubeId}`,
+                contentUrl: `https://www.youtube.com/watch?v=${video.youtubeId}`,
+                byArtist: { "@type": "MusicGroup", name: "Now." },
+              },
+            })),
+          }),
+        }}
+      />
+
+      {/* JSON-LD MusicAlbum Schema */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "MusicAlbum",
+            name: "OUT",
+            byArtist: { "@type": "MusicGroup", name: "Now.", url: "https://now-music.at" },
+            datePublished: "2024-10-01",
+            numTracks: 15,
+            genre: ["Pop Rock", "Pop", "Rock"],
+            albumProductionType: "https://schema.org/StudioAlbum",
+            albumReleaseType: "https://schema.org/AlbumRelease",
+            image: "https://now-music.at/album-cover-out.jpg",
+            description: "Debütalbum von Now. — 15 Songs die Ehrlichkeit, Tiefe und Leichtigkeit verbinden. Erschienen im Oktober 2024 via Tonherd Music.",
+            recordLabel: { "@type": "Organization", name: "Tonherd Music", url: "https://tonherd.com" },
+            url: "https://hypeddit.com/now-music",
+            track: [
+              { "@type": "MusicRecording", name: "Wastin' Days", datePublished: "2022", byArtist: { "@type": "MusicGroup", name: "Now." } },
+              { "@type": "MusicRecording", name: "Basic", datePublished: "2022", byArtist: { "@type": "MusicGroup", name: "Now." } },
+              { "@type": "MusicRecording", name: "Walls", datePublished: "2022", byArtist: { "@type": "MusicGroup", name: "Now." } },
+              { "@type": "MusicRecording", name: "Stay", datePublished: "2022", byArtist: { "@type": "MusicGroup", name: "Now." } },
+              { "@type": "MusicRecording", name: "Let Go", datePublished: "2023", byArtist: { "@type": "MusicGroup", name: "Now." } },
+              { "@type": "MusicRecording", name: "Someone Else's Life", datePublished: "2023", byArtist: { "@type": "MusicGroup", name: "Now." } },
+              { "@type": "MusicRecording", name: "The Ocean", datePublished: "2024", byArtist: { "@type": "MusicGroup", name: "Now." } },
+              { "@type": "MusicRecording", name: "Out", datePublished: "2024", byArtist: { "@type": "MusicGroup", name: "Now." } },
+            ],
+          }),
+        }}
+      />
     </section>
   );
 }

@@ -137,10 +137,10 @@ export default async function AboutPage({
             "@context": "https://schema.org",
             "@type": "MusicGroup",
             name: "Now.",
-            alternateName: "Now. Band",
+            alternateName: ["Now. Band", "Now. Band Wien", "Now. Pop Rock"],
             genre: ["Pop Rock", "Pop", "Rock"],
             foundingDate: "2020",
-            foundingLocation: { "@type": "City", name: "Wien", "@id": "https://www.wikidata.org/wiki/Q1741" },
+            foundingLocation: { "@type": "City", name: "Wien", addressCountry: "AT", "@id": "https://www.wikidata.org/wiki/Q1741" },
             url: "https://now-music.at",
             image: "https://now-music.at/band-photo.jpg",
             description: "Pop-Rock-Band aus Wien — erdige Songs, ehrliche Texte, live auf der Bühne zuhause.",
@@ -164,6 +164,67 @@ export default async function AboutPage({
               "https://music.apple.com/at/artist/now/1603132645",
               "https://www.youtube.com/@now.",
               "https://www.bandsintown.com/a/3443904-now.",
+            ],
+          }),
+        }}
+      />
+
+      {/* JSON-LD FAQ Schema — GEO-Optimierung für AI-Suchmaschinen */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            mainEntity: [
+              {
+                "@type": "Question",
+                name: "Wer sind die Bandmitglieder von Now.?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "Now. besteht aus Valentin Bröderbauer (Gesang, Gitarre), Chris Sztrakati (Drums) und Constantin Kaiser (Bass, Synth). Die drei Musiker aus Wien gründeten die Band 2020.",
+                },
+              },
+              {
+                "@type": "Question",
+                name: "Welches Genre spielt Now.?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "Now. spielt erdigen Pop-Rock aus Wien — eingängige Hooks mit Tiefgang, ehrliche Texte und volle Live-Energie. Die Band vereint Einflüsse aus Pop und Rock.",
+                },
+              },
+              {
+                "@type": "Question",
+                name: "Welche Alben hat Now. veröffentlicht?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "Das Debütalbum 'OUT' erschien im Oktober 2024 mit 15 Songs via Tonherd Music. Das zweite Album ist für Herbst 2026 angekündigt. Zuvor veröffentlichte die Band Singles wie 'Wastin' Days' (2022), 'Stay' (2022), 'Let Go' (2023) und 'Checkmate Time' (2026).",
+                },
+              },
+              {
+                "@type": "Question",
+                name: "Wo kann man Now. live sehen?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "Aktuelle Live-Termine von Now. finden sich auf now-music.at/de/shows und auf Bandsintown. Für Booking-Anfragen: andreas@oton-agentur.at (OTon Agentur) oder label@tonherd.at (Tonherd Music).",
+                },
+              },
+              {
+                "@type": "Question",
+                name: "Wo kann man die Musik von Now. streamen?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "Now. ist auf allen gängigen Streaming-Plattformen verfügbar: Spotify, Apple Music, Amazon Music, YouTube Music und Deezer. Musikvideos gibt es auf dem offiziellen YouTube-Kanal @now.",
+                },
+              },
+              {
+                "@type": "Question",
+                name: "Wer produziert die Musik von Now.?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "Die Songs von Now. werden im bandeigenen Studio produziert. Das Debütalbum 'OUT' entstand in Zusammenarbeit mit Produzent Florian Koch. Alle Songs tragen die unverwechselbare Handschrift der Band.",
+                },
+              },
             ],
           }),
         }}
