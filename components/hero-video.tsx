@@ -175,13 +175,19 @@ export function HeroVideo({ locale }: { locale: Locale }) {
             {t.hero.tagline}
           </p>
 
-          {/* CTA Button */}
-          <div className="mt-8">
+          {/* CTA Buttons */}
+          <div className="mt-8 flex gap-4">
             <Link
               href={`/${locale}/music`}
               className="border border-terracotta/30 bg-terracotta/15 text-terracotta px-7 py-3 text-[10px] tracking-[3px] uppercase hover:bg-terracotta/25 transition"
             >
               {t.hero.cta_album}
+            </Link>
+            <Link
+              href={`/${locale}/shows`}
+              className="border border-sand/10 text-sand-38 px-7 py-3 text-[10px] tracking-[3px] uppercase hover:text-sand transition"
+            >
+              {t.hero.cta_shows}
             </Link>
           </div>
         </div>
