@@ -92,10 +92,10 @@ export default async function PressPage({
             {t.press.booking}
           </p>
           <a
-            href="mailto:booking@now-music.at"
+            href="mailto:andreas@oton-agentur.at"
             className="text-sand/70 hover:text-sand transition-colors text-sm"
           >
-            booking@now-music.at
+            andreas@oton-agentur.at
           </a>
         </div>
         <div>

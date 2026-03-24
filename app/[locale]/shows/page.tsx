@@ -41,10 +41,10 @@ export default async function ShowsPage({
           <p className="text-sand/40 text-sm">
             {t.shows.booking_label}{" "}
             <a
-              href={`mailto:${t.shows.booking_email}`}
+              href="mailto:andreas@oton-agentur.at"
               className="text-terracotta hover:text-terracotta/80 transition-colors"
             >
-              {t.shows.booking_email}
+              andreas@oton-agentur.at
             </a>
           </p>
         </ScrollReveal>
