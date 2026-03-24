@@ -87,18 +87,18 @@
   100% { opacity: 1; transform: scale(1); }
 }
 
-@keyframes loaderLine {
-  0% { width: 0; }
-  60% { width: 100%; }
-  100% { width: 100%; }
+@keyframes loaderRing {
+  0% { stroke-dashoffset: 113; }
+  60% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: 0; }
 }
 
 @layer utilities {
   .animate-loader-logo {
     animation: loaderLogo 2s ease both;
   }
-  .animate-loader-line {
-    animation: loaderLine 2.5s cubic-bezier(0.4, 0, 0.2, 1) 0.3s both;
+  .animate-loader-ring {
+    animation: loaderRing 2.5s cubic-bezier(0.4, 0, 0.2, 1) 0.3s both;
   }
   .animate-slide-up {
     animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;

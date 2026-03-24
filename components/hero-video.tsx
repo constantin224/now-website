@@ -93,10 +93,13 @@ export function HeroVideo({ locale }: { locale: Locale }) {
           loading ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
-        {/* Terracotta Linie — wächst von links nach rechts */}
-        <div className="w-32 h-px bg-line overflow-hidden">
-          <div className="h-full bg-terracotta/50 animate-loader-line" />
-        </div>
+        {/* Terracotta Kreis — füllt sich */}
+        <svg width="36" height="36" viewBox="0 0 40 40" className="rotate-[-90deg]">
+          <circle cx="20" cy="20" r="18" fill="none" stroke="rgba(160,115,82,0.15)" strokeWidth="1" />
+          <circle cx="20" cy="20" r="18" fill="none" stroke="rgba(160,115,82,0.5)" strokeWidth="1"
+            strokeDasharray="113" strokeDashoffset="113" strokeLinecap="round"
+            className="animate-loader-ring" />
+        </svg>
       </div>
 
       {/* === HERO === */}
