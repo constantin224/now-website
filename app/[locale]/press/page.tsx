@@ -102,7 +102,7 @@ export default async function PressPage({
           <p className="text-terracotta uppercase tracking-[4px] text-[11px] mb-2">
             {t.press.management}
           </p>
-          <p className="text-sand/70 text-sm">Tonherd OG, Wien</p>
+          <p className="text-sand/70 text-sm">Tonherd Music</p>
         </div>
         <div>
           <p className="text-terracotta uppercase tracking-[4px] text-[11px] mb-2">
