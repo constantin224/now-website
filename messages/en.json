@@ -26,6 +26,7 @@
   },
   "music": {
     "title": "Music",
+    "description": "Discography, music videos and streaming links from Now. — pop rock band from Vienna",
     "discography": "Discography",
     "latest_release": "Latest Release",
     "videos_label": "Videos",
@@ -34,6 +35,7 @@
   },
   "shows": {
     "title": "Shows",
+    "description": "Live dates and concerts by Now. — pop rock band from Vienna. Tickets and booking info.",
     "upcoming": "Upcoming Shows",
     "past": "Past Shows",
     "tickets": "Tickets",

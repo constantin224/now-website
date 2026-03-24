@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { Download } from "lucide-react";
 import { getMessages, type Locale } from "@/lib/i18n";
+import { localeMetadata } from "@/lib/seo";
 import { ScrollReveal } from "@/components/scroll-reveal";
 
 export async function generateMetadata({
@@ -14,6 +15,7 @@ export async function generateMetadata({
   return {
     title: t.press.title,
     description: t.press.description,
+    ...localeMetadata(locale as Locale, "/press"),
   };
 }
 
@@ -27,10 +29,10 @@ export default async function PressPage({
 
   return (
     <section className="pt-28 md:pt-36 pb-[var(--spacing-section)] px-6 max-w-5xl mx-auto">
-      {/* Section Label */}
-      <p className="text-terracotta uppercase tracking-[4px] text-[11px] text-center mb-16">
+      {/* H1 — visuell als Section Label */}
+      <h1 className="text-terracotta uppercase tracking-[4px] text-[11px] text-center mb-16">
         {t.press.title}
-      </p>
+      </h1>
 
       {/* Pressefotos */}
       <ScrollReveal className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">

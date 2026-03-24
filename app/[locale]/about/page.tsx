@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { getMessages, type Locale } from "@/lib/i18n";
+import { localeMetadata } from "@/lib/seo";
 import { socialLinks } from "@/data/social";
 import { SpotifyIcon, InstagramIcon, FacebookIcon, YoutubeIcon, AppleMusicIcon } from "@/components/social-icons";
 import { ScrollReveal } from "@/components/scroll-reveal";
@@ -24,6 +25,7 @@ export async function generateMetadata({
   return {
     title: t.about.title,
     description: t.about.description,
+    ...localeMetadata(locale as Locale, "/about"),
   };
 }
 
@@ -37,17 +39,17 @@ export default async function AboutPage({
 
   return (
     <section className="pt-28 md:pt-36 pb-[var(--spacing-section)] px-6">
-      {/* Section Label -- kein ScrollReveal, sofort sichtbar */}
-      <p className="text-terracotta uppercase tracking-[4px] text-[11px] text-center mb-16">
+      {/* H1 — visuell als Section Label gestylt */}
+      <h1 className="text-terracotta uppercase tracking-[4px] text-[11px] text-center mb-16">
         {t.about.title}
-      </p>
+      </h1>
 
-      {/* Hero-Bild — Full-Bleed mit Gradient (STRUC-02) */}
+      {/* Hero-Bild — Full-Bleed mit Gradient */}
       <ScrollReveal className="full-bleed mb-[var(--spacing-block)]">
         <div className="relative h-[50vh] md:h-[70vh] overflow-hidden">
           <Image
             src="/band-photo-3.jpg"
-            alt="Now. — Bandfoto"
+            alt="Now. — Pop-Rock-Band aus Wien: Valentin Bröderbauer, Chris Sztrakati, Constantin Kaiser"
             fill
             sizes="100vw"
             className="object-cover"
@@ -135,13 +137,33 @@ export default async function AboutPage({
             "@context": "https://schema.org",
             "@type": "MusicGroup",
             name: "Now.",
-            genre: "Pop Rock",
-            foundingLocation: { "@type": "City", name: "Wien" },
+            alternateName: "Now. Band",
+            genre: ["Pop Rock", "Pop", "Rock"],
+            foundingDate: "2020",
+            foundingLocation: { "@type": "City", name: "Wien", "@id": "https://www.wikidata.org/wiki/Q1741" },
             url: "https://now-music.at",
+            image: "https://now-music.at/band-photo.jpg",
+            description: "Pop-Rock-Band aus Wien — erdige Songs, ehrliche Texte, live auf der Bühne zuhause.",
+            member: [
+              { "@type": "Person", name: "Valentin Bröderbauer", roleName: "Gesang, Gitarre" },
+              { "@type": "Person", name: "Chris Sztrakati", roleName: "Drums" },
+              { "@type": "Person", name: "Constantin Kaiser", roleName: "Bass, Synth" },
+            ],
+            album: {
+              "@type": "MusicAlbum",
+              name: "OUT",
+              datePublished: "2024-10-01",
+              numTracks: 15,
+              albumProductionType: "https://schema.org/StudioAlbum",
+              byArtist: { "@type": "MusicGroup", name: "Now." },
+            },
             sameAs: [
               "https://www.instagram.com/now.itsofficial",
               "https://www.facebook.com/profile.php?id=100076664337992",
               "https://open.spotify.com/intl-de/artist/46Z2az8XmrXnhr0ej2sr3Q",
+              "https://music.apple.com/at/artist/now/1603132645",
+              "https://www.youtube.com/@now.",
+              "https://www.bandsintown.com/a/3443904-now.",
             ],
           }),
         }}

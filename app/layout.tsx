@@ -16,15 +16,24 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://now-music.at"),
   title: { default: "Now. — Pop Rock aus Wien", template: "%s | Now." },
   description:
     "Now. ist eine Pop-Rock-Band aus Wien. Erdige Songs, ehrliche Texte, live auf der Bühne zuhause.",
   openGraph: {
     type: "website",
-    locale: "de_AT",
-    url: "https://now-music.at",
     siteName: "Now.",
     images: [{ url: "/og-image.jpg", width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og-image.jpg"],
+  },
+  alternates: {
+    languages: {
+      de: "https://now-music.at/de",
+      en: "https://now-music.at/en",
+    },
   },
 };
 

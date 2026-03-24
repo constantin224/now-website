@@ -4,6 +4,7 @@ import { videos } from "@/data/releases";
 import YouTubeFacade from "@/components/youtube-facade";
 import SpotifyEmbed from "@/components/spotify-embed";
 import { getMessages, type Locale } from "@/lib/i18n";
+import { localeMetadata } from "@/lib/seo";
 import { getAllReleases } from "@/lib/deezer";
 import { ScrollReveal } from "@/components/scroll-reveal";
 
@@ -16,6 +17,8 @@ export async function generateMetadata({
   const t = getMessages(locale as Locale);
   return {
     title: t.music.title,
+    description: t.music.description,
+    ...localeMetadata(locale as Locale, "/music"),
   };
 }
 
@@ -45,10 +48,10 @@ export default async function MusicPage({
   return (
     <section className="pt-28 md:pt-36 pb-[var(--spacing-section)] px-6">
       <div className="max-w-5xl mx-auto">
-        {/* Section Label */}
-        <p className="text-terracotta uppercase tracking-[4px] text-[11px] text-center mb-16">
+        {/* H1 — visuell als Section Label */}
+        <h1 className="text-terracotta uppercase tracking-[4px] text-[11px] text-center mb-16">
           {t.music.title}
-        </p>
+        </h1>
 
         {/* Featured / Neuestes Release */}
         {featured && (
