@@ -99,7 +99,7 @@ export default async function PressPage({
             andreas@oton-agentur.at
           </a>
           <p className="text-sand/30 text-xs mt-2">
-            via{" "}
+            oder direkt bei{" "}
             <a href="mailto:label@tonherd.at" className="text-sand/40 hover:text-sand/60 transition-colors">
               Tonherd Music
             </a>
