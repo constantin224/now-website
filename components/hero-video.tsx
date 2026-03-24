@@ -158,13 +158,11 @@ export function HeroVideo({ locale }: { locale: Locale }) {
           }`}
         >
           {/* Bandlogo */}
-          <Image
-            src="/logo.png"
+          <img
+            src="/logo.svg"
             alt="Now."
             width={250}
-            height={100}
-            className="brightness-[0.9]"
-            style={{ filter: "invert(1) brightness(0.9)" }}
+            height={90}
           />
 
           {/* Subtitle */}
