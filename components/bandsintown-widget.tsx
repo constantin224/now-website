@@ -46,12 +46,17 @@ export default function BandsintownWidget() {
       if (!hasContent) setFailed(true);
     }, 8000);
 
-    // Track-Button zum Design passend restylen
+    // Widget restylen + "Request a Show" verstecken
     const restyle = setInterval(() => {
-      container.querySelectorAll("a, div, button").forEach((el) => {
+      container.querySelectorAll("a, div, button, span").forEach((el) => {
         const html = el as HTMLElement;
         const bg = getComputedStyle(html).backgroundColor;
         const text = html.textContent?.toLowerCase().trim() || "";
+
+        // "Request a Show" verstecken
+        if (text.includes("request") && text.includes("show")) {
+          html.style.display = "none";
+        }
 
         // Den großen farbigen Track-Button finden und restylen
         if (
@@ -76,6 +81,21 @@ export default function BandsintownWidget() {
           html.style.display = "block";
           html.style.textAlign = "center";
         }
+      });
+
+      // Auch im iframe versuchen (falls same-origin)
+      container.querySelectorAll("iframe").forEach((iframe) => {
+        try {
+          const doc = iframe.contentDocument;
+          if (!doc) return;
+          doc.querySelectorAll("a, div, button, span").forEach((el) => {
+            const html = el as HTMLElement;
+            const text = html.textContent?.toLowerCase().trim() || "";
+            if (text.includes("request") && text.includes("show")) {
+              html.style.display = "none";
+            }
+          });
+        } catch { /* cross-origin, ignorieren */ }
       });
     }, 1000);
 
