@@ -89,45 +89,53 @@ export default function ReleaseLinkPopup({
         {children}
       </button>
 
-      {/* Popover — schwebt über dem Cover */}
-      {open && (
-        <div
-          ref={popupRef}
-          className="absolute inset-0 z-40 bg-[#161210]/95 backdrop-blur-sm border border-sand/10 rounded-lg p-4 flex flex-col justify-center"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between mb-3">
+      {/* Overlay — Cover bleibt sichtbar, Links darüber */}
+      <div
+        ref={popupRef}
+        className={`absolute inset-0 z-40 rounded-lg overflow-hidden flex flex-col justify-end transition-all duration-300 ease-out ${
+          open
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none"
+        }`}
+      >
+        {/* Gradient-Overlay — Cover bleibt oben sichtbar */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0e0c0a] via-[#0e0c0a]/90 to-[#0e0c0a]/40" />
+
+        {/* Content — unten verankert */}
+        <div className="relative z-10 p-4 md:p-5">
+          {/* Titel + Close */}
+          <div className="flex items-start justify-between mb-4">
             <div className="min-w-0">
-              <p className="text-sand/80 text-sm font-medium truncate">{release.title}</p>
-              <p className="text-sand/35 text-[10px]">
+              <p className="text-sand text-sm font-medium truncate">{release.title}</p>
+              <p className="text-sand/40 text-[11px] mt-0.5">
                 Now. · {release.releaseDate.slice(0, 4)} · {typeLabel}
               </p>
             </div>
             <button
               onClick={() => setOpen(false)}
-              className="text-sand/30 hover:text-sand/60 transition-colors cursor-pointer p-1 -mr-1"
+              className="text-sand/40 hover:text-sand transition-colors cursor-pointer p-1.5 -mr-1.5 -mt-0.5"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Streaming-Links als kompakte Zeile */}
-          <div className="grid grid-cols-4 gap-2">
+          {/* Streaming-Links */}
+          <div className="grid grid-cols-4 gap-2.5">
             {links.map((link) => (
               <a
                 key={link.name}
                 href={link.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex flex-col items-center gap-1.5 py-2.5 rounded-lg bg-sand/5 hover:bg-sand/10 active:bg-sand/15 transition-colors text-sand/50 hover:text-sand"
+                className="flex flex-col items-center gap-2 py-3 rounded-lg bg-sand/[0.07] hover:bg-sand/[0.14] active:bg-sand/[0.18] border border-sand/[0.06] hover:border-sand/[0.12] transition-all duration-200 cursor-pointer group"
               >
-                <span className="text-terracotta">{link.icon}</span>
-                <span className="text-[9px] tracking-wide">{link.name.split(" ")[0]}</span>
+                <span className="text-terracotta group-hover:text-terracotta/90 transition-colors">{link.icon}</span>
+                <span className="text-[10px] text-sand/50 group-hover:text-sand/70 tracking-wider transition-colors">{link.name.split(" ")[0]}</span>
               </a>
             ))}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
