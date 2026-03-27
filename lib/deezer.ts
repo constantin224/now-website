@@ -1,3 +1,5 @@
+import { releaseLinks } from "@/data/release-links";
+
 // Deezer Artist ID für Now.
 const ARTIST_ID = 156250942;
 
@@ -94,6 +96,9 @@ export async function getLatestRelease(): Promise<LatestRelease | null> {
 
     const latest = albums[0];
 
+    const manual = releaseLinks[latest.id];
+    const query = encodeURIComponent(`Now. ${latest.title}`);
+
     return {
       title: latest.title,
       type: latest.record_type, // "single", "album", "ep"
@@ -101,10 +106,8 @@ export async function getLatestRelease(): Promise<LatestRelease | null> {
       cover: latest.cover_big || latest.cover_medium,
       links: {
         deezer: latest.link,
-        // Spotify und Apple Music — Artist-Seite als Fallback
-        spotify:
-          "https://open.spotify.com/intl-de/artist/46Z2az8XmrXnhr0ej2sr3Q",
-        apple: "https://music.apple.com/at/artist/now/1603132645",
+        spotify: manual?.spotify || `https://open.spotify.com/search/${query}`,
+        apple: manual?.apple || `https://music.apple.com/at/search?term=${query}`,
       },
     };
   } catch {

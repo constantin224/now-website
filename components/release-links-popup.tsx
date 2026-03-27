@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { X } from "lucide-react";
 import { SpotifyIcon, AppleMusicIcon, YoutubeIcon } from "./social-icons";
+import { releaseLinks } from "@/data/release-links";
 
 function DeezerIcon({ size = 18, className = "" }: { size?: number; className?: string }) {
   return (
@@ -69,12 +70,13 @@ export default function ReleaseLinkPopup({
   }, [open]);
 
   const query = encodeURIComponent(`Now. ${release.title}`);
+  const manual = releaseLinks[release.id];
 
   const links = [
-    { name: "Spotify", url: `https://open.spotify.com/search/${query}`, icon: <SpotifyIcon size={18} /> },
-    { name: "Apple Music", url: `https://music.apple.com/at/search?term=${query}`, icon: <AppleMusicIcon size={18} /> },
+    { name: "Spotify", url: manual?.spotify || `https://open.spotify.com/search/${query}`, icon: <SpotifyIcon size={18} /> },
+    { name: "Apple Music", url: manual?.apple || `https://music.apple.com/at/search?term=${query}`, icon: <AppleMusicIcon size={18} /> },
     { name: "Deezer", url: release.link, icon: <DeezerIcon size={18} /> },
-    { name: "YouTube", url: `https://www.youtube.com/results?search_query=${query}`, icon: <YoutubeIcon size={18} /> },
+    { name: "YouTube", url: manual?.youtube || `https://www.youtube.com/results?search_query=${query}`, icon: <YoutubeIcon size={18} /> },
   ];
 
   return (
