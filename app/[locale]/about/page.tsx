@@ -40,7 +40,7 @@ export default async function AboutPage({
   return (
     <section className="pt-28 md:pt-36 pb-[var(--spacing-section)] px-6">
       {/* H1 — visuell als Section Label gestylt */}
-      <h1 className="text-terracotta uppercase tracking-[4px] text-[11px] text-center mb-16">
+      <h1 className="font-heading font-light text-terracotta uppercase tracking-[0.2em] text-2xl md:text-3xl text-center mb-16">
         {t.about.title}
       </h1>
 
@@ -136,35 +136,7 @@ export default async function AboutPage({
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "MusicGroup",
-            name: "Now.",
-            alternateName: ["Now. Band", "Now. Band Wien", "Now. Pop Rock"],
-            genre: ["Pop Rock", "Pop", "Rock"],
-            foundingDate: "2020",
-            foundingLocation: { "@type": "City", name: "Wien", addressCountry: "AT", "@id": "https://www.wikidata.org/wiki/Q1741" },
-            url: "https://now-music.at",
-            image: "https://now-music.at/band-photo.jpg",
-            description: "Pop-Rock-Band aus Wien — erdige Songs, ehrliche Texte, live auf der Bühne zuhause.",
-            member: [
-              { "@type": "Person", name: "Valentin Bröderbauer", roleName: "Gesang, Gitarre" },
-              { "@type": "Person", name: "Chris Sztrakati", roleName: "Drums" },
-              { "@type": "Person", name: "Constantin Kaiser", roleName: "Bass, Synth" },
-            ],
-            album: {
-              "@type": "MusicAlbum",
-              name: "OUT",
-              datePublished: "2024-10-01",
-              numTracks: 15,
-              albumProductionType: "https://schema.org/StudioAlbum",
-              byArtist: { "@type": "MusicGroup", name: "Now." },
-            },
-            sameAs: [
-              "https://www.instagram.com/now.itsofficial",
-              "https://www.facebook.com/profile.php?id=100076664337992",
-              "https://open.spotify.com/intl-de/artist/46Z2az8XmrXnhr0ej2sr3Q",
-              "https://music.apple.com/at/artist/now/1603132645",
-              "https://www.youtube.com/@now.",
-              "https://www.bandsintown.com/a/3443904-now.",
-            ],
+            "@id": "https://now-music.at/#band",
           }),
         }}
       />
