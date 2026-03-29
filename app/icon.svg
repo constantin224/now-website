@@ -1,5 +1,5 @@
 <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <rect width="512" height="512" fill="#0e0e0e"/>
+  <rect width="512" height="512" rx="80" fill="#0e0e0e"/>
   <g transform="translate(256,265) scale(0.8) translate(-970,-540)">
     <g fill="white">
         <g transform="matrix(1,0,0,1,995.122,583.093)">
