@@ -4,7 +4,8 @@
     "about": "About",
     "music": "Music",
     "shows": "Live",
-    "press": "Press"
+    "press": "Press",
+    "shop": "Shop"
   },
   "hero": {
     "tagline": "Pop Rock from Vienna",
@@ -58,6 +59,13 @@
     "management": "Management",
     "label": "Label",
     "press_bio": "Now. stands for pop rock from Austria that moves, touches and pushes forward — honest, handmade and full of energy. Valentin Bröderbauer (vocals, guitar), Chris Sztrakati (drums) and Constantin Kaiser (bass, synth) combine catchy hooks with depth. With over ten years of experience as musicians and songwriters for artists like Josh., Ina Regen and Conchita, 2020 marked the start of their own path. Their debut album 'OUT' was released in October 2024 — 15 songs that uniquely combine honesty, depth and lightness. The second album arrives in autumn 2026."
+  },
+  "shop": {
+    "title": "Shop",
+    "description": "Merch and music from Now. — T-shirts, CDs and more",
+    "view": "View Product",
+    "empty": "No products available at the moment.",
+    "checkout_hint": "Checkout & shipping via shop.tonherd.at"
   },
   "impressum": {
     "title": "Legal Notice",

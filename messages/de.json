@@ -4,7 +4,8 @@
     "about": "About",
     "music": "Music",
     "shows": "Live",
-    "press": "Press"
+    "press": "Press",
+    "shop": "Shop"
   },
   "hero": {
     "tagline": "Pop Rock aus Wien",
@@ -58,6 +59,13 @@
     "management": "Management",
     "label": "Label",
     "press_bio": "Now. steht für PopRock aus Österreich, der mitreißt, berührt und nach vorne geht — ehrlich, handgemacht und voller Energie. Valentin Bröderbauer (Gesang, Gitarre), Chris Sztrakati (Drums) und Constantin Kaiser (Bass, Synth) vereinen eingängige Hooks mit Tiefgang. Nach über zehn Jahren Erfahrung als Musiker und Songwriter für Künstler:innen wie Josh., Ina Regen und Conchita fiel 2020 der Startschuss für den eigenen Weg. Das Debütalbum \u201eOUT\u201c erschien im Oktober 2024 — 15 Songs, die Ehrlichkeit, Tiefe und Leichtigkeit verbinden. Im Herbst 2026 folgt das zweite Album."
+  },
+  "shop": {
+    "title": "Shop",
+    "description": "Merch und Musik von Now. — T-Shirts, CDs und mehr",
+    "view": "Zum Produkt",
+    "empty": "Aktuell keine Produkte verfügbar.",
+    "checkout_hint": "Checkout & Versand über shop.tonherd.at"
   },
   "impressum": {
     "title": "Impressum",

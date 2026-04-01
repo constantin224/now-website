@@ -25,12 +25,10 @@ type Release = {
 export default function ReleaseLinkPopup({
   release,
   typeLabel,
-  listenLabel,
   children,
 }: {
   release: Release;
   typeLabel: string;
-  listenLabel: string;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);

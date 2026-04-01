@@ -49,7 +49,7 @@ export default async function MusicPage({
     <section className="pt-28 md:pt-36 pb-[var(--spacing-section)] px-6">
       <div className="max-w-5xl mx-auto">
         {/* H1 — visuell als Section Label */}
-        <h1 className="text-terracotta uppercase tracking-[4px] text-[11px] text-center mb-16">
+        <h1 className="font-heading font-light text-terracotta uppercase tracking-[0.2em] text-2xl md:text-3xl text-center mb-16">
           {t.music.title}
         </h1>
 
@@ -62,7 +62,6 @@ export default async function MusicPage({
             <ReleaseLinkPopup
               release={featured}
               typeLabel={typeLabel(featured.type, locale)}
-              listenLabel={t.music.listen_on}
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-14 items-center">
                 {/* Cover — groß & prominent */}
@@ -116,7 +115,6 @@ export default async function MusicPage({
                   key={release.id}
                   release={release}
                   typeLabel={typeLabel(release.type, locale)}
-                  listenLabel={t.music.listen_on}
                 >
                   {/* Cover */}
                   <div className="relative aspect-square rounded-lg overflow-hidden mb-3 shadow-lg shadow-black/30">

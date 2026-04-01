@@ -18,17 +18,37 @@ async function fetchEvents() {
   }
 }
 
+interface BandsintownEvent {
+  title?: string;
+  datetime: string;
+  ends_at?: string;
+  description?: string;
+  url: string;
+  free?: boolean;
+  venue?: {
+    name?: string;
+    street_address?: string;
+    city?: string;
+    postal_code?: string;
+    country?: string;
+    latitude?: number;
+    longitude?: number;
+  };
+  offers?: { price?: number; currency?: string }[];
+  artist?: { image_url?: string };
+}
+
 // MusicEvent JSON-LD generieren mit vollständigen offers
-function buildEventsJsonLd(events: any[]) {
-  return events.map((event: any) => {
-    const offer: any = {
+function buildEventsJsonLd(events: BandsintownEvent[]) {
+  return events.map((event) => {
+    const offer: Record<string, string> = {
       "@type": "Offer",
       url: event.url,
       availability: "https://schema.org/InStock",
     };
 
     // Preis aus Bandsintown-Offers übernehmen, sonst Default setzen
-    if (event.offers?.length > 0 && event.offers[0].price) {
+    if (event.offers && event.offers.length > 0 && event.offers[0].price) {
       offer.price = String(event.offers[0].price);
       offer.priceCurrency = event.offers[0].currency || "EUR";
     } else if (event.free) {
@@ -119,7 +139,7 @@ export default async function ShowsPage({
       <section className="pt-28 md:pt-36 pb-[var(--spacing-section)] px-6">
       <div className="max-w-4xl mx-auto">
         {/* H1 — visuell als Section Label */}
-        <h1 className="text-terracotta uppercase tracking-[4px] text-[11px] text-center mb-12">
+        <h1 className="font-heading font-light text-terracotta uppercase tracking-[0.2em] text-2xl md:text-3xl text-center mb-12">
           {t.shows.title}
         </h1>
 

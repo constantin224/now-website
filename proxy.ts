@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { locales, defaultLocale } from "@/lib/i18n";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Statische Dateien, API-Routes und Next.js-Interna überspringen
@@ -23,7 +23,7 @@ export function middleware(request: NextRequest) {
   // Auf Default-Locale weiterleiten
   const url = request.nextUrl.clone();
   url.pathname = `/${defaultLocale}${pathname}`;
-  return NextResponse.redirect(url);
+  return NextResponse.redirect(url, 301);
 }
 
 export const config = {

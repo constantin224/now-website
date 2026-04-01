@@ -30,7 +30,7 @@ export default async function PressPage({
   return (
     <section className="pt-28 md:pt-36 pb-[var(--spacing-section)] px-6 max-w-5xl mx-auto">
       {/* H1 — visuell als Section Label */}
-      <h1 className="text-terracotta uppercase tracking-[4px] text-[11px] text-center mb-16">
+      <h1 className="font-heading font-light text-terracotta uppercase tracking-[0.2em] text-2xl md:text-3xl text-center mb-16">
         {t.press.title}
       </h1>
 
