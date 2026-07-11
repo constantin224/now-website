@@ -1,0 +1,66 @@
+import { TICKER_CONFIG as C } from "./config";
+
+export type TickerEvent = "init" | "sale" | "drift";
+
+export interface HistoryPoint {
+  t: string; // ISO-Zeitstempel
+  price: number; // interner Kurs (exakt)
+  event: TickerEvent;
+}
+
+export interface TickerState {
+  startInventory: number; // Inventar bei Börsen-Start (Baseline für Verkaufszählung)
+  soldCount: number; // bisher gezählte Verkäufe
+  lastSaleAt: string; // ISO — steuert Gnadenfrist
+  price: number; // interner Kurs (ungerundet)
+  history: HistoryPoint[];
+}
+
+const clamp = (p: number) => Math.min(C.capEuro, Math.max(C.floorEuro, p));
+
+// Shop-Preis: geklemmt + auf 10 Cent gerundet (krumme Preise sind Absicht)
+export function shopPrice(priceEuro: number): number {
+  return Math.round(clamp(priceEuro) * 10) / 10;
+}
+
+export function initState(
+  currentPriceEuro: number,
+  currentInventory: number,
+  now: Date
+): TickerState {
+  const t = now.toISOString();
+  return {
+    startInventory: currentInventory,
+    soldCount: 0,
+    lastSaleAt: t,
+    price: clamp(currentPriceEuro),
+    history: [{ t, price: clamp(currentPriceEuro), event: "init" }],
+  };
+}
+
+// Ein Börsen-Schritt: erst Verkäufe verarbeiten, sonst Drift (Task 3).
+// Pure Funktion — Zeit kommt IMMER von außen rein.
+export function tick(
+  state: TickerState,
+  currentInventory: number,
+  now: Date
+): TickerState {
+  const totalSold = state.startInventory - currentInventory;
+  const newSales = totalSold - state.soldCount;
+
+  if (newSales > 0) {
+    const price = clamp(state.price + newSales * C.saleBumpEuro);
+    return {
+      ...state,
+      price,
+      soldCount: totalSold,
+      lastSaleAt: now.toISOString(),
+      history: [
+        ...state.history,
+        { t: now.toISOString(), price, event: "sale" },
+      ],
+    };
+  }
+
+  return state; // Drift folgt in Task 3
+}
