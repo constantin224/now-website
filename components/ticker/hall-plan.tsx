@@ -9,67 +9,81 @@ interface Props {
   };
 }
 
-// Saalplan-Parodie in der Erd-Palette der Now.-Seite (identisch zu price-chart.tsx):
-// Terracotta = die EINE Fläche (Stehparkett), Sand = Bühne, Basis-Dunkel = Text
-// auf der Fläche. Nachbau der Ticketmaster-Saalplan-Optik mit genau einer Kategorie.
-// Server-Komponente — statisches SVG, kein Client-JS.
+// Saalplan-Parodie: Nachbau der Konzern-Saalplan-Optik mit exakt EINER
+// Kategorie. Erd-Palette, ruhige Flächen — Server-Komponente, statisches SVG.
 const TERRACOTTA = "#a07352";
 const SAND = "#d4cbbe";
-const BASE = "#0e0e0e";
 
 export function HallPlan({ labels }: Props) {
   return (
-    <section>
-      <h2 className="font-light text-lg md:text-xl text-sand/70 mb-6">
-        {labels.title}
-      </h2>
+    <div>
       <svg
-        viewBox="0 0 400 260"
-        className="w-full max-w-lg h-auto"
+        viewBox="0 0 400 250"
+        className="w-full h-auto"
         role="img"
         aria-label={labels.title}
       >
-        {/* Bühne — gedämpfte Sand-Leiste */}
-        <rect x="120" y="16" width="160" height="36" rx="4" fill={SAND} opacity="0.25" />
+        {/* Bühne */}
+        <rect
+          x="110"
+          y="18"
+          width="180"
+          height="34"
+          rx="3"
+          fill={SAND}
+          fillOpacity="0.14"
+          stroke={SAND}
+          strokeOpacity="0.25"
+        />
         <text
           x="200"
           y="40"
           textAnchor="middle"
           fill={SAND}
-          opacity="0.7"
-          fontSize="16"
-          fontWeight="bold"
+          fillOpacity="0.6"
+          fontSize="12"
+          letterSpacing="3"
         >
           {labels.stage}
         </text>
-        {/* Die eine und einzige Fläche: Stehparkett in Terracotta */}
-        <polygon points="60,80 340,80 360,230 40,230" fill={TERRACOTTA} opacity="0.85" />
+        {/* Die eine und einzige Fläche */}
+        <polygon
+          points="70,78 330,78 352,222 48,222"
+          fill={TERRACOTTA}
+          fillOpacity="0.18"
+          stroke={TERRACOTTA}
+          strokeOpacity="0.55"
+        />
         <text
           x="200"
-          y="165"
+          y="156"
           textAnchor="middle"
-          fill={BASE}
-          fontSize="15"
-          fontWeight="bold"
+          fill={SAND}
+          fillOpacity="0.85"
+          fontSize="13"
+          letterSpacing="2"
         >
           {labels.standing}
         </text>
       </svg>
-      <div className="flex gap-6 mt-3 text-sm text-sand/60">
+      <div className="flex flex-wrap gap-x-6 gap-y-2 mt-4 text-xs md:text-sm text-sand/60">
         <span className="flex items-center gap-2">
           <span
-            className="w-3 h-3 rounded-full inline-block"
-            style={{ backgroundColor: TERRACOTTA }}
-          />{" "}
+            className="rounded-full inline-block shrink-0"
+            style={{ backgroundColor: TERRACOTTA, width: 10, height: 10 }}
+          />
           {labels.legendStandard}
         </span>
         <span className="flex items-center gap-2">
-          {/* VIP „gibt es nicht" — daher als leerer, geghosteter Ring */}
-          <span className="w-3 h-3 rounded-full inline-block border border-sand-38" />{" "}
+          {/* VIP „gibt es nicht" — leerer, geghosteter Ring */}
+          <span
+            className="rounded-full inline-block shrink-0 border border-sand-38"
+            style={{ width: 10, height: 10 }}
+          />
           {labels.legendVip}
         </span>
       </div>
-      <p className="text-sm text-sand-38 mt-2">{labels.note}</p>
-    </section>
+      <p className="text-xs md:text-sm text-sand-38 mt-2">{labels.note}</p>
+    </div>
   );
 }

@@ -6,6 +6,10 @@
   --color-bg-card: #1e1814;
   --color-terracotta: #a07352;
   --color-sand: #d4cbbe;
+  /* Markt-Trendfarben (Ticket-Börse): CVD-geprüft gegen bg-section,
+     nie farb-allein — immer mit ▲/▼ bzw. Vorzeichen kombiniert */
+  --color-market-up: #9cb579;
+  --color-market-down: #c08552;
   --color-sand-50: rgba(212, 203, 190, 0.5);
   --color-sand-38: rgba(212, 203, 190, 0.38);
   --color-line: rgba(160, 115, 82, 0.12);
@@ -108,6 +112,23 @@
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Ticket-Börse: Laufband — nur Desktop, reduced-motion respektiert */
+@keyframes tickerTape {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@layer utilities {
+  .animate-ticker-tape {
+    animation: none;
+  }
+  @media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+    .animate-ticker-tape {
+      animation: tickerTape 40s linear infinite;
+    }
+  }
 }
 
 /* Bandsintown Widget — Design-Overrides */

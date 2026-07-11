@@ -72,7 +72,7 @@
   "tickets": {
     "metaTitle": "Tickets — Offizielle Ticket-Plattform | Now.",
     "platformLabel": "OFFIZIELLE TICKET-PLATTFORM DER NOW. WORLD TOUR 2026 (1 TERMIN)",
-    "eventTitle": "17.10.2026 — Now. // Wien",
+    "eventTitle": "Now. // Wien",
     "eventSubtitle": "Album-Präsentation",
     "currentPrice": "Aktueller Marktpreis",
     "dayChange": "24h-Veränderung",
@@ -80,8 +80,8 @@
     "allTimeHigh": "Allzeithoch",
     "allTimeLow": "Allzeittief",
     "demandBadge": {
-      "high": "⚡ ERHÖHTE NACHFRAGE — {count} Tickets in den letzten 24 Stunden",
-      "some": "NACHFRAGE REGISTRIERT — {count} Ticket(s) in den letzten 24 Stunden",
+      "high": "ERHÖHTE NACHFRAGE — {count} TICKETS IN 24 STUNDEN",
+      "some": "NACHFRAGE REGISTRIERT — {count} TICKET(S) IN 24 STUNDEN",
       "none": "VIELE TICKETS VERFÜGBAR. WIRKLICH VIELE."
     },
     "howItWorks": "So funktioniert unser Dynamic Pricing: Kauft jemand ein Ticket, steigt der Preis. Kauft niemand eines, fällt er. Das ist alles. Wir hätten es auch komplizierter erklären können.",
@@ -107,7 +107,28 @@
       "legendStandard": "Standard",
       "legendVip": "VIP (gibt es nicht)",
       "note": "Beste Plätze: alle. Schlechteste Plätze: keine."
-    }
+    },
+    "eventMeta": "17.10.2026 · The Loft, Wien · Beginn 19:00",
+    "symbol": "NOW.T",
+    "stats": {
+      "volume24h": "Volumen 24h",
+      "available": "Im Umlauf",
+      "availableUnit": "Tickets",
+      "marketCap": "Marktkapitalisierung"
+    },
+    "chart": {
+      "floor": "Boden €1,50 — tiefer geht rechtlich, aber nicht emotional",
+      "sale": "Verkauf",
+      "start": "Handelsstart",
+      "today": "Heute"
+    },
+    "tape": {
+      "floorLabel": "Boden",
+      "capLabel": "Deckel",
+      "volumeLabel": "Volumen 24h",
+      "availableLabel": "Umlauf"
+    },
+    "howItWorksTitle": "So funktioniert der Markt"
   },
   "impressum": {
     "title": "Impressum",

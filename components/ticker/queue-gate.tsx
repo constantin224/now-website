@@ -36,7 +36,7 @@ export function QueueGate({ href, label, queue }: Props) {
   if (phase === "queueing") {
     return (
       <div
-        className="border border-line rounded-lg p-6 max-w-md bg-bg-card/40"
+        className="border border-line rounded-lg p-6 max-w-md mx-auto text-left bg-bg-card/40"
         role="status"
         aria-live="polite"
       >
@@ -44,7 +44,7 @@ export function QueueGate({ href, label, queue }: Props) {
             Puls nur auf Desktop und nur wenn keine reduzierten Bewegungen
             gewünscht sind; sonst steht der Balken statisch (Design-Hausregel). */}
         <div className="h-1 bg-sand/10 rounded-full overflow-hidden mb-4">
-          <div className="h-full w-1/3 rounded-full bg-[#87a06d] md:motion-safe:animate-pulse" />
+          <div className="h-full w-1/3 rounded-full bg-market-up md:motion-safe:animate-pulse" />
         </div>
         <p className="text-sand font-medium">{queue.position}</p>
         <p className="text-sm text-sand/60 mt-1">{queue.waiting}</p>
@@ -56,7 +56,7 @@ export function QueueGate({ href, label, queue }: Props) {
   return (
     <button
       onClick={start}
-      className="inline-block border border-terracotta/30 bg-terracotta/10 text-terracotta px-8 py-3 text-[11px] tracking-[3px] uppercase hover:bg-terracotta/20 transition-colors rounded-full cursor-pointer"
+      className="inline-block whitespace-nowrap border border-terracotta/30 bg-terracotta/10 text-terracotta px-10 py-4 text-xs tracking-[3px] uppercase hover:bg-terracotta/20 transition-colors duration-200 rounded-full cursor-pointer"
     >
       {label}
     </button>

@@ -72,7 +72,7 @@
   "tickets": {
     "metaTitle": "Tickets — Official Ticket Platform | Now.",
     "platformLabel": "OFFICIAL TICKET PLATFORM OF THE NOW. WORLD TOUR 2026 (1 DATE)",
-    "eventTitle": "17.10.2026 — Now. // Vienna",
+    "eventTitle": "Now. // Vienna",
     "eventSubtitle": "Album Release Show",
     "currentPrice": "Current market price",
     "dayChange": "24h change",
@@ -80,8 +80,8 @@
     "allTimeHigh": "All-time high",
     "allTimeLow": "All-time low",
     "demandBadge": {
-      "high": "⚡ HIGH DEMAND — {count} tickets in the last 24 hours",
-      "some": "DEMAND DETECTED — {count} ticket(s) in the last 24 hours",
+      "high": "HIGH DEMAND — {count} TICKETS IN 24 HOURS",
+      "some": "DEMAND DETECTED — {count} TICKET(S) IN 24 HOURS",
       "none": "PLENTY OF TICKETS AVAILABLE. GENUINELY PLENTY."
     },
     "howItWorks": "How our dynamic pricing works: if someone buys a ticket, the price goes up. If nobody does, it goes down. That's it. We could have made it sound more complicated.",
@@ -107,7 +107,28 @@
       "legendStandard": "Standard",
       "legendVip": "VIP (does not exist)",
       "note": "Best spots: all of them. Worst spots: none."
-    }
+    },
+    "eventMeta": "17 Oct 2026 · The Loft, Vienna · Doors 19:00",
+    "symbol": "NOW.T",
+    "stats": {
+      "volume24h": "24h volume",
+      "available": "In circulation",
+      "availableUnit": "tickets",
+      "marketCap": "Market cap"
+    },
+    "chart": {
+      "floor": "Floor €1.50 — legally it could go lower, emotionally it can't",
+      "sale": "Sale",
+      "start": "Trading start",
+      "today": "Today"
+    },
+    "tape": {
+      "floorLabel": "Floor",
+      "capLabel": "Cap",
+      "volumeLabel": "24h volume",
+      "availableLabel": "Circulation"
+    },
+    "howItWorksTitle": "How the market works"
   },
   "impressum": {
     "title": "Legal Notice",
