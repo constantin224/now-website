@@ -3,6 +3,10 @@
     {
       "path": "/api/revalidate",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/ticker/tick",
+      "schedule": "0 * * * *"
     }
   ]
 }
