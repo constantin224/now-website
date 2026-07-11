@@ -96,6 +96,8 @@ Datenfluss Seite: Server Component liest Metafield (Admin API) + rendert; Revali
 
 ## Design-Vorbilder (gefetcht 2026-07-11, Screenshots in `docs/design-refs/`)
 
+**Wichtigstes Design-Prinzip (Constantin, 2026-07-11):** Die Vorbilder liefern NUR die Muster und Tropen (Knappheits-Badges, Warteschlange, Saalplan, VIP-Packages, Gebühren-Fußnoten, Countdown) — NICHT die Optik. Optisch bleibt die Seite 100 % in der Now.-Designsprache der bestehenden Website (dunkel, elegant, bestehende Typo/Farben/Abstände wie auf den anderen Seiten). Die oeticket/Ticketmaster-Ästhetik selbst ist explizit unerwünscht („sieht einfach nur komisch aus"). Der Witz: Konzern-Tropen, aber schöner ausgeführt als beim Konzern.
+
 Karikatur-Ziel: oeticket (Eventim-Plattform, AT-Marktführer) + Ticketmaster AT. Muster, die die Seite todernst nachbauen soll:
 
 **oeticket-Eventseite** (`oeticket-event-toten-hosen.jpeg`):

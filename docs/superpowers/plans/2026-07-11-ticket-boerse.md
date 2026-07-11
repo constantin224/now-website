@@ -18,6 +18,7 @@
 - Secrets NIE in Dateien/Repo/Logs. Env-Vars nur in Vercel (setzt Constantin). Lokale Tests mocken `fetch`.
 - Alle UI-Texte über `messages/de.json` + `messages/en.json` (i18n-Pflicht), Ton: todernste Ticketmaster-Parodie, nie zwinkern.
 - Design-Hausregeln aus `CLAUDE.md`: Effekte nur Desktop ≥768px, Mobile statisch, Text-Opacity ≥35 %, `prefers-reduced-motion` respektieren.
+- **Optik = Now.-Designsprache, NICHT Ticketing-Portal-Optik.** Vorbilder (docs/design-refs/) liefern nur Muster/Tropen; UI-Tasks (8/9/10) MÜSSEN vor dem Bauen bestehende Seiten lesen (`app/[locale]/page.tsx`, `shows/page.tsx`, `globals.css`, `components/navigation.tsx`) und deren Typo/Farben/Abstände/Komponenten-Idiome exakt übernehmen. Beispiel-Snippets in diesem Plan sind funktionale Skizzen — Klassen an den Bestand anpassen.
 - Deploy NUR manuell via Skill `tonherd-web-deploy` — `git push` deployt nicht.
 - Code-Kommentare auf Deutsch.
 
