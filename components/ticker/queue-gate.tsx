@@ -56,7 +56,7 @@ export function QueueGate({ href, label, queue }: Props) {
   return (
     <button
       onClick={start}
-      className="inline-block whitespace-nowrap border border-terracotta/30 bg-terracotta/10 text-terracotta px-10 py-4 text-xs tracking-[3px] uppercase hover:bg-terracotta/20 transition-colors duration-200 rounded-full cursor-pointer"
+      className="inline-flex w-max items-center justify-center whitespace-nowrap border border-terracotta/30 bg-terracotta/10 text-terracotta px-10 py-4 text-xs tracking-[3px] uppercase hover:bg-terracotta/20 transition-colors duration-200 rounded-full cursor-pointer"
     >
       {label}
     </button>
