@@ -114,6 +114,21 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Ticket-Börse: Kurs-Linie zeichnet sich ein — nur Desktop, reduced-motion respektiert */
+@keyframes chartDraw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+@layer utilities {
+  @media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+    .animate-chart-draw {
+      stroke-dasharray: 1;
+      animation: chartDraw 1.8s cubic-bezier(0.4, 0, 0.2, 1) both;
+    }
+  }
+}
+
 /* Ticket-Börse: Laufband — nur Desktop, reduced-motion respektiert */
 @keyframes tickerTape {
   from { transform: translateX(0); }

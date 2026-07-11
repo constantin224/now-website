@@ -21,15 +21,21 @@ interface Props {
 // Nie farb-allein: Pfeil/Vorzeichen und Marker tragen die Information zusätzlich.
 const UP = "#9cb579";
 const DOWN = "#c08552";
-const GRID = "rgba(212, 203, 190, 0.08)";
+const GRID = "rgba(212, 203, 190, 0.07)";
 const INK_MUTED = "rgba(212, 203, 190, 0.42)";
 const SURFACE = "#161210";
 
 const fmt = (n: number) => `€${n.toFixed(2).replace(".", ",")}`;
 
 const W = 960;
-const H = 340;
-const PAD = { top: 24, right: 20, bottom: 30, left: 62 };
+const H = 380;
+const PAD = { top: 34, right: 20, bottom: 30, left: 62 };
+
+// Linear verbunden — bei Kurs-Daten Best Practice: kein Smoothing,
+// das Zwischenwerte erfindet oder an Sprüngen überschwingt.
+function linePathOf(pts: { x: number; y: number }[]): string {
+  return `M ${pts.map((p) => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" L ")}`;
+}
 
 // Interaktiver Börsen-Chart: Kurs-Linie + Fläche, Grid, Boden-Linie,
 // Verkaufs-Events — und Crosshair mit Tooltip beim Zeigen/Streichen.
@@ -63,7 +69,12 @@ export function PriceChart({ history, rising, floorEuro, locale, labels }: Props
   const gradId = rising ? "tickerAreaUp" : "tickerAreaDown";
   const gridSteps = [0.25, 0.5, 0.75, 1].map((f) => yMin + f * (yMax - yMin));
   const floorY = y(floorEuro);
-  const line = pts.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(" ");
+  const linePath = linePathOf(pts);
+  const areaPath = `${linePath} L ${(W - PAD.right).toFixed(1)} ${(PAD.top + ih).toFixed(1)} L ${PAD.left.toFixed(1)} ${(PAD.top + ih).toFixed(1)} Z`;
+  const last = pts[pts.length - 1];
+  // ATH/ATL direkt am Chart annotieren
+  const athPt = pts.reduce((a, b) => (b.p.price > a.p.price ? b : a));
+  const atlPt = pts.reduce((a, b) => (b.p.price < a.p.price ? b : a));
 
   // Pointer → nächstliegender Datenpunkt (binäre Suche unnötig, Punktzahl klein)
   function onPointer(e: React.PointerEvent<HTMLDivElement>) {
@@ -116,8 +127,10 @@ export function PriceChart({ history, rising, floorEuro, locale, labels }: Props
         aria-label={`${labels.start}: ${fmt(history[0].price)} — ${labels.today}: ${fmt(history[history.length - 1].price)}`}
       >
         <defs>
+          {/* Fläche läuft schnell auf null aus — kein „brauner Block" unter hoher Kurve */}
           <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity="0.14" />
+            <stop offset="0%" stopColor={color} stopOpacity="0.22" />
+            <stop offset="45%" stopColor={color} stopOpacity="0.03" />
             <stop offset="100%" stopColor={color} stopOpacity="0" />
           </linearGradient>
         </defs>
@@ -167,19 +180,40 @@ export function PriceChart({ history, rising, floorEuro, locale, labels }: Props
           {labels.floor}
         </text>
 
-        {/* Fläche + Kurs-Linie */}
-        <polygon
-          points={`${PAD.left},${PAD.top + ih} ${line} ${W - PAD.right},${PAD.top + ih}`}
-          fill={`url(#${gradId})`}
-        />
-        <polyline
-          points={line}
+        {/* Fläche + weiche Kurs-Linie (zeichnet sich beim Reveal ein) */}
+        <path d={areaPath} fill={`url(#${gradId})`} />
+        <path
+          d={linePath}
           fill="none"
           stroke={color}
-          strokeWidth="2"
+          strokeWidth="2.5"
           strokeLinejoin="round"
           strokeLinecap="round"
+          pathLength={1}
+          className="animate-chart-draw"
         />
+
+        {/* ATH/ATL-Annotationen — horizontal in den Zeichenbereich geklemmt */}
+        <text
+          x={Math.max(PAD.left + 44, Math.min(athPt.x, W - PAD.right - 44))}
+          y={Math.max(PAD.top + 12, athPt.y - 12)}
+          textAnchor="middle"
+          fontSize="11"
+          fill={INK_MUTED}
+          style={{ fontVariantNumeric: "tabular-nums" }}
+        >
+          ▲ {fmt(athPt.p.price)}
+        </text>
+        <text
+          x={Math.max(PAD.left + 44, Math.min(atlPt.x, W - PAD.right - 44))}
+          y={Math.min(atlPt.y + 22, PAD.top + ih - 6)}
+          textAnchor="middle"
+          fontSize="11"
+          fill={INK_MUTED}
+          style={{ fontVariantNumeric: "tabular-nums" }}
+        >
+          ▼ {fmt(atlPt.p.price)}
+        </text>
 
         {/* Verkaufs-Events */}
         {pts
@@ -195,6 +229,24 @@ export function PriceChart({ history, rising, floorEuro, locale, labels }: Props
               strokeWidth="2"
             />
           ))}
+
+        {/* Live-Punkt am Linienende — der Kurs lebt */}
+        <circle
+          cx={last.x}
+          cy={last.y}
+          r="10"
+          fill={color}
+          opacity="0.25"
+          className="md:motion-safe:animate-ping [transform-box:fill-box] origin-center"
+        />
+        <circle
+          cx={last.x}
+          cy={last.y}
+          r="5"
+          fill={color}
+          stroke={SURFACE}
+          strokeWidth="2"
+        />
 
         {/* Crosshair */}
         {hv && (
