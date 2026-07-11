@@ -105,3 +105,17 @@ describe("tick — Rebaseline bei Storno (Evey-Regel)", () => {
     expect(s3.soldCount).toBe(2);
   });
 });
+
+describe("tick — allowDrift-Flag", () => {
+  it("allowDrift: false unterdrückt Drift (Webhook-Schutz)", () => {
+    const s0 = initState(22, 176, NOW);
+    const s1 = tick(s0, 176, new Date(NOW.getTime() + 48 * H), { allowDrift: false });
+    expect(s1).toBe(s0); // identisches Objekt, kein Drift
+  });
+
+  it("allowDrift: false lässt Verkäufe + Rebaseline trotzdem durch", () => {
+    const s0 = initState(22, 176, NOW);
+    const s1 = tick(s0, 175, NOW, { allowDrift: false });
+    expect(s1.price).toBe(24);
+  });
+});

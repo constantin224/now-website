@@ -43,7 +43,8 @@ export function initState(
 export function tick(
   state: TickerState,
   currentInventory: number,
-  now: Date
+  now: Date,
+  opts: { allowDrift: boolean } = { allowDrift: true }
 ): TickerState {
   const totalSold = state.startInventory - currentInventory;
   const newSales = totalSold - state.soldCount;
@@ -69,6 +70,10 @@ export function tick(
   }
 
   // Drift: nur nach Ablauf der Gnadenfrist, exponentiell Richtung Boden
+  // Drift nur vom stündlichen Cron (allowDrift) — Webhooks feuern bei jeder
+  // Shop-Bestellung und dürfen keine zusätzlichen Drift-Schritte auslösen
+  if (!opts.allowDrift) return state;
+
   const hoursSinceSale =
     (now.getTime() - new Date(state.lastSaleAt).getTime()) / 3_600_000;
   if (hoursSinceSale <= C.graceHours) return state;
