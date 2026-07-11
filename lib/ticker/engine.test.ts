@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { TICKER_CONFIG } from "./config";
 import { initState, shopPrice, tick, pruneHistory } from "./engine";
 
 const NOW = new Date("2026-07-11T12:00:00Z");
@@ -63,7 +64,7 @@ describe("tick — Drift", () => {
   it("nach Gnadenfrist: −0,5 % pro Tick", () => {
     const s0 = initState(22, 176, NOW);
     const s1 = tick(s0, 176, new Date(NOW.getTime() + 25 * H));
-    expect(s1.price).toBeCloseTo(22 * 0.995, 10);
+    expect(s1.price).toBeCloseTo(22 * TICKER_CONFIG.driftFactorPerHour, 10);
     expect(s1.history.at(-1)).toMatchObject({ event: "drift" });
   });
 

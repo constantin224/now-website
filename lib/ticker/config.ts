@@ -9,7 +9,10 @@ export const TICKER_CONFIG = {
 
   saleBumpEuro: 2.0,        // Preis-Sprung pro verkauftem Ticket
   graceHours: 24,           // Gnadenfrist nach letztem Verkauf
-  driftFactorPerHour: 0.995, // −0,5 % pro Stunde ohne Verkauf
+  // −0,15 %/h ≈ −3,5 %/Tag: kalibriert auf ~98 Tage bis zum Gig und 176 Tickets.
+  // Totale Flaute erreicht den Boden erst kurz vorm Gig (statt nach 3 Wochen);
+  // ~1 Verkauf alle 3 Tage hält den Kurs stabil.
+  driftFactorPerHour: 0.9985,
   floorEuro: 1.5,           // bewusst lächerlicher Boden
   capEuro: 50.0,            // Deckel
 

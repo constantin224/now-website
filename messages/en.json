@@ -142,7 +142,8 @@
     "shared": "Link copied",
     "shareText": "The NOW. ticket is currently at {price}. Dynamic pricing like the superstars — only in the other direction:",
     "queueStatus": "WAITING ROOM ACTIVE · POSITION 1 OF 1",
-    "priceEyebrow": "Dynamic ticket price — not fixed, changes hourly"
+    "priceEyebrow": "Dynamic ticket price — not fixed, changes hourly",
+    "ctaPriceNote": "You pay the rate at the moment of purchase — it can change until checkout. In both directions."
   },
   "impressum": {
     "title": "Legal Notice",

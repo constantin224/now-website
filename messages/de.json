@@ -142,7 +142,8 @@
     "shared": "Link kopiert",
     "shareText": "Das NOW.-Ticket steht gerade bei {price}. Dynamic Pricing wie bei den Superstars — nur in die andere Richtung:",
     "queueStatus": "WARTERAUM AKTIV · POSITION 1 VON 1",
-    "priceEyebrow": "Dynamischer Ticketpreis — nicht fix, ändert sich stündlich"
+    "priceEyebrow": "Dynamischer Ticketpreis — nicht fix, ändert sich stündlich",
+    "ctaPriceNote": "Es gilt der Kurs im Moment des Kaufs — bis zur Kassa kann er sich ändern. In beide Richtungen."
   },
   "impressum": {
     "title": "Impressum",

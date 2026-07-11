@@ -188,6 +188,18 @@ export default async function TicketsPage({
           <p className="text-sm text-sand/50 mt-3 animate-fade-in-delay">
             {t.nextDrop}
           </p>
+
+          {/* Kauf-Fokus: CTA direkt im Hero */}
+          <div className="mt-10 animate-fade-in-delay">
+            <QueueGate
+              href={C.shopProductUrl}
+              label={t.buyCta}
+              queue={t.queue}
+            />
+            <p className="text-xs text-sand/50 mt-4 max-w-sm mx-auto">
+              {t.ctaPriceNote}
+            </p>
+          </div>
         </div>
 
         {/* Laufband als Hero-Abschluss */}
@@ -319,7 +331,10 @@ export default async function TicketsPage({
                 queue={t.queue}
               />
             </div>
-            <p className="text-xs text-sand/50 mt-10 max-w-md mx-auto leading-relaxed">
+            <p className="text-xs text-sand/50 mt-6 max-w-md mx-auto leading-relaxed">
+              {t.ctaPriceNote}
+            </p>
+            <p className="text-xs text-sand/50 mt-3 max-w-md mx-auto leading-relaxed">
               {t.disclaimer}
             </p>
           </ScrollReveal>
