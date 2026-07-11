@@ -55,6 +55,12 @@ export async function readTicker(): Promise<{
   currentPriceEuro: number;
   currentInventory: number;
 }> {
+  // Dev-Mock für Design-Arbeit (TICKER_MOCK=1) — niemals in Produktion setzen
+  if (process.env.TICKER_MOCK === "1") {
+    const { mockTicker } = await import("./mock");
+    return mockTicker();
+  }
+
   const data = await adminQuery<{
     product: { metafield: { value: string } | null } | null;
     productVariant: { price: string; inventoryQuantity: number } | null;
