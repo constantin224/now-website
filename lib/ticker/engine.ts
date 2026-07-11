@@ -90,3 +90,24 @@ export function tick(
     ],
   };
 }
+
+// Historie kompakt halten: init/sale bleiben immer, alte Drift-Punkte
+// werden auf ein 6h-Raster ausgedünnt (Metafield-Größenlimit).
+export function pruneHistory(
+  history: HistoryPoint[],
+  now: Date
+): HistoryPoint[] {
+  const denseCutoff = now.getTime() - C.historyDenseDays * 24 * 3_600_000;
+  const rasterMs = C.historySparseHours * 3_600_000;
+  let lastKeptSlot = -Infinity;
+
+  return history.filter((p) => {
+    if (p.event !== "drift") return true;
+    const t = new Date(p.t).getTime();
+    if (t >= denseCutoff) return true;
+    const slot = Math.floor(t / rasterMs);
+    if (slot === lastKeptSlot) return false;
+    lastKeptSlot = slot;
+    return true;
+  });
+}

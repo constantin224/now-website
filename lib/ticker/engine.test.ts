@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { initState, shopPrice, tick } from "./engine";
+import { initState, shopPrice, tick, pruneHistory } from "./engine";
 
 const NOW = new Date("2026-07-11T12:00:00Z");
 const H = 3_600_000; // eine Stunde in ms
@@ -117,5 +117,40 @@ describe("tick — allowDrift-Flag", () => {
     const s0 = initState(22, 176, NOW);
     const s1 = tick(s0, 175, NOW, { allowDrift: false });
     expect(s1.price).toBe(24);
+  });
+});
+
+describe("pruneHistory", () => {
+  const D = 24 * H;
+
+  it("behält init- und sale-Punkte immer", () => {
+    const old = new Date(NOW.getTime() - 30 * D).toISOString();
+    const hist = [
+      { t: old, price: 22, event: "init" as const },
+      { t: old, price: 24, event: "sale" as const },
+    ];
+    expect(pruneHistory(hist, NOW)).toHaveLength(2);
+  });
+
+  it("dünnt drift-Punkte älter als 7 Tage auf 6h-Raster aus", () => {
+    // 24 stündliche Drift-Punkte, alle 10 Tage alt → nur jeder 6. bleibt
+    const base = NOW.getTime() - 10 * D;
+    const hist = Array.from({ length: 24 }, (_, i) => ({
+      t: new Date(base + i * H).toISOString(),
+      price: 20 - i * 0.1,
+      event: "drift" as const,
+    }));
+    const pruned = pruneHistory(hist, NOW);
+    expect(pruned.length).toBe(4); // 24h / 6h-Raster
+  });
+
+  it("lässt junge drift-Punkte (< 7 Tage) unangetastet", () => {
+    const base = NOW.getTime() - 2 * D;
+    const hist = Array.from({ length: 24 }, (_, i) => ({
+      t: new Date(base + i * H).toISOString(),
+      price: 20,
+      event: "drift" as const,
+    }));
+    expect(pruneHistory(hist, NOW)).toHaveLength(24);
   });
 });
