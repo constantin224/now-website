@@ -334,7 +334,10 @@ export default async function TicketsPage({
                 queue={t.queue}
               />
             </div>
-            <p className="text-xs text-sand/50 mt-6 max-w-md mx-auto leading-relaxed">
+            <p className="text-sm text-sand/60 mt-8 max-w-md mx-auto leading-relaxed">
+              {t.fees}
+            </p>
+            <p className="text-xs text-sand/50 mt-4 max-w-md mx-auto leading-relaxed">
               {t.ctaPriceNote}
             </p>
             <p className="text-xs text-sand/50 mt-3 max-w-md mx-auto leading-relaxed">
