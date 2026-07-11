@@ -67,6 +67,26 @@
     "empty": "No products available at the moment.",
     "checkout_hint": "Checkout & shipping via shop.tonherd.at"
   },
+  "tickets": {
+    "metaTitle": "Tickets — Official Ticket Platform | Now.",
+    "platformLabel": "OFFICIAL TICKET PLATFORM OF THE NOW. WORLD TOUR 2026 (1 DATE)",
+    "eventTitle": "17.10.2026 — Now. // Vienna",
+    "eventSubtitle": "Album Release Show",
+    "currentPrice": "Current market price",
+    "dayChange": "24h change",
+    "chartTitle": "Price history — 100% transparent. Unlike the others.",
+    "allTimeHigh": "All-time high",
+    "allTimeLow": "All-time low",
+    "demandBadge": {
+      "high": "⚡ HIGH DEMAND — {count} tickets in the last 24 hours",
+      "some": "DEMAND DETECTED — {count} ticket(s) in the last 24 hours",
+      "none": "PLENTY OF TICKETS AVAILABLE. GENUINELY PLENTY."
+    },
+    "howItWorks": "How our dynamic pricing works: if someone buys a ticket, the price goes up. If nobody does, it goes down. That's it. We could have made it sound more complicated.",
+    "buyCta": "Secure tickets",
+    "fees": "Service fee: €0. Handling fee: €0. Dynamic pricing fee: €0. We don't understand it either.",
+    "disclaimer": "* Price includes VAT and excludes all the fees we don't charge."
+  },
   "impressum": {
     "title": "Legal Notice",
     "legal_note": "Information obligation according to §5 E-Commerce Act (ECG)",
