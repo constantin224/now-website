@@ -138,11 +138,7 @@ export default async function TicketsPage({
 
         {/* Ein Star, wenig Text: der Preis IST das Hero */}
         <div className="relative flex-1 flex flex-col items-center justify-center text-center max-w-4xl mx-auto w-full px-6 pt-28 pb-16">
-          <p className="text-[10px] md:text-xs tracking-[0.3em] uppercase text-sand/45 animate-fade-in">
-            {t.platformLabel}
-          </p>
-
-          <h1 className="font-light text-2xl md:text-3xl text-sand/85 mt-8 animate-fade-in">
+          <h1 className="font-light text-2xl md:text-3xl text-sand/85 animate-fade-in">
             {t.eventTitle}
             <span className="block text-xs md:text-sm font-[family-name:var(--font-body)] tracking-wide text-sand/50 mt-2">
               {t.eventMeta}
