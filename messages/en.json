@@ -84,7 +84,7 @@
       "some": "DEMAND DETECTED — {count} TICKET(S) IN 24 HOURS",
       "none": "PLENTY OF TICKETS AVAILABLE. GENUINELY PLENTY."
     },
-    "howItWorks": "How our dynamic pricing works: if someone buys a ticket, the price goes up. If nobody does, it goes down. That's it. We could have made it sound more complicated.",
+    "howItWorks": "Someone buys a ticket, the price jumps instantly. Nobody buys, it sinks hour by hour. That's it. We could have made it sound more complicated.",
     "buyCta": "Secure tickets",
     "fees": "Service fee: €0. Handling fee: €0. Dynamic pricing fee: €0. We don't understand it either.",
     "disclaimer": "* Price includes VAT and excludes all the fees we don't charge.",
@@ -114,11 +114,12 @@
       "volume24h": "24h volume",
       "available": "In circulation",
       "availableUnit": "tickets",
-      "marketCap": "Market cap"
+      "sold": "Sold since trading start"
     },
     "chart": {
       "floor": "Floor €1.50 — legally it could go lower, emotionally it can't",
       "sale": "Sale",
+      "drift": "Lull",
       "start": "Trading start",
       "today": "Today"
     },
@@ -128,9 +129,18 @@
       "volumeLabel": "24h volume",
       "availableLabel": "Circulation"
     },
-    "howItWorksTitle": "How the market works",
-    "chartHeadline": "The market has spoken. It speaks again every hour.",
-    "closingLine": "The market closes on October 17. After that, tickets are box-office only — at a fixed price, like in the Middle Ages."
+    "howItWorksTitle": "How dynamic pricing works",
+    "chartHeadline": "Nobody buys, it falls. Somebody buys, it rises.",
+    "closingLine": "Dynamic pricing ends on October 17. After that: box office — fixed price, like in the Middle Ages.",
+    "heroTagline": "Dynamic pricing like the superstars — only in the other direction.",
+    "live": "LIVE",
+    "chartHint": "Run your finger or cursor along the curve — every point is real (non-)demand.",
+    "nextDrop": "Next price drop: on the hour — unless somebody buys.",
+    "terminalLine": "NOW.T · THE LOFT · VIENNA · TRADING UNTIL 17 OCT 2026",
+    "share": "Share rate",
+    "shared": "Link copied",
+    "shareText": "The NOW. ticket is currently at {price}. Dynamic pricing like the superstars — only in the other direction:",
+    "queueStatus": "WAITING ROOM ACTIVE · POSITION 1 OF 1"
   },
   "impressum": {
     "title": "Legal Notice",

@@ -84,7 +84,7 @@
       "some": "NACHFRAGE REGISTRIERT — {count} TICKET(S) IN 24 STUNDEN",
       "none": "VIELE TICKETS VERFÜGBAR. WIRKLICH VIELE."
     },
-    "howItWorks": "So funktioniert unser Dynamic Pricing: Kauft jemand ein Ticket, steigt der Preis. Kauft niemand eines, fällt er. Das ist alles. Wir hätten es auch komplizierter erklären können.",
+    "howItWorks": "Kauft jemand ein Ticket, steigt der Preis sofort. Kauft niemand eines, sinkt er Stunde für Stunde. Das ist alles. Wir hätten es auch komplizierter erklären können.",
     "buyCta": "Tickets sichern",
     "fees": "Servicegebühr: 0 €. Bearbeitungsgebühr: 0 €. Dynamische-Preis-Gebühr: 0 €. Wir verstehen es auch nicht.",
     "disclaimer": "* Angezeigter Preis inkl. gesetzl. USt. und exkl. sämtlicher Gebühren, die wir nicht erheben.",
@@ -114,11 +114,12 @@
       "volume24h": "Volumen 24h",
       "available": "Im Umlauf",
       "availableUnit": "Tickets",
-      "marketCap": "Marktkapitalisierung"
+      "sold": "Verkauft seit Handelsstart"
     },
     "chart": {
       "floor": "Boden €1,50 — tiefer geht rechtlich, aber nicht emotional",
-      "sale": "Verkauf",
+      "sale": "Kauf",
+      "drift": "Flaute",
       "start": "Handelsstart",
       "today": "Heute"
     },
@@ -128,9 +129,18 @@
       "volumeLabel": "Volumen 24h",
       "availableLabel": "Umlauf"
     },
-    "howItWorksTitle": "So funktioniert der Markt",
-    "chartHeadline": "Der Markt hat entschieden. Er entscheidet stündlich neu.",
-    "closingLine": "Der Markt schließt am 17. Oktober. Danach gibt es Tickets nur noch an der Abendkassa — zum Fixpreis, wie im Mittelalter."
+    "howItWorksTitle": "So funktioniert Dynamic Pricing",
+    "chartHeadline": "Kauft niemand, fällt er. Kauft wer, steigt er.",
+    "closingLine": "Dynamic Pricing endet am 17. Oktober. Danach gibt es die Abendkassa — Fixpreis, wie im Mittelalter.",
+    "heroTagline": "Dynamic Pricing wie bei den Superstars — nur in die andere Richtung.",
+    "live": "LIVE",
+    "chartHint": "Mit dem Finger oder der Maus über die Kurve fahren — jeder Punkt ist echte (Nicht-)Nachfrage.",
+    "nextDrop": "Nächster Preisfall: zur vollen Stunde — außer, jemand kauft.",
+    "terminalLine": "NOW.T · THE LOFT · WIEN · HANDEL BIS 17.10.2026",
+    "share": "Kurs teilen",
+    "shared": "Link kopiert",
+    "shareText": "Das NOW.-Ticket steht gerade bei {price}. Dynamic Pricing wie bei den Superstars — nur in die andere Richtung:",
+    "queueStatus": "WARTERAUM AKTIV · POSITION 1 VON 1"
   },
   "impressum": {
     "title": "Impressum",

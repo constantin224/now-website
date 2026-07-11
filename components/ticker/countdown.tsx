@@ -59,7 +59,7 @@ export function Countdown({ targetIso, labels }: Props) {
         {units.map(([value, label]) => (
           <div
             key={label}
-            className="border border-line rounded-lg px-4 py-3 text-center min-w-[4.5rem]"
+            className="border border-line rounded-md px-4 py-3 text-center min-w-[4.5rem]"
           >
             <div className="font-light text-3xl md:text-4xl text-sand tabular-nums">
               {String(value).padStart(2, "0")}

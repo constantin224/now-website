@@ -10,6 +10,7 @@ import { TickerTape } from "@/components/ticker/ticker-tape";
 import { Countdown } from "@/components/ticker/countdown";
 import { HallPlan } from "@/components/ticker/hall-plan";
 import { QueueGate } from "@/components/ticker/queue-gate";
+import { ShareRate } from "@/components/ticker/share-rate";
 import { Tilt } from "@/components/ticker/tilt";
 import { ScrollReveal } from "@/components/scroll-reveal";
 
@@ -47,7 +48,6 @@ function dayChangePct(state: TickerState, now: Date): number {
 }
 
 const euro = (n: number) => `€${n.toFixed(2).replace(".", ",")}`;
-const euroInt = (n: number) => `€${Math.round(n).toLocaleString("de-AT")}`;
 
 export default async function TicketsPage({
   params,
@@ -94,7 +94,6 @@ export default async function TicketsPage({
   const prices = state.history.map((p) => p.price);
   const ath = Math.max(...prices);
   const atl = Math.min(...prices);
-  const marketCap = price * currentInventory;
   const badge =
     sales24 >= 3
       ? t.demandBadge.high.replace("{count}", String(sales24))
@@ -109,7 +108,6 @@ export default async function TicketsPage({
     `${t.symbol} ${euro(price)} ${arrow} ${pct}`,
     `${t.tape.volumeLabel}: ${sales24}`,
     `${t.tape.availableLabel}: ${currentInventory} ${t.stats.availableUnit}`,
-    `${t.stats.marketCap}: ${euroInt(marketCap)}`,
     `${t.tape.floorLabel}: ${euro(C.floorEuro)}`,
     `${t.tape.capLabel}: ${euro(C.capEuro)}`,
   ];
@@ -118,7 +116,7 @@ export default async function TicketsPage({
     [t.allTimeHigh, euro(ath)],
     [t.allTimeLow, euro(atl)],
     [t.stats.available, `${currentInventory} ${t.stats.availableUnit}`],
-    [t.stats.marketCap, euroInt(marketCap)],
+    [t.stats.sold, String(state.soldCount)],
   ];
 
   return (
@@ -132,39 +130,50 @@ export default async function TicketsPage({
             alt=""
             fill
             priority
-            className="object-cover opacity-50"
+            className="object-cover opacity-60 [object-position:center_42%]"
             sizes="100vw"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-bg-base/80 via-bg-base/40 to-bg-base" />
+          <div className="absolute inset-0 bg-gradient-to-b from-bg-base/75 via-bg-base/35 to-bg-base" />
         </div>
 
-        <div className="relative flex-1 flex flex-col justify-end max-w-6xl mx-auto w-full px-6 pt-32 pb-14 md:pb-20">
+        {/* Ein Star, wenig Text: der Preis IST das Hero */}
+        <div className="relative flex-1 flex flex-col items-center justify-center text-center max-w-4xl mx-auto w-full px-6 pt-28 pb-16">
           <p className="text-[10px] md:text-xs tracking-[0.3em] uppercase text-sand/45 animate-fade-in">
             {t.platformLabel}
           </p>
 
-          <h1 className="font-light text-[clamp(3.5rem,10vw,9rem)] leading-[0.95] text-sand mt-6 animate-fade-in">
+          <h1 className="font-light text-2xl md:text-3xl text-sand/85 mt-8 animate-fade-in">
             {t.eventTitle}
+            <span className="block text-xs md:text-sm font-[family-name:var(--font-body)] tracking-wide text-sand/50 mt-2">
+              {t.eventMeta}
+            </span>
           </h1>
 
-          <div className="mt-6 md:mt-8 flex flex-wrap items-baseline gap-x-8 gap-y-2 animate-fade-in-delay">
-            <p className="text-sm md:text-base text-sand/55 tracking-wide">
-              {t.eventSubtitle} · {t.eventMeta}
+          <div className="mt-10 md:mt-14 animate-fade-in-delay">
+            <span className="block font-[family-name:var(--font-heading)] font-light text-[clamp(5.5rem,17vw,15rem)] leading-none text-sand tabular-nums">
+              {euro(price)}
+            </span>
+            <p
+              className={`mt-4 flex items-center justify-center gap-3 text-lg md:text-2xl tabular-nums ${trendCls}`}
+            >
+              <span className="relative flex w-1.5 h-1.5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-market-up opacity-60 md:motion-safe:animate-ping" />
+                <span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-market-up" />
+              </span>
+              {arrow} {pct}
+              <span className="text-[10px] md:text-xs tracking-[0.2em] uppercase text-sand-38">
+                {t.live} · {t.dayChange}
+              </span>
             </p>
           </div>
 
-          {/* Der Preis — inszeniert, nicht gemessen */}
-          <div className="mt-12 md:mt-16 flex flex-wrap items-baseline gap-x-6 gap-y-3 animate-fade-in-delay">
-            <span className="font-[family-name:var(--font-heading)] font-light text-[clamp(4rem,12vw,10rem)] leading-none text-sand tabular-nums">
-              {euro(price)}
-            </span>
-            <span className={`text-xl md:text-3xl tabular-nums ${trendCls}`}>
-              {arrow} {pct}
-            </span>
-            <span className="w-full md:w-auto text-[10px] md:text-xs tracking-[0.2em] uppercase text-sand-38">
-              {t.currentPrice} · {t.dayChange}
-            </span>
-          </div>
+          {/* Ein Satz Klarheit — mehr braucht das Hero nicht */}
+          <p className="mt-10 md:mt-12 max-w-lg text-base md:text-lg text-sand/70 leading-relaxed animate-fade-in-delay">
+            {t.heroTagline}
+          </p>
+          <p className="text-sm text-sand/50 mt-3 animate-fade-in-delay">
+            {t.nextDrop}
+          </p>
         </div>
 
         {/* Laufband als Hero-Abschluss */}
@@ -189,6 +198,10 @@ export default async function TicketsPage({
             <h2 className="font-light text-[length:var(--text-h2)] text-sand mt-5 max-w-2xl">
               {t.chartHeadline}
             </h2>
+            {/* Terminal-Kopfzeile: seriöse Börsen-Optik, absurder Inhalt */}
+            <p className="text-[10px] md:text-xs tracking-[0.25em] uppercase text-sand/45 tabular-nums border-b border-line pb-3 mt-8">
+              {t.terminalLine}
+            </p>
           </ScrollReveal>
         </div>
 
@@ -199,6 +212,7 @@ export default async function TicketsPage({
               history={state.history}
               rising={rising}
               floorEuro={C.floorEuro}
+              locale={locale}
               labels={t.chart}
             />
           </Tilt>
@@ -210,18 +224,25 @@ export default async function TicketsPage({
             <dl className="mt-10 md:mt-12 grid grid-cols-2 md:grid-cols-4 gap-y-6 border-t border-line pt-6">
               {stats.map(([label, value]) => (
                 <div key={label}>
-                  <dt className="text-[10px] tracking-[0.2em] uppercase text-sand-38">
+                  <dt className="text-[10px] tracking-[0.2em] uppercase text-sand/45">
                     {label}
                   </dt>
-                  <dd className="text-sand/80 tabular-nums text-lg md:text-xl font-light mt-2">
+                  <dd className="tabular-nums text-2xl md:text-3xl font-light mt-2 text-sand">
                     {value}
                   </dd>
                 </div>
               ))}
             </dl>
-            <p className="text-xs md:text-sm text-sand-38 mt-6">
-              {t.chartTitle}
-            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+              <p className="text-xs md:text-sm text-sand/50 max-w-2xl">
+                {t.chartTitle} {t.chartHint}
+              </p>
+              <ShareRate
+                text={t.shareText.replace("{price}", euro(price))}
+                label={t.share}
+                doneLabel={t.shared}
+              />
+            </div>
           </ScrollReveal>
         </div>
       </section>
@@ -231,18 +252,18 @@ export default async function TicketsPage({
         <div className="max-w-6xl mx-auto px-6">
           <ScrollReveal y={24}>
             <div className="grid md:grid-cols-12 gap-12 md:gap-8 items-start border-t border-line pt-[var(--spacing-block)]">
-              <div className="md:col-span-6">
+              <div className="md:col-span-5">
                 <h2 className="font-light text-[length:var(--text-h2)] text-sand leading-tight">
                   {t.howItWorksTitle}
                 </h2>
                 <p className="text-sand/60 leading-relaxed mt-6 max-w-md">
                   {t.howItWorks}
                 </p>
-                <p className="text-sm text-sand-38 leading-relaxed mt-5 max-w-md">
+                <p className="text-sm text-sand/50 leading-relaxed mt-5 max-w-md">
                   {t.fees}
                 </p>
               </div>
-              <div className="md:col-span-5 md:col-start-8">
+              <div className="md:col-span-6 md:col-start-7">
                 <p className="text-[10px] tracking-[0.25em] uppercase text-sand-38 mb-6">
                   {t.hallPlan.title}
                 </p>
@@ -275,13 +296,16 @@ export default async function TicketsPage({
               <Countdown targetIso={C.gigDateIso} labels={t.countdown} />
             </div>
             <div className="mt-12">
+              <p className="text-[10px] tracking-[0.25em] uppercase text-sand/45 mb-4">
+                {t.queueStatus}
+              </p>
               <QueueGate
                 href={C.shopProductUrl}
                 label={t.buyCta}
                 queue={t.queue}
               />
             </div>
-            <p className="text-xs text-sand/35 mt-10 max-w-md mx-auto leading-relaxed">
+            <p className="text-xs text-sand/50 mt-10 max-w-md mx-auto leading-relaxed">
               {t.disclaimer}
             </p>
           </ScrollReveal>
