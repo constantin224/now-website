@@ -38,6 +38,7 @@ export function HeroVideo({ locale }: { locale: Locale }) {
     const timeout = setTimeout(dismissLoader, 4500);
 
     // Wenn Video spielbereit ist, Loader sofort schließen (min. 1.5s warten für den Effekt)
+    let removeListeners: (() => void) | null = null;
     const minDelay = setTimeout(() => {
       const desktop = videoRef.current;
       const mobile = mobileVideoRef.current;
@@ -58,7 +59,7 @@ export function HeroVideo({ locale }: { locale: Locale }) {
       desktop?.addEventListener("canplay", checkReady);
       mobile?.addEventListener("canplay", checkReady);
 
-      return () => {
+      removeListeners = () => {
         desktop?.removeEventListener("canplay", checkReady);
         mobile?.removeEventListener("canplay", checkReady);
       };
@@ -67,6 +68,7 @@ export function HeroVideo({ locale }: { locale: Locale }) {
     return () => {
       clearTimeout(timeout);
       clearTimeout(minDelay);
+      removeListeners?.();
     };
   }, [dismissLoader]);
 

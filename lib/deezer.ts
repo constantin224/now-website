@@ -67,50 +67,22 @@ export async function getAllReleases(): Promise<DeezerRelease[]> {
 }
 
 export async function getLatestRelease(): Promise<LatestRelease | null> {
-  try {
-    // Alle Alben/Singles des Artists holen, sortiert nach Release-Datum
-    const res = await fetch(
-      `https://api.deezer.com/artist/${ARTIST_ID}/albums?limit=50`,
-      { next: { revalidate: 3600 } } // Stündlich Cache, wird via Cron täglich revalidiert
-    );
-    if (!res.ok) return null;
+  const releases = await getAllReleases();
+  if (releases.length === 0) return null;
 
-    const data = await res.json();
-    const albums = data.data as Array<{
-      id: number;
-      title: string;
-      record_type: string;
-      release_date: string;
-      cover_medium: string;
-      cover_big: string;
-      link: string;
-    }>;
+  const latest = releases[0];
+  const manual = releaseLinks[latest.id];
+  const query = encodeURIComponent(`Now. ${latest.title}`);
 
-    if (!albums || albums.length === 0) return null;
-
-    // Nach Datum sortieren, neuestes zuerst
-    albums.sort(
-      (a, b) =>
-        new Date(b.release_date).getTime() - new Date(a.release_date).getTime()
-    );
-
-    const latest = albums[0];
-
-    const manual = releaseLinks[latest.id];
-    const query = encodeURIComponent(`Now. ${latest.title}`);
-
-    return {
-      title: latest.title,
-      type: latest.record_type, // "single", "album", "ep"
-      releaseDate: latest.release_date,
-      cover: latest.cover_big || latest.cover_medium,
-      links: {
-        deezer: latest.link,
-        spotify: manual?.spotify || `https://open.spotify.com/search/${query}`,
-        apple: manual?.apple || `https://music.apple.com/at/search?term=${query}`,
-      },
-    };
-  } catch {
-    return null;
-  }
+  return {
+    title: latest.title,
+    type: latest.type, // "single", "album", "ep"
+    releaseDate: latest.releaseDate,
+    cover: latest.cover,
+    links: {
+      deezer: latest.link,
+      spotify: manual?.spotify || `https://open.spotify.com/search/${query}`,
+      apple: manual?.apple || `https://music.apple.com/at/search?term=${query}`,
+    },
+  };
 }

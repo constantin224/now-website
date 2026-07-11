@@ -8,7 +8,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return locales.flatMap((locale) =>
     pages.map((page) => ({
       url: `${baseUrl}/${locale}${page}`,
-      lastModified: new Date("2026-03-24"),
+      // Impressum ist statisch, alle anderen Seiten ändern sich mit Releases/Shows
+      lastModified: page === "/impressum" ? new Date("2026-03-24") : new Date(),
       priority: page === "" ? 1 : page === "/about" || page === "/music" ? 0.8 : page === "/shows" ? 0.7 : page === "/impressum" ? 0.3 : 0.6,
     }))
   );

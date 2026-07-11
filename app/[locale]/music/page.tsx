@@ -193,7 +193,6 @@ export default async function MusicPage({
                 "@type": "VideoObject",
                 name: video.title,
                 description: `${video.title} — Offizielles Musikvideo von Now., Pop-Rock-Band aus Wien`,
-                uploadDate: `${video.year}-01-01`,
                 thumbnailUrl: `https://img.youtube.com/vi/${video.youtubeId}/maxresdefault.jpg`,
                 embedUrl: `https://www.youtube.com/embed/${video.youtubeId}`,
                 contentUrl: `https://www.youtube.com/watch?v=${video.youtubeId}`,

@@ -20,8 +20,8 @@
     "description": "Über Now. — Pop-Rock-Band aus Wien",
     "bio_1": "Now. steht für PopRock aus Österreich, der mitreißt, berührt und nach vorne geht — ehrlich, handgemacht und voller Energie. Valentin Bröderbauer (Gesang, Gitarre), Chris Sztrakati (Drums) und Constantin Kaiser (Bass, Synth) vereinen eingängige Hooks mit Tiefgang und schaffen Songs, die sofort ins Ohr gehen und lange nachhallen.",
     "bio_2": "Nach über zehn Jahren Erfahrung als Musiker, Produzenten und Songwriter für renommierte Künstler:innen wie Josh., Ina Regen, Conchita, Thorsteinn Einarsson oder Lemo fiel 2020 der Startschuss: Zeit für den eigenen Weg. Zeit für Now.",
-    "bio_3": "Die Debütsingle \u201eWastin' Days\u201c fand direkt ihren Weg ins Airplay mehrerer österreichischer Radiostationen. Mit weiteren Releases wie \u201eStay\u201c, \u201eLet Go\u201c und \u201eLay It Down\u201c festigte die Band ihren Sound — regelmäßig in Playlists und auf Sendern wie Radio Wien, 88.6 und Life Radio.",
-    "bio_4": "Gemeinsam mit Produzent Florian Koch begann 2023 die intensive Arbeit am Debütalbum. Das Ergebnis: \u201eOUT\u201c, erschienen im Oktober 2024 — ein kraftvolles Album mit 15 Songs, die Ehrlichkeit, Tiefe und Leichtigkeit auf einzigartige Weise verbinden. Spätestens beim ausverkauften Release-Konzert im Aera Wien war klar: Now. trifft den Nerv der Zeit.",
+    "bio_3": "Die Debütsingle „Wastin' Days“ fand direkt ihren Weg ins Airplay mehrerer österreichischer Radiostationen. Mit weiteren Releases wie „Stay“, „Let Go“ und „Lay It Down“ festigte die Band ihren Sound — regelmäßig in Playlists und auf Sendern wie Radio Wien, 88.6 und Life Radio.",
+    "bio_4": "Gemeinsam mit Produzent Florian Koch begann 2023 die intensive Arbeit am Debütalbum. Das Ergebnis: „OUT“, erschienen im Oktober 2024 — ein kraftvolles Album mit 15 Songs, die Ehrlichkeit, Tiefe und Leichtigkeit auf einzigartige Weise verbinden. Spätestens beim ausverkauften Release-Konzert im Aera Wien war klar: Now. trifft den Nerv der Zeit.",
     "bio_5": "Im Herbst 2026 erscheint das zweite Album. Alle Songs entstehen im bandeigenen Studio — jede Note, jeder Beat, jede Zeile trägt ihre unverwechselbare Handschrift.",
     "bio_members": "Valentin Bröderbauer — Gesang, Gitarre\nChris Sztrakati — Drums\nConstantin Kaiser — Bass, Synth"
   },
@@ -58,7 +58,7 @@
     "booking_alt": "oder direkt bei",
     "management": "Management",
     "label": "Label",
-    "press_bio": "Now. steht für PopRock aus Österreich, der mitreißt, berührt und nach vorne geht — ehrlich, handgemacht und voller Energie. Valentin Bröderbauer (Gesang, Gitarre), Chris Sztrakati (Drums) und Constantin Kaiser (Bass, Synth) vereinen eingängige Hooks mit Tiefgang. Nach über zehn Jahren Erfahrung als Musiker und Songwriter für Künstler:innen wie Josh., Ina Regen und Conchita fiel 2020 der Startschuss für den eigenen Weg. Das Debütalbum \u201eOUT\u201c erschien im Oktober 2024 — 15 Songs, die Ehrlichkeit, Tiefe und Leichtigkeit verbinden. Im Herbst 2026 folgt das zweite Album."
+    "press_bio": "Now. steht für PopRock aus Österreich, der mitreißt, berührt und nach vorne geht — ehrlich, handgemacht und voller Energie. Valentin Bröderbauer (Gesang, Gitarre), Chris Sztrakati (Drums) und Constantin Kaiser (Bass, Synth) vereinen eingängige Hooks mit Tiefgang. Nach über zehn Jahren Erfahrung als Musiker und Songwriter für Künstler:innen wie Josh., Ina Regen und Conchita fiel 2020 der Startschuss für den eigenen Weg. Das Debütalbum „OUT“ erschien im Oktober 2024 — 15 Songs, die Ehrlichkeit, Tiefe und Leichtigkeit verbinden. Im Herbst 2026 folgt das zweite Album."
   },
   "shop": {
     "title": "Shop",
@@ -73,7 +73,10 @@
     "business": "Unternehmensgegenstand: Künstlerisches Schaffen im Bereich der Tonkunst",
     "privacy_title": "Datenschutz",
     "privacy_text_1": "Diese Website verwendet keine Cookies und sammelt keine personenbezogenen Daten.",
-    "privacy_text_2": "Externe Inhalte (YouTube, Spotify) werden erst nach Interaktion geladen."
+    "privacy_text_2": "Externe Inhalte (YouTube, Spotify) werden erst nach Interaktion geladen.",
+    "label_contact": "Kontakt",
+    "label_partners": "Gesellschafter",
+    "label_liability": "(persönlich haftend, einzelvertretungsbefugt)"
   },
   "footer": {
     "released_via": "Released via",

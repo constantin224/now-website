@@ -73,7 +73,10 @@
     "business": "Business purpose: Artistic creation in the field of music",
     "privacy_title": "Privacy",
     "privacy_text_1": "This website does not use cookies and does not collect personal data.",
-    "privacy_text_2": "External content (YouTube, Spotify) is only loaded after interaction."
+    "privacy_text_2": "External content (YouTube, Spotify) is only loaded after interaction.",
+    "label_contact": "Contact",
+    "label_partners": "Partners",
+    "label_liability": "(personally liable, individually authorized to represent)"
   },
   "footer": {
     "released_via": "Released via",

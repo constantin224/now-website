@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Mehrere Lockfiles im Workspace — Root explizit setzen
+  turbopack: { root: __dirname },
   images: {
     remotePatterns: [
       {

@@ -43,14 +43,14 @@ export default async function ImpressumPage({
       </div>
 
       <div className="text-sand/50 text-sm space-y-1 mb-6">
-        <p>Kontakt: <a href={`mailto:${imp.kontakt}`} className="text-terracotta hover:text-terracotta/80 transition-colors">{imp.kontakt}</a></p>
+        <p>{t.impressum.label_contact}: <a href={`mailto:${imp.kontakt}`} className="text-terracotta hover:text-terracotta/80 transition-colors">{imp.kontakt}</a></p>
         <p>UID: {imp.uid}</p>
         <p>{imp.fn}, {imp.gericht}</p>
       </div>
 
       <div className="text-sand/50 text-sm space-y-1 mb-6">
-        <p>Gesellschafter: {imp.gesellschafter}</p>
-        <p>(persönlich haftend, einzelvertretungsbefugt)</p>
+        <p>{t.impressum.label_partners}: {imp.gesellschafter}</p>
+        <p>{t.impressum.label_liability}</p>
       </div>
 
       <p className="text-sand/50 text-sm mb-16">
