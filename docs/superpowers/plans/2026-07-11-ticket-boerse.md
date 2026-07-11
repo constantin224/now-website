@@ -16,6 +16,7 @@
 - Zielprodukt: Produkt `gid://shopify/Product/15354134921547`, Variante `gid://shopify/ProductVariant/55861172863307`, Store `03e6c1.myshopify.com`.
 - Webhook-Payload NIE inhaltlich auswerten (PII, Basic-Plan) — nur HMAC prüfen, Verkäufe IMMER aus `inventoryQuantity` ableiten.
 - **EVEY-REGEL:** Produkt wird von der App „Evey Events & Tickets" verwaltet (Spec-Abschnitt „Evey-Constraint"). Writes NUR auf das Preis-Feld der bestehenden Variante + Metafield `ticker.state`. NIEMALS Titel/Optionen/Inventar/Varianten-Struktur/`evey.*`-Metafelder ändern. Externe Inventar-Erhöhungen (Storno) → Rebaseline ohne Preisänderung.
+- **DRIFT-KADENZ:** Drift wird pro `tick()`-Aufruf EINMAL angewendet und darf NUR vom stündlichen Cron kommen (`allowDrift: true`). Der Webhook ruft `tick(state, inv, now, { allowDrift: false })` — er feuert bei JEDER Shop-Bestellung (auch CDs/Shirts) und darf nie zusätzliche Drift-Schritte auslösen. Verpasster Cron-Lauf = ein Drift-Schritt weniger (bewusst akzeptiert, kein Nachholen).
 - Secrets NIE in Dateien/Repo/Logs. Env-Vars nur in Vercel (setzt Constantin). Lokale Tests mocken `fetch`.
 - Alle UI-Texte über `messages/de.json` + `messages/en.json` (i18n-Pflicht), Ton: todernste Ticketmaster-Parodie, nie zwinkern.
 - Design-Hausregeln aus `CLAUDE.md`: Effekte nur Desktop ≥768px, Mobile statisch, Text-Opacity ≥35 %, `prefers-reduced-motion` respektieren.
@@ -838,7 +839,9 @@ export async function POST(request: NextRequest) {
   const { state, currentInventory } = await readTicker();
   if (!state) return NextResponse.json({ ok: true, note: "noch nicht initialisiert" });
 
-  const next = tick(state, currentInventory, now);
+  // allowDrift: false — Drift kommt NUR vom stündlichen Cron; dieser Webhook
+  // feuert bei jeder Shop-Bestellung (auch Nicht-Ticket-Produkte)
+  const next = tick(state, currentInventory, now, { allowDrift: false });
   if (next !== state) {
     await writeTicker({ ...next, history: pruneHistory(next.history, now) });
     revalidatePath("/de/tickets");
@@ -1516,6 +1519,7 @@ git commit -m "test(ticker): 3-Wochen-Szenario-Simulation"
   - `SHOPIFY_WEBHOOK_SECRET` = kommt in Step 3 aus der Webhook-Registrierung
   - `CRON_SECRET` existiert bereits (wird von `/api/revalidate` genutzt)
 - [ ] **Step 2: Deploy** via Skill `tonherd-web-deploy` (manuell, nie `git push`-Deploy).
+- [ ] **Step 2b: Cron-Kadenz prüfen** — Vercel-Hobby-Plan führt Crons nur 1×/Tag aus (stündlich braucht Pro). Im Vercel-Dashboard prüfen, welcher Plan aktiv ist. Falls Hobby: externen Pinger einrichten (z.B. cron-job.org, stündlich `GET https://now-music.at/api/ticker/tick` mit Header `Authorization: Bearer <CRON_SECRET>`) — Route ist dafür schon geeignet; den vercel.json-Ticker-Cron dann auf `"0 12 * * *"` (1×/Tag als Fallback) stellen.
 - [ ] **Step 3: Webhook registrieren** (einmalig, via bestehendem Helper):
 
 ```bash
