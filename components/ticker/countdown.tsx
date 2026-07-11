@@ -22,10 +22,22 @@ export function Countdown({ targetIso, labels }: Props) {
 
   useEffect(() => {
     const target = new Date(targetIso).getTime();
-    const update = () => setMsLeft(Math.max(0, target - Date.now()));
+    let id: NodeJS.Timeout | null = null;
+    const update = () => {
+      const remaining = Math.max(0, target - Date.now());
+      setMsLeft(remaining);
+      // Interval stoppen wenn Countdown vorbei ist, um unnötige Ticks zu sparen.
+      if (remaining === 0 && id !== null) {
+        clearInterval(id);
+      }
+    };
     update();
-    const id = setInterval(update, 1000);
-    return () => clearInterval(id);
+    id = setInterval(update, 1000);
+    return () => {
+      if (id !== null) {
+        clearInterval(id);
+      }
+    };
   }, [targetIso]);
 
   if (msLeft === null) return null; // erst nach Hydration rendern

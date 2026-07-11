@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface Props {
   href: string;
@@ -12,11 +12,23 @@ interface Props {
 // Sieht aus wie eine echte Ticket-Warteschlange — nur ist man „Position 1 von 1".
 export function QueueGate({ href, label, queue }: Props) {
   const [phase, setPhase] = useState<"idle" | "queueing">("idle");
+  const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup: Timeout bei Unmount oder Phase-Wechsel clearen, um Stray-Redirect
+  // nach Navigation zu verhindern. Navigiert der User während "queueing" weg,
+  // würde der Timeout sonst trotzdem feuern und ihn zum Shop zurückreißen.
+  useEffect(() => {
+    return () => {
+      if (timeoutIdRef.current !== null) {
+        clearTimeout(timeoutIdRef.current);
+      }
+    };
+  }, []);
 
   function start() {
     setPhase("queueing");
     // Bewusste Verzögerung: die „Warteschlange" muss sich echt anfühlen.
-    setTimeout(() => {
+    timeoutIdRef.current = setTimeout(() => {
       window.location.href = href;
     }, 3000);
   }
