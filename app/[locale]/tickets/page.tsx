@@ -5,6 +5,9 @@ import { TICKER_CONFIG as C } from "@/lib/ticker/config";
 import { shopPrice, type TickerState } from "@/lib/ticker/engine";
 import { readTicker } from "@/lib/ticker/shopify-admin";
 import { PriceChart } from "@/components/ticker/price-chart";
+import { Countdown } from "@/components/ticker/countdown";
+import { HallPlan } from "@/components/ticker/hall-plan";
+import { QueueGate } from "@/components/ticker/queue-gate";
 import { ScrollReveal } from "@/components/scroll-reveal";
 
 export const revalidate = 3600; // Fallback — Webhook/Tick revalidieren on-demand
@@ -157,14 +160,19 @@ export default async function TicketsPage({
           <p className="text-sand/60 leading-relaxed">{t.howItWorks}</p>
         </ScrollReveal>
 
-        {/* CTA + Gebühren-Fußnote */}
+        {/* Saalplan-Parodie — exakt eine Fläche */}
+        <ScrollReveal className="mt-16" delay={0.1}>
+          <HallPlan labels={t.hallPlan} />
+        </ScrollReveal>
+
+        {/* Countdown bis zum Gig */}
+        <ScrollReveal className="mt-16" delay={0.1}>
+          <Countdown targetIso={C.gigDateIso} labels={t.countdown} />
+        </ScrollReveal>
+
+        {/* CTA (Fake-Warteschlange) + Gebühren-Fußnote */}
         <ScrollReveal className="mt-14" delay={0.1}>
-          <a
-            href={C.shopProductUrl}
-            className="inline-block border border-terracotta/30 bg-terracotta/10 text-terracotta px-8 py-3 text-[11px] tracking-[3px] uppercase hover:bg-terracotta/20 transition-colors rounded-full"
-          >
-            {t.buyCta}
-          </a>
+          <QueueGate href={C.shopProductUrl} label={t.buyCta} queue={t.queue} />
           <p className="text-sm text-sand-38 mt-6 max-w-xl leading-relaxed">
             {t.fees}
           </p>

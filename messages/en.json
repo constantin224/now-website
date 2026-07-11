@@ -85,7 +85,27 @@
     "howItWorks": "How our dynamic pricing works: if someone buys a ticket, the price goes up. If nobody does, it goes down. That's it. We could have made it sound more complicated.",
     "buyCta": "Secure tickets",
     "fees": "Service fee: €0. Handling fee: €0. Dynamic pricing fee: €0. We don't understand it either.",
-    "disclaimer": "* Price includes VAT and excludes all the fees we don't charge."
+    "disclaimer": "* Price includes VAT and excludes all the fees we don't charge.",
+    "queue": {
+      "position": "You are position 1 of 1 in the queue.",
+      "waiting": "Estimated waiting time: none.",
+      "proceeding": "Redirecting you to checkout …"
+    },
+    "countdown": {
+      "title": "NOW. LIVE IN VIENNA — IN",
+      "days": "Days",
+      "hours": "Hrs",
+      "minutes": "Min",
+      "seconds": "Sec"
+    },
+    "hallPlan": {
+      "title": "Venue map",
+      "stage": "STAGE",
+      "standing": "GENERAL ADMISSION (everyone)",
+      "legendStandard": "Standard",
+      "legendVip": "VIP (does not exist)",
+      "note": "Best spots: all of them. Worst spots: none."
+    }
   },
   "impressum": {
     "title": "Legal Notice",
