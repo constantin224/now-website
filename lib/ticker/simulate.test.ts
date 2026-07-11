@@ -16,8 +16,8 @@ describe("Simulation: 3 Wochen Kleine-Venue-Realität", () => {
       state = tick(state, inventory, now);
       state = { ...state, history: pruneHistory(state.history, now) };
 
-      expect(state.price).toBeGreaterThanOrEqual(1.5);
-      expect(state.price).toBeLessThanOrEqual(50);
+      expect(state.price).toBeGreaterThanOrEqual(TICKER_CONFIG.floorEuro);
+      expect(state.price).toBeLessThanOrEqual(TICKER_CONFIG.capEuro);
       // Metafield-Budget: State muss klein bleiben
       expect(JSON.stringify(state).length).toBeLessThan(60_000);
     }

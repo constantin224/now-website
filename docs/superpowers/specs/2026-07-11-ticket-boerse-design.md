@@ -37,8 +37,8 @@ Das Ticket-Produkt wird von der Shopify-App **Evey Events & Tickets** verwaltet 
 | Ticket verkauft | **+2,00 € pro verkauftem Ticket**, sofort |
 | 24 h Gnadenfrist nach letztem Verkauf | Preis stabil |
 | Danach je Stunde ohne Verkauf | **−0,15 % vom aktuellen Kurs** (exponentieller Drift; re-kalibriert 2026-07-11 auf 98 Tage Restlaufzeit + 176 Tickets — Boden wird bei totaler Flaute erst kurz vorm Gig erreicht, ~1 Verkauf alle 3 Tage hält den Kurs) |
-| Boden | **1,50 €** — bewusst lächerlich; Drift wird nach unten automatisch immer langsamer und kriecht asymptotisch dorthin |
-| Deckel | **50,00 €** |
+| Boden | **4,00 €** (Constantin 2026-07-11, vorher 1,50 €) — bewusst niedrig; Drift wird nach unten automatisch immer langsamer und kriecht asymptotisch dorthin |
+| Deckel | **40,00 €** (vorher 50 € — „fair statt Konzern-Abzocke") |
 | Rundung | interner Kurs exakt im State; Shop-Preis auf 0,10 € gerundet (krumme Preise wie 23,40 € sind Teil der Dynamic-Pricing-Parodie) |
 
 Kalibrierung auf kleine Venue (Drift −0,5 %/h ≈ −11 %/Tag): bei totaler Flaute fällt der Kurs von 22 € in ~1 Woche auf 10 €, in ~2 Wochen auf 5 €, und braucht insgesamt ~3 Wochen bis zum 1,50-€-Boden — der Sinkflug wird unten von selbst quälend langsam (letzter Halb-Euro dauert Tage). Ein einzelner Verkauf (+2 €) wirft den Kurs sichtbar zurück; ~1 Verkauf/Tag hält ihn im oberen Bereich stabil. Alle Parameter liegen als Konstanten in einem Config-Modul und sind ohne Logik-Änderung justierbar.

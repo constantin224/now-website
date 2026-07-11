@@ -28,10 +28,10 @@ describe("tick — Verkäufe", () => {
     expect(s1.history.at(-1)).toMatchObject({ price: 28, event: "sale" });
   });
 
-  it("deckelt bei 50 €", () => {
-    const s0 = initState(48, 176, NOW);
+  it("deckelt am konfigurierten Deckel", () => {
+    const s0 = initState(TICKER_CONFIG.capEuro - 2, 176, NOW);
     const s1 = tick(s0, 170, NOW); // 6 verkauft → +12 → Deckel
-    expect(s1.price).toBe(50);
+    expect(s1.price).toBe(TICKER_CONFIG.capEuro);
   });
 
   it("mutiert den alten State nicht", () => {
@@ -48,8 +48,8 @@ describe("shopPrice", () => {
     expect(shopPrice(21.96)).toBe(22);
   });
   it("klemmt auf Boden und Deckel", () => {
-    expect(shopPrice(0.8)).toBe(1.5);
-    expect(shopPrice(77)).toBe(50);
+    expect(shopPrice(0.8)).toBe(TICKER_CONFIG.floorEuro);
+    expect(shopPrice(777)).toBe(TICKER_CONFIG.capEuro);
   });
 });
 
@@ -68,14 +68,14 @@ describe("tick — Drift", () => {
     expect(s1.history.at(-1)).toMatchObject({ event: "drift" });
   });
 
-  it("Drift wird unten immer langsamer und stoppt am Boden 1,50 €", () => {
-    let s = initState(1.51, 176, NOW);
+  it("Drift wird unten immer langsamer und stoppt am Boden", () => {
+    let s = initState(TICKER_CONFIG.floorEuro + 0.01, 176, NOW);
     let t = NOW.getTime() + 25 * H;
     for (let i = 0; i < 10; i++) {
       s = tick(s, 176, new Date(t));
       t += H;
     }
-    expect(s.price).toBe(1.5); // geklemmt, nie darunter
+    expect(s.price).toBe(TICKER_CONFIG.floorEuro); // geklemmt, nie darunter
   });
 
   it("Verkauf gewinnt gegen Drift im selben Tick", () => {
@@ -86,7 +86,7 @@ describe("tick — Drift", () => {
   });
 
   it("Drift am Boden erzeugt keine neuen History-Punkte", () => {
-    const s0 = { ...initState(1.5, 176, NOW) };
+    const s0 = { ...initState(TICKER_CONFIG.floorEuro, 176, NOW) };
     const s1 = tick(s0, 176, new Date(NOW.getTime() + 30 * H));
     expect(s1.history).toHaveLength(1); // Preis unverändert → kein Punkt
   });
