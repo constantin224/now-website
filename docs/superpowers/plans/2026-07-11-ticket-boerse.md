@@ -15,6 +15,7 @@
 - Preisregeln exakt: Verkauf **+2,00 €/Ticket**; Gnadenfrist **24 h**; Drift **−0,5 %/h** (Faktor 0,995); Boden **1,50 €**; Deckel **50,00 €**; Shop-Preis auf **0,10 €** gerundet, interner Kurs exakt.
 - Zielprodukt: Produkt `gid://shopify/Product/15354134921547`, Variante `gid://shopify/ProductVariant/55861172863307`, Store `03e6c1.myshopify.com`.
 - Webhook-Payload NIE inhaltlich auswerten (PII, Basic-Plan) — nur HMAC prüfen, Verkäufe IMMER aus `inventoryQuantity` ableiten.
+- **EVEY-REGEL:** Produkt wird von der App „Evey Events & Tickets" verwaltet (Spec-Abschnitt „Evey-Constraint"). Writes NUR auf das Preis-Feld der bestehenden Variante + Metafield `ticker.state`. NIEMALS Titel/Optionen/Inventar/Varianten-Struktur/`evey.*`-Metafelder ändern. Externe Inventar-Erhöhungen (Storno) → Rebaseline ohne Preisänderung.
 - Secrets NIE in Dateien/Repo/Logs. Env-Vars nur in Vercel (setzt Constantin). Lokale Tests mocken `fetch`.
 - Alle UI-Texte über `messages/de.json` + `messages/en.json` (i18n-Pflicht), Ton: todernste Ticketmaster-Parodie, nie zwinkern.
 - Design-Hausregeln aus `CLAUDE.md`: Effekte nur Desktop ≥768px, Mobile statisch, Text-Opacity ≥35 %, `prefers-reduced-motion` respektieren.
@@ -331,6 +332,21 @@ describe("tick — Drift", () => {
     expect(s1.history).toHaveLength(1); // Preis unverändert → kein Punkt
   });
 });
+
+describe("tick — Rebaseline bei Storno (Evey-Regel)", () => {
+  it("Inventar-Erhöhung senkt soldCount, ändert Preis nicht", () => {
+    const s0 = initState(22, 176, NOW);
+    const s1 = tick(s0, 174, NOW); // 2 verkauft → 26 €
+    const s2 = tick(s1, 175, new Date(NOW.getTime() + H)); // 1 Storno
+    expect(s2.soldCount).toBe(1);
+    expect(s2.price).toBe(26); // Preis bleibt
+    expect(s2.history).toHaveLength(s1.history.length); // kein neuer Punkt
+    // Folgeverkauf wird wieder korrekt erkannt:
+    const s3 = tick(s2, 174, new Date(NOW.getTime() + 2 * H));
+    expect(s3.price).toBe(28);
+    expect(s3.soldCount).toBe(2);
+  });
+});
 ```
 
 - [ ] **Step 2: Rot verifizieren**
@@ -345,6 +361,12 @@ Erwartet: FAIL (Drift-Tests).
 In `lib/ticker/engine.ts` das `return state; // Drift folgt in Task 3` ersetzen durch:
 
 ```ts
+  // Rebaseline: Inventar extern erhöht (Storno/Evey-Korrektur) →
+  // Zähler anpassen, Preis NICHT ändern, kein History-Punkt
+  if (newSales < 0) {
+    return { ...state, soldCount: totalSold };
+  }
+
   // Drift: nur nach Ablauf der Gnadenfrist, exponentiell Richtung Boden
   const hoursSinceSale =
     (now.getTime() - new Date(state.lastSaleAt).getTime()) / 3_600_000;
@@ -363,12 +385,20 @@ In `lib/ticker/engine.ts` das `return state; // Drift folgt in Task 3` ersetzen 
   };
 ```
 
-- [ ] **Step 4: Grün verifizieren + Commit**
+- [ ] **Step 4: Config-Korrektur Gig-Beginn**
+
+In `lib/ticker/config.ts` den Wert `gigDateIso` ändern auf (laut Evey-Event: Beginn 19:00):
+
+```ts
+  gigDateIso: "2026-10-17T19:00:00+02:00",
+```
+
+- [ ] **Step 5: Grün verifizieren + Commit**
 
 ```bash
 npm test 2>&1 | tail -5   # erwartet: PASS
-git add lib/ticker/engine.ts lib/ticker/engine.test.ts
-git commit -m "feat(ticker): exponentieller Drift mit Gnadenfrist + Boden (TDD)"
+git add lib/ticker/engine.ts lib/ticker/engine.test.ts lib/ticker/config.ts
+git commit -m "feat(ticker): Drift + Gnadenfrist + Storno-Rebaseline (TDD)"
 ```
 
 ---
@@ -1465,6 +1495,20 @@ git commit -m "test(ticker): 3-Wochen-Szenario-Simulation"
 ### Task 12: Go-Live-Checkliste (manuell, mit Constantin)
 
 **Files:** keine Code-Änderungen — Ablauf-Checkliste.
+
+- [ ] **Step 0: EVEY-KOMPATIBILITÄTS-GATE (Pflicht, VOR allem anderen).** Preis-Write einmal manuell testen, bevor das System automatisiert schreibt:
+
+```bash
+# Preis 22,00 → 22,10 (nur Preis-Feld!)
+~/claude-projects/bin/shopify-admin-api.sh 'mutation {
+  productVariantsBulkUpdate(
+    productId: "gid://shopify/Product/15354134921547"
+    variants: [{ id: "gid://shopify/ProductVariant/55861172863307", price: "22.10" }]
+  ) { userErrors { field message } }
+}'
+```
+
+  Danach prüfen (Constantin, im Shopify-Admin → Apps → Evey): Event 226105 intakt? Ticket-Type „General Admission" zeigt 22,10 €? Dann Test-Bestellung (1 Ticket) → kommt ein gültiges Evey-Ticket (QR-Mail) an? Storefront-Preis korrekt? Anschließend Preis zurück auf 22,00 € (gleiche Mutation mit `price: "22.00"`). **Fällt irgendein Teil durch → STOPP, kein Go-Live, Plan B (Playwright durchs Evey-Admin) mit Constantin besprechen.**
 
 - [ ] **Step 1: Env-Vars in Vercel setzen** (Constantin, via Vercel-Dashboard → now-website → Settings → Environment Variables):
   - `SHOPIFY_ADMIN_CLIENT_ID` = `aec9c6c4f780fd9d0a082bd97e501392`

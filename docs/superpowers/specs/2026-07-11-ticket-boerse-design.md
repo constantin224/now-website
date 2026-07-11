@@ -16,6 +16,18 @@ Große Acts nutzen Dynamic Pricing, um bei hoher Nachfrage Preise zu treiben. No
 - Ausgangslage bei Projektstart: 22,00 € Brutto, 176 Stück Inventar
 - Store: `03e6c1.myshopify.com` (shop.tonherd.at), Plan Basic
 
+## Evey-Constraint (KRITISCH, entdeckt 2026-07-11)
+
+Das Ticket-Produkt wird von der Shopify-App **Evey Events & Tickets** verwaltet (Metafield `evey.event`, Event-ID 226105, Venue „The Loft", Beginn 17.10.2026 **19:00**, 24 Tickets bereits verkauft). Evey hat keine öffentliche API. Befunde:
+
+- Evey speichert **keinen Preis** — `ticket_types` referenziert nur `variant_id`; Preis lebt allein auf der Shopify-Variante, Checkout/Abrechnung macht Shopify. Preis-Updates per Admin API kollidieren daher nicht mit Eveys Datenmodell.
+- Evey-Doku warnt generisch vor direktem Varianten-Editieren in Shopify (Sync-Risiko) — kritisch ist das Zerreißen der `variant_id`-Verknüpfung (Varianten anlegen/löschen/umbenennen), nicht das Preis-Feld.
+
+**Verbindliche Schutzregeln:**
+1. Writes ausschließlich auf das **Preis-Feld** der bestehenden Variante (`productVariantsBulkUpdate` mit `{id, price}`) + eigenes Metafield `ticker.state`. NIEMALS Titel, Optionen, Inventar, Varianten-Struktur oder `evey.*`-Metafelder anfassen.
+2. **Rebaseline bei Stornos:** wird das Inventar extern erhöht (Storno/Evey-Korrektur), passt die Engine `soldCount` nach unten an (ohne Preisänderung) — sonst verschluckt der nächste echte Verkauf den Preis-Sprung.
+3. **Evey-Kompatibilitäts-Gate vor Go-Live** (vor Cron-/Webhook-Aktivierung): Preis per API um 0,10 € ändern → Evey-Dashboard prüfen (neuer Preis sichtbar, Event intakt) → Test-Bestellung → gültiges Evey-Ticket (QR) kommt an → zurücksetzen. Erst bei Bestehen geht das System live. Fällt das Gate: Plan B = Preisänderung via Playwright durch das Evey-Admin-UI (lokaler Runner), Architektur sonst unverändert.
+
 ## Preis-Engine
 
 ### Regeln
