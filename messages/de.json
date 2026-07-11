@@ -124,10 +124,11 @@
       "today": "Heute"
     },
     "tape": {
-      "floorLabel": "Boden",
-      "capLabel": "Deckel",
-      "volumeLabel": "Volumen 24h",
-      "availableLabel": "Umlauf"
+      "price": "Aktueller Ticketpreis: {price} {arrow} {pct} in 24h",
+      "sold24h": "Heute verkauft: {n} Tickets",
+      "available": "Noch verfügbar: {n} Tickets",
+      "floor": "Absolute Untergrenze: {price}",
+      "cap": "Absolute Obergrenze: {price}"
     },
     "howItWorksTitle": "So funktioniert Dynamic Pricing",
     "chartHeadline": "Kauft niemand, fällt er. Kauft wer, steigt er.",

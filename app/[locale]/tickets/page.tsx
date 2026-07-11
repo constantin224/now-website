@@ -105,12 +105,16 @@ export default async function TicketsPage({
   const arrow = rising ? "▲" : "▼";
   const pct = `${Math.abs(change).toFixed(1).replace(".", ",")} %`;
 
+  // Laufband in Klartext — jeder Eintrag ohne Börsen-Jargon verständlich
   const tapeItems = [
-    `${t.symbol} ${euro(price)} ${arrow} ${pct}`,
-    `${t.tape.volumeLabel}: ${sales24}`,
-    `${t.tape.availableLabel}: ${currentInventory} ${t.stats.availableUnit}`,
-    `${t.tape.floorLabel}: ${euro(C.floorEuro)}`,
-    `${t.tape.capLabel}: ${euro(C.capEuro)}`,
+    t.tape.price
+      .replace("{price}", euro(price))
+      .replace("{arrow}", arrow)
+      .replace("{pct}", pct),
+    t.tape.sold24h.replace("{n}", String(sales24)),
+    t.tape.available.replace("{n}", String(currentInventory)),
+    t.tape.floor.replace("{price}", euro(C.floorEuro)),
+    t.tape.cap.replace("{price}", euro(C.capEuro)),
   ];
 
   // Hero-Animation: 12 echte Kurs-Stationen von Handelsstart bis jetzt

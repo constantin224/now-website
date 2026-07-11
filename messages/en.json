@@ -124,10 +124,11 @@
       "today": "Today"
     },
     "tape": {
-      "floorLabel": "Floor",
-      "capLabel": "Cap",
-      "volumeLabel": "24h volume",
-      "availableLabel": "Circulation"
+      "price": "Current ticket price: {price} {arrow} {pct} in 24h",
+      "sold24h": "Sold today: {n} tickets",
+      "available": "Still available: {n} tickets",
+      "floor": "Absolute floor: {price}",
+      "cap": "Absolute ceiling: {price}"
     },
     "howItWorksTitle": "How dynamic pricing works",
     "chartHeadline": "Nobody buys, it falls. Somebody buys, it rises.",
