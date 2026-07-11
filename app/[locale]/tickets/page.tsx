@@ -150,7 +150,8 @@ export default async function TicketsPage({
           </h1>
 
           <div className="mt-10 md:mt-14 animate-fade-in-delay">
-            <span className="block font-[family-name:var(--font-heading)] font-light text-[clamp(5.5rem,17vw,15rem)] leading-none text-sand tabular-nums">
+            {/* Preis bewusst in Inter statt Serif: sofort lesbar, Ziffern klar */}
+            <span className="block font-extralight text-[clamp(4.5rem,14vw,12rem)] leading-none tracking-tight text-sand tabular-nums">
               {euro(price)}
             </span>
             <p
