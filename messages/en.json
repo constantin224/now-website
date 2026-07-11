@@ -84,7 +84,7 @@
       "some": "DEMAND DETECTED — {count} TICKET(S) IN 24 HOURS",
       "none": "PLENTY OF TICKETS AVAILABLE. GENUINELY PLENTY."
     },
-    "howItWorks": "Someone buys a ticket, the price instantly rises by one euro. Nobody buys, it sinks hour by hour. One purchase and one quiet day roughly cancel out — the market is fair, just in both directions.",
+    "howItWorks": "Every ticket sold: +€1. Every hour without a sale: a little cheaper. One purchase and one quiet day roughly cancel out.",
     "buyCta": "Secure tickets",
     "fees": "Service fee: €0. Handling fee: €0. Dynamic pricing fee: €0. We don't understand it either.",
     "disclaimer": "* Price includes VAT and excludes all the fees we don't charge.",
@@ -103,7 +103,10 @@
     "hallPlan": {
       "title": "Venue map",
       "stage": "STAGE",
-      "standing": "GENERAL ADMISSION (everyone)",
+      "standing": "GENERAL ADMISSION (EVERYONE)",
+      "bar": "BAR",
+      "tech": "TECH",
+      "entrance": "ENTRANCE",
       "legendStandard": "Standard",
       "legendVip": "VIP (does not exist)",
       "note": "Best spots: all of them. Worst spots: none."
@@ -135,7 +138,7 @@
     "closingLine": "Dynamic pricing ends on October 17. After that: box office — fixed price, like in the Middle Ages.",
     "heroTagline": "Dynamic pricing like the superstars — only in the other direction.",
     "live": "LIVE",
-    "chartHint": "Run your finger or cursor along the curve — every point is real (non-)demand.",
+    "chartHint": "",
     "nextDrop": "Next price drop: on the hour — unless somebody buys.",
     "terminalLine": "The Loft, Vienna · Dynamic price runs until 17 Oct 2026",
     "share": "Share rate",
@@ -147,16 +150,20 @@
     "vipTitle": "VIP packages",
     "vip": [
       {
-        "name": "GOLDEN CIRCLE PACKAGE",
-        "desc": "The circle is golden because everyone is standing in it. Surcharge: €0."
+        "name": "PLATINUM TICKET",
+        "desc": "The same ticket, just more expensive. The big players actually sell this. Here the market does it — in the other direction."
       },
       {
-        "name": "BACKSTAGE EXPERIENCE",
-        "desc": "Backstage is the Loft's kitchen. On request. Answer: no."
+        "name": "VIP PACKAGE “THIS EXACT FEELING”",
+        "desc": "Contains: the feeling of not having been a victim of dynamic pricing. Priceless, hence €0."
+      },
+      {
+        "name": "GOLDEN CIRCLE PACKAGE",
+        "desc": "Elsewhere it’s a €240 surcharge for earlier entry and a lanyard. Here, the golden circle is the room."
       },
       {
         "name": "MEET & GREET",
-        "desc": "Happens automatically — the band is at the bar after the show."
+        "desc": "Free and unavoidable. After the show the band is at the bar, with nobody to shield them."
       }
     ]
   },

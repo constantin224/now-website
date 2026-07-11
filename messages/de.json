@@ -84,7 +84,7 @@
       "some": "NACHFRAGE REGISTRIERT — {count} TICKET(S) IN 24 STUNDEN",
       "none": "VIELE TICKETS VERFÜGBAR. WIRKLICH VIELE."
     },
-    "howItWorks": "Kauft jemand ein Ticket, steigt der Preis sofort um einen Euro. Kauft niemand eines, sinkt er Stunde für Stunde. Ein Kauf und ein Tag Stille heben sich ungefähr auf — der Markt ist fair, nur eben in beide Richtungen.",
+    "howItWorks": "Jedes verkaufte Ticket: +1 €. Jede Stunde ohne Verkauf: ein Stück billiger. Ein Kauf und ein Tag Stille heben sich ungefähr auf.",
     "buyCta": "Tickets sichern",
     "fees": "Servicegebühr: 0 €. Bearbeitungsgebühr: 0 €. Dynamische-Preis-Gebühr: 0 €. Wir verstehen es auch nicht.",
     "disclaimer": "* Angezeigter Preis inkl. gesetzl. USt. und exkl. sämtlicher Gebühren, die wir nicht erheben.",
@@ -103,7 +103,10 @@
     "hallPlan": {
       "title": "Saalplan",
       "stage": "BÜHNE",
-      "standing": "STEHPARKETT (alle)",
+      "standing": "STEHPARKETT (ALLE)",
+      "bar": "BAR",
+      "tech": "TECHNIK",
+      "entrance": "EINGANG",
       "legendStandard": "Standard",
       "legendVip": "VIP (gibt es nicht)",
       "note": "Beste Plätze: alle. Schlechteste Plätze: keine."
@@ -135,7 +138,7 @@
     "closingLine": "Dynamic Pricing endet am 17. Oktober. Danach gibt es die Abendkassa — Fixpreis, wie im Mittelalter.",
     "heroTagline": "Dynamic Pricing wie bei den Superstars — nur in die andere Richtung.",
     "live": "LIVE",
-    "chartHint": "Mit dem Finger oder der Maus über die Kurve fahren — jeder Punkt ist echte (Nicht-)Nachfrage.",
+    "chartHint": "",
     "nextDrop": "Nächster Preisfall: zur vollen Stunde — außer, jemand kauft.",
     "terminalLine": "The Loft, Wien · Dynamischer Preis läuft bis 17.10.2026",
     "share": "Kurs teilen",
@@ -147,16 +150,20 @@
     "vipTitle": "VIP-Packages",
     "vip": [
       {
-        "name": "GOLDEN CIRCLE PACKAGE",
-        "desc": "Der Kreis ist golden, weil alle drinstehen. Aufpreis: 0 €."
+        "name": "PLATIN-TICKET",
+        "desc": "Dasselbe Ticket, nur teurer. Gibt es bei den Großen wirklich. Bei uns übernimmt das der Markt — in die andere Richtung."
       },
       {
-        "name": "BACKSTAGE-EXPERIENCE",
-        "desc": "Backstage ist bei uns die Küche vom Loft. Auf Anfrage. Antwort: nein."
+        "name": "VIP-PACKAGE „GENAU DIESES GEFÜHL“",
+        "desc": "Enthält: das Gefühl, kein Opfer von Dynamic Pricing geworden zu sein. Unbezahlbar, daher 0 €."
+      },
+      {
+        "name": "GOLDEN CIRCLE PACKAGE",
+        "desc": "Anderswo 240 € Aufpreis für früher reindürfen und ein Lanyard. Bei uns ist der goldene Kreis der Raum."
       },
       {
         "name": "MEET & GREET",
-        "desc": "Findet automatisch statt — die Band steht nach der Show an der Bar."
+        "desc": "Gratis und unvermeidbar. Die Band steht nach der Show an der Bar und hat niemanden, der sie abschirmt."
       }
     ]
   },

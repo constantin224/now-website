@@ -226,17 +226,11 @@ export default async function TicketsPage({
                 <h2 className="font-light text-[length:var(--text-h2)] text-sand leading-tight mt-5">
                   {t.howItWorksTitle}
                 </h2>
-                <p className="text-sand/60 leading-relaxed mt-6 max-w-md">
+                <p className="text-base md:text-xl text-sand/70 leading-relaxed mt-6 max-w-md">
                   {t.howItWorks}
-                </p>
-                <p className="text-sm text-sand/50 leading-relaxed mt-5 max-w-md">
-                  {t.fees}
                 </p>
               </div>
               <div className="md:col-span-7">
-                <p className="text-[10px] md:text-xs tracking-[0.25em] uppercase text-sand/45 tabular-nums border-b border-line pb-3 mb-6">
-                  {t.terminalLine}
-                </p>
                 <Tilt className="md:[filter:drop-shadow(0_0_24px_rgba(192,133,82,0.18))]">
                   <PriceChart
                     history={state.history}
@@ -247,8 +241,8 @@ export default async function TicketsPage({
                   />
                 </Tilt>
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-                  <p className="text-xs text-sand/50 max-w-md">
-                    {t.chartTitle} {t.chartHint}
+                  <p className="text-xs md:text-sm text-sand/50 max-w-md">
+                    {t.chartTitle}
                   </p>
                   <ShareRate
                     text={t.shareText.replace("{price}", euro(price))}
