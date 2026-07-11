@@ -17,7 +17,7 @@ export const TICKER_CONFIG = {
   historyDenseDays: 7,
   historySparseHours: 6,
 
-  gigDateIso: "2026-10-17T20:00:00+02:00",
+  gigDateIso: "2026-10-17T19:00:00+02:00",
   shopProductUrl:
     "https://shop.tonherd.at/products/17-10-2026-now-album-prasentation",
 } as const;

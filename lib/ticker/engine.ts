@@ -62,5 +62,26 @@ export function tick(
     };
   }
 
-  return state; // Drift folgt in Task 3
+  // Rebaseline: Inventar extern erhöht (Storno/Evey-Korrektur) →
+  // Zähler anpassen, Preis NICHT ändern, kein History-Punkt
+  if (newSales < 0) {
+    return { ...state, soldCount: totalSold };
+  }
+
+  // Drift: nur nach Ablauf der Gnadenfrist, exponentiell Richtung Boden
+  const hoursSinceSale =
+    (now.getTime() - new Date(state.lastSaleAt).getTime()) / 3_600_000;
+  if (hoursSinceSale <= C.graceHours) return state;
+
+  const price = clamp(state.price * C.driftFactorPerHour);
+  if (price === state.price) return state; // am Boden angekommen — nichts zu tun
+
+  return {
+    ...state,
+    price,
+    history: [
+      ...state.history,
+      { t: now.toISOString(), price, event: "drift" },
+    ],
+  };
 }

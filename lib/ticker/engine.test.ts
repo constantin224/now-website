@@ -51,3 +51,57 @@ describe("shopPrice", () => {
     expect(shopPrice(77)).toBe(50);
   });
 });
+
+describe("tick — Drift", () => {
+  it("kein Drift innerhalb der 24h-Gnadenfrist", () => {
+    const s0 = initState(22, 176, NOW);
+    const s1 = tick(s0, 176, new Date(NOW.getTime() + 23 * H));
+    expect(s1.price).toBe(22);
+    expect(s1.history).toHaveLength(1); // kein neuer Punkt
+  });
+
+  it("nach Gnadenfrist: −0,5 % pro Tick", () => {
+    const s0 = initState(22, 176, NOW);
+    const s1 = tick(s0, 176, new Date(NOW.getTime() + 25 * H));
+    expect(s1.price).toBeCloseTo(22 * 0.995, 10);
+    expect(s1.history.at(-1)).toMatchObject({ event: "drift" });
+  });
+
+  it("Drift wird unten immer langsamer und stoppt am Boden 1,50 €", () => {
+    let s = initState(1.51, 176, NOW);
+    let t = NOW.getTime() + 25 * H;
+    for (let i = 0; i < 10; i++) {
+      s = tick(s, 176, new Date(t));
+      t += H;
+    }
+    expect(s.price).toBe(1.5); // geklemmt, nie darunter
+  });
+
+  it("Verkauf gewinnt gegen Drift im selben Tick", () => {
+    const s0 = initState(22, 176, NOW);
+    const s1 = tick(s0, 175, new Date(NOW.getTime() + 48 * H));
+    expect(s1.price).toBe(24); // +2, KEIN Drift zusätzlich
+    expect(s1.history.at(-1)).toMatchObject({ event: "sale" });
+  });
+
+  it("Drift am Boden erzeugt keine neuen History-Punkte", () => {
+    const s0 = { ...initState(1.5, 176, NOW) };
+    const s1 = tick(s0, 176, new Date(NOW.getTime() + 30 * H));
+    expect(s1.history).toHaveLength(1); // Preis unverändert → kein Punkt
+  });
+});
+
+describe("tick — Rebaseline bei Storno (Evey-Regel)", () => {
+  it("Inventar-Erhöhung senkt soldCount, ändert Preis nicht", () => {
+    const s0 = initState(22, 176, NOW);
+    const s1 = tick(s0, 174, NOW); // 2 verkauft → 26 €
+    const s2 = tick(s1, 175, new Date(NOW.getTime() + H)); // 1 Storno
+    expect(s2.soldCount).toBe(1);
+    expect(s2.price).toBe(26); // Preis bleibt
+    expect(s2.history).toHaveLength(s1.history.length); // kein neuer Punkt
+    // Folgeverkauf wird wieder korrekt erkannt:
+    const s3 = tick(s2, 174, new Date(NOW.getTime() + 2 * H));
+    expect(s3.price).toBe(28);
+    expect(s3.soldCount).toBe(2);
+  });
+});
