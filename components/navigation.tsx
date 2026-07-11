@@ -41,6 +41,7 @@ export default function Navigation({ locale }: { locale: Locale }) {
     { label: t.nav.shows, href: `/${locale}/shows` },
     { label: t.nav.press, href: `/${locale}/press` },
     { label: t.nav.shop, href: `/${locale}/shop` },
+    { label: t.nav.tickets, href: `/${locale}/tickets` },
   ];
 
   // Aktuellen Pfad ohne Locale-Prefix ermitteln

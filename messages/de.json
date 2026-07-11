@@ -5,7 +5,8 @@
     "music": "Music",
     "shows": "Live",
     "press": "Press",
-    "shop": "Shop"
+    "shop": "Shop",
+    "tickets": "Tickets"
   },
   "hero": {
     "tagline": "Pop Rock aus Wien",
@@ -45,7 +46,8 @@
     "no_shows": "Keine Shows geplant.",
     "booking_cta": "Für Booking-Anfragen:",
     "booking_label": "Booking:",
-    "booking_email": "booking@now-music.at"
+    "booking_email": "booking@now-music.at",
+    "tickerBanner": "Wien 17.10.: Ticketpreis wird live vom Markt bestimmt — aktueller Kurs auf der Ticket-Börse →"
   },
   "press": {
     "title": "Press / EPK",

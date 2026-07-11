@@ -5,7 +5,8 @@
     "music": "Music",
     "shows": "Live",
     "press": "Press",
-    "shop": "Shop"
+    "shop": "Shop",
+    "tickets": "Tickets"
   },
   "hero": {
     "tagline": "Pop Rock from Vienna",
@@ -45,7 +46,8 @@
     "no_shows": "No shows planned.",
     "booking_cta": "For booking inquiries:",
     "booking_label": "Booking:",
-    "booking_email": "booking@now-music.at"
+    "booking_email": "booking@now-music.at",
+    "tickerBanner": "Vienna Oct 17: ticket price is set live by the market — see the current rate →"
   },
   "press": {
     "title": "Press / EPK",

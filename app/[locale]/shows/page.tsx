@@ -143,6 +143,14 @@ export default async function ShowsPage({
           {t.shows.title}
         </h1>
 
+        {/* Hinweis-Banner zur Ticket-Börse — dezent, aber auffindbar */}
+        <a
+          href={`/${locale}/tickets`}
+          className="block border border-line rounded-lg px-5 py-3 text-sm text-sand/70 hover:text-terracotta hover:border-terracotta/30 transition-colors mb-10"
+        >
+          {t.shows.tickerBanner}
+        </a>
+
         {/* Bandsintown Widget — automatisch synchronisiert */}
         <ScrollReveal className="min-h-[200px]">
           <BandsintownWidget />
