@@ -143,7 +143,22 @@
     "shareText": "The NOW. ticket is currently at {price}. Dynamic pricing like the superstars — only in the other direction:",
     "queueStatus": "WAITING ROOM ACTIVE · POSITION 1 OF 1",
     "priceEyebrow": "Dynamic ticket price — not fixed, changes hourly",
-    "ctaPriceNote": "You pay the rate at the moment of purchase — it can change until checkout. In both directions."
+    "ctaPriceNote": "You pay the rate at the moment of purchase — it can change until checkout. In both directions.",
+    "vipTitle": "VIP packages",
+    "vip": [
+      {
+        "name": "GOLDEN CIRCLE PACKAGE",
+        "desc": "The circle is golden because everyone is standing in it. Surcharge: €0."
+      },
+      {
+        "name": "BACKSTAGE EXPERIENCE",
+        "desc": "Backstage is the Loft's kitchen. On request. Answer: no."
+      },
+      {
+        "name": "MEET & GREET",
+        "desc": "Happens automatically — the band is at the bar after the show."
+      }
+    ]
   },
   "impressum": {
     "title": "Legal Notice",

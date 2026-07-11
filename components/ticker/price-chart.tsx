@@ -150,7 +150,7 @@ export function PriceChart({ history, rising, floorEuro, locale, labels }: Props
               x={PAD.left - 10}
               y={y(v) + 3.5}
               textAnchor="end"
-              fontSize="11"
+              fontSize="13"
               fill={INK_MUTED}
               style={{ fontVariantNumeric: "tabular-nums" }}
             >
@@ -174,7 +174,7 @@ export function PriceChart({ history, rising, floorEuro, locale, labels }: Props
           x={W - PAD.right}
           y={floorY - 7}
           textAnchor="end"
-          fontSize="11"
+          fontSize="13"
           fill={INK_MUTED}
         >
           {labels.floor}
@@ -198,7 +198,7 @@ export function PriceChart({ history, rising, floorEuro, locale, labels }: Props
           x={Math.max(PAD.left + 44, Math.min(athPt.x, W - PAD.right - 44))}
           y={Math.max(PAD.top + 12, athPt.y - 12)}
           textAnchor="middle"
-          fontSize="11"
+          fontSize="13"
           fill={INK_MUTED}
           style={{ fontVariantNumeric: "tabular-nums" }}
         >
@@ -208,7 +208,7 @@ export function PriceChart({ history, rising, floorEuro, locale, labels }: Props
           x={Math.max(PAD.left + 44, Math.min(atlPt.x, W - PAD.right - 44))}
           y={Math.min(atlPt.y + 22, PAD.top + ih - 6)}
           textAnchor="middle"
-          fontSize="11"
+          fontSize="13"
           fill={INK_MUTED}
           style={{ fontVariantNumeric: "tabular-nums" }}
         >
@@ -272,14 +272,14 @@ export function PriceChart({ history, rising, floorEuro, locale, labels }: Props
         )}
 
         {/* Zeit-Endpunkte */}
-        <text x={PAD.left} y={H - 8} fontSize="11" fill={INK_MUTED}>
+        <text x={PAD.left} y={H - 8} fontSize="13" fill={INK_MUTED}>
           {labels.start}
         </text>
         <text
           x={W - PAD.right}
           y={H - 8}
           textAnchor="end"
-          fontSize="11"
+          fontSize="13"
           fill={INK_MUTED}
         >
           {labels.today}

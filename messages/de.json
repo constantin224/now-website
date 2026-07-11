@@ -143,7 +143,22 @@
     "shareText": "Das NOW.-Ticket steht gerade bei {price}. Dynamic Pricing wie bei den Superstars — nur in die andere Richtung:",
     "queueStatus": "WARTERAUM AKTIV · POSITION 1 VON 1",
     "priceEyebrow": "Dynamischer Ticketpreis — nicht fix, ändert sich stündlich",
-    "ctaPriceNote": "Es gilt der Kurs im Moment des Kaufs — bis zur Kassa kann er sich ändern. In beide Richtungen."
+    "ctaPriceNote": "Es gilt der Kurs im Moment des Kaufs — bis zur Kassa kann er sich ändern. In beide Richtungen.",
+    "vipTitle": "VIP-Packages",
+    "vip": [
+      {
+        "name": "GOLDEN CIRCLE PACKAGE",
+        "desc": "Der Kreis ist golden, weil alle drinstehen. Aufpreis: 0 €."
+      },
+      {
+        "name": "BACKSTAGE-EXPERIENCE",
+        "desc": "Backstage ist bei uns die Küche vom Loft. Auf Anfrage. Antwort: nein."
+      },
+      {
+        "name": "MEET & GREET",
+        "desc": "Findet automatisch statt — die Band steht nach der Show an der Bar."
+      }
+    ]
   },
   "impressum": {
     "title": "Impressum",

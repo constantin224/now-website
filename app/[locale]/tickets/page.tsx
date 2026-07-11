@@ -208,46 +208,59 @@ export default async function TicketsPage({
         </div>
       </section>
 
-      {/* ============ CHART — Der Markt als Kunstobjekt ============ */}
+      {/* ============ SO FUNKTIONIERT'S — Erklärung links, Chart als Beweis rechts ============ */}
       <section className="pt-[var(--spacing-section)]">
         <div className="max-w-6xl mx-auto px-6">
           <ScrollReveal y={24}>
-            <div className="flex items-center gap-3">
-              <span className="relative flex w-1.5 h-1.5">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-market-up opacity-60 md:motion-safe:animate-ping" />
-                <span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-market-up" />
-              </span>
-              <p className="text-[10px] md:text-xs tracking-[0.25em] uppercase text-sand/50">
-                {badge}
-              </p>
+            <div className="grid md:grid-cols-12 gap-12 md:gap-10 items-center">
+              <div className="md:col-span-5">
+                <div className="flex items-center gap-3">
+                  <span className="relative flex w-1.5 h-1.5">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-market-up opacity-60 md:motion-safe:animate-ping" />
+                    <span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-market-up" />
+                  </span>
+                  <p className="text-[10px] md:text-xs tracking-[0.25em] uppercase text-sand/50">
+                    {badge}
+                  </p>
+                </div>
+                <h2 className="font-light text-[length:var(--text-h2)] text-sand leading-tight mt-5">
+                  {t.howItWorksTitle}
+                </h2>
+                <p className="text-sand/60 leading-relaxed mt-6 max-w-md">
+                  {t.howItWorks}
+                </p>
+                <p className="text-sm text-sand/50 leading-relaxed mt-5 max-w-md">
+                  {t.fees}
+                </p>
+              </div>
+              <div className="md:col-span-7">
+                <p className="text-[10px] md:text-xs tracking-[0.25em] uppercase text-sand/45 tabular-nums border-b border-line pb-3 mb-6">
+                  {t.terminalLine}
+                </p>
+                <Tilt className="md:[filter:drop-shadow(0_0_24px_rgba(192,133,82,0.18))]">
+                  <PriceChart
+                    history={state.history}
+                    rising={rising}
+                    floorEuro={C.floorEuro}
+                    locale={locale}
+                    labels={t.chart}
+                  />
+                </Tilt>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+                  <p className="text-xs text-sand/50 max-w-md">
+                    {t.chartTitle} {t.chartHint}
+                  </p>
+                  <ShareRate
+                    text={t.shareText.replace("{price}", euro(price))}
+                    label={t.share}
+                    doneLabel={t.shared}
+                  />
+                </div>
+              </div>
             </div>
-            <h2 className="font-light text-[length:var(--text-h2)] text-sand mt-5 max-w-2xl">
-              {t.chartHeadline}
-            </h2>
-            {/* Terminal-Kopfzeile: seriöse Börsen-Optik, absurder Inhalt */}
-            <p className="text-[10px] md:text-xs tracking-[0.25em] uppercase text-sand/45 tabular-nums border-b border-line pb-3 mt-8">
-              {t.terminalLine}
-            </p>
-          </ScrollReveal>
-        </div>
 
-        <ScrollReveal className="mt-10 md:mt-14" y={24}>
-          {/* Rahmenlos, volle Breite, leichtes Glühen (nur Desktop) */}
-          <Tilt className="max-w-6xl mx-auto px-6 md:[filter:drop-shadow(0_0_24px_rgba(192,133,82,0.18))]">
-            <PriceChart
-              history={state.history}
-              rising={rising}
-              floorEuro={C.floorEuro}
-              locale={locale}
-              labels={t.chart}
-            />
-          </Tilt>
-        </ScrollReveal>
-
-        {/* Stats als eine ruhige Hairline-Zeile */}
-        <div className="max-w-6xl mx-auto px-6">
-          <ScrollReveal y={16}>
-            <dl className="mt-10 md:mt-12 grid grid-cols-2 md:grid-cols-4 gap-y-6 border-t border-line pt-6">
+            {/* Stats als ruhige Hairline-Zeile unter dem Ganzen */}
+            <dl className="mt-14 md:mt-16 grid grid-cols-2 md:grid-cols-4 gap-y-6 border-t border-line pt-6">
               {stats.map(([label, value]) => (
                 <div key={label}>
                   <dt className="text-[10px] tracking-[0.2em] uppercase text-sand/45">
@@ -259,41 +272,37 @@ export default async function TicketsPage({
                 </div>
               ))}
             </dl>
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
-              <p className="text-xs md:text-sm text-sand/50 max-w-2xl">
-                {t.chartTitle} {t.chartHint}
-              </p>
-              <ShareRate
-                text={t.shareText.replace("{price}", euro(price))}
-                label={t.share}
-                doneLabel={t.shared}
-              />
-            </div>
           </ScrollReveal>
         </div>
       </section>
 
-      {/* ============ EDITORIAL — Markt-Erklärung + Saalplan als Beilage ============ */}
+      {/* ============ SAALPLAN + VIP-PACKAGES ============ */}
       <section className="pt-[var(--spacing-section)]">
         <div className="max-w-6xl mx-auto px-6">
           <ScrollReveal y={24}>
             <div className="grid md:grid-cols-12 gap-12 md:gap-8 items-start border-t border-line pt-[var(--spacing-block)]">
-              <div className="md:col-span-5">
-                <h2 className="font-light text-[length:var(--text-h2)] text-sand leading-tight">
-                  {t.howItWorksTitle}
-                </h2>
-                <p className="text-sand/60 leading-relaxed mt-6 max-w-md">
-                  {t.howItWorks}
-                </p>
-                <p className="text-sm text-sand/50 leading-relaxed mt-5 max-w-md">
-                  {t.fees}
-                </p>
-              </div>
-              <div className="md:col-span-6 md:col-start-7">
+              <div className="md:col-span-6">
                 <p className="text-[10px] tracking-[0.25em] uppercase text-sand-38 mb-6">
                   {t.hallPlan.title}
                 </p>
                 <HallPlan labels={t.hallPlan} />
+              </div>
+              <div className="md:col-span-5 md:col-start-8">
+                <p className="text-[10px] tracking-[0.25em] uppercase text-sand-38 mb-6">
+                  {t.vipTitle}
+                </p>
+                <ul className="space-y-6">
+                  {t.vip.map((v) => (
+                    <li key={v.name} className="border-b border-line pb-5">
+                      <p className="text-sm tracking-[0.1em] text-sand/85">
+                        {v.name}
+                      </p>
+                      <p className="text-sm text-sand/55 leading-relaxed mt-1.5">
+                        {v.desc}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           </ScrollReveal>
