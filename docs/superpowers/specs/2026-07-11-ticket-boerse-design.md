@@ -24,12 +24,12 @@ Große Acts nutzen Dynamic Pricing, um bei hoher Nachfrage Preise zu treiben. No
 |---|---|
 | Ticket verkauft | **+2,00 € pro verkauftem Ticket**, sofort |
 | 24 h Gnadenfrist nach letztem Verkauf | Preis stabil |
-| Danach je Stunde ohne Verkauf | **−0,10 €** (−2,40 €/Tag Drift) |
-| Boden | **5,00 €** |
+| Danach je Stunde ohne Verkauf | **−0,5 % vom aktuellen Kurs** (exponentieller Drift) |
+| Boden | **1,50 €** — bewusst lächerlich; Drift wird nach unten automatisch immer langsamer und kriecht asymptotisch dorthin |
 | Deckel | **50,00 €** |
 | Rundung | interner Kurs exakt im State; Shop-Preis auf 0,10 € gerundet (krumme Preise wie 23,40 € sind Teil der Dynamic-Pricing-Parodie) |
 
-Kalibrierung auf kleine Venue: 1 Verkauf/Tag hält den Kurs ungefähr stabil; totale Flaute braucht ~8 Tage vom Startpreis bis zum Boden; jeder einzelne Käufer bewegt den Markt sichtbar. Alle Parameter liegen als Konstanten in einem Config-Modul und sind ohne Logik-Änderung justierbar.
+Kalibrierung auf kleine Venue (Drift −0,5 %/h ≈ −11 %/Tag): bei totaler Flaute fällt der Kurs von 22 € in ~1 Woche auf 10 €, in ~2 Wochen auf 5 €, und braucht insgesamt ~3 Wochen bis zum 1,50-€-Boden — der Sinkflug wird unten von selbst quälend langsam (letzter Halb-Euro dauert Tage). Ein einzelner Verkauf (+2 €) wirft den Kurs sichtbar zurück; ~1 Verkauf/Tag hält ihn im oberen Bereich stabil. Alle Parameter liegen als Konstanten in einem Config-Modul und sind ohne Logik-Änderung justierbar.
 
 ### Verkaufszählung (PII-frei)
 
@@ -93,6 +93,37 @@ Ticketmaster-Karikatur, todernst gespielt:
 - Textfeinschliff gemeinsam mit Constantin beim Bauen
 
 Datenfluss Seite: Server Component liest Metafield (Admin API) + rendert; Revalidierung durch Webhook/Tick via `revalidatePath`.
+
+## Design-Vorbilder (gefetcht 2026-07-11, Screenshots in `docs/design-refs/`)
+
+Karikatur-Ziel: oeticket (Eventim-Plattform, AT-Marktführer) + Ticketmaster AT. Muster, die die Seite todernst nachbauen soll:
+
+**oeticket-Eventseite** (`oeticket-event-toten-hosen.jpeg`):
+- Dunkler Hero mit Tour-Key-Art, Sterne-Rating (★★★★★ 4,8), „Tickets ab € 80,90*" mit Sternchen
+- Datums-Karte: Datum-Kachel links, Venue, blauer „Weiter"-CTA rechts
+- „VIP Packages"-Aufklapper: „VIP - Sitzplatz ab € 302,00*"
+- „Ticketalarm – kein Event mehr verpassen!" E-Mail-Capture
+- „Fan-Report": Bewertungen/Rezensionen mit Sternen
+- Trust-Icons-Reihe („Ihre Vorteile": Sicherheit, Originaltickets vom Marktführer, schnelle Lieferung)
+- Fußnote: „*Angezeigte Preise inkl. gesetzl. USt., Servicegebühr von max. € 3,00, 1,50 Internationaler Sales Fee…"
+
+**Ticketmaster-Künstlerseite** (`tm-helene-fischer.jpeg`):
+- Rote Knappheits-Badges: „WENIGE ODER KEINE TICKETS VERFÜGBAR"
+- VIP-Karussell mit goldener „VIP bei ticketmaster"-Typo, Package-Namen in Anführungszeichen („GENAU DIESES GEFÜHL" BACKSTAGE-TOUR PACKAGE, GOLDEN CIRCLE PACKAGE)
+- Countdown-Timer (Tage/Std/Min/Sek) am Seitenende vor schwarzem Live-Foto-Collage-Band
+- Event-Listen-Rows: Datums-Kachel + Venue + blauer „Tickets"-Button
+- FAQ-Akkordeon, „Fans besuchten auch"-Grid
+
+**Ticketmaster-Kaufseite** (`tm-kaleo-kaufseite.jpeg`):
+- Saalplan-SVG: graue „BÜHNE", blaue Flächen „STEHPARKETT"/Galerien, Zoom-Controls, Legende Standard (blau) / VIP (gold)
+- Tabs „Saalplan anzeigen" / „Beste verfügbare Plätze", Filter-Dropdowns „Alle Preise" / „Alle Ticket-Arten"
+- Info-Leiste: „Wichtige Infos: Im Ticketpreis ist eine Buchungsgebühr von 2,50 € enthalten. Presented by Live Nation"
+- Leerer Warenkorb-Zustand: „Tickets im Saalplan auswählen — Ihre Auswahl wird hier hinzugefügt"
+
+**Ticketmaster ausverkauft** (`tm-event-kaufseite.jpeg`):
+- Gelber Warnbalken „Dieses Event findet in weniger als 24 Stunden statt — Online sind keine Tickets mehr verfügbar…"
+
+Parodie-Übersetzungen für Now. (Auswahl, Feinschliff beim Bauen): Saalplan mit einer einzigen Fläche „STEHPARKETT (alle)", Sterne-Rating von 3 Bewertungen (die Band), „VIP Package: Bier mit der Band ab € 302,00*" o.ä., Trust-Icons („Originaltickets direkt von der Band, weil es sonst niemand verkauft"), Sternchen-Fußnote die erklärt dass es keine Gebühren gibt, Countdown bis zum Gig, Knappheits-Badge invertiert („VIELE TICKETS VERFÜGBAR. WIRKLICH VIELE.").
 
 ## Tests
 
