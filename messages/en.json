@@ -128,7 +128,9 @@
       "volumeLabel": "24h volume",
       "availableLabel": "Circulation"
     },
-    "howItWorksTitle": "How the market works"
+    "howItWorksTitle": "How the market works",
+    "chartHeadline": "The market has spoken. It speaks again every hour.",
+    "closingLine": "The market closes on October 17. After that, tickets are box-office only — at a fixed price, like in the Middle Ages."
   },
   "impressum": {
     "title": "Legal Notice",

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { getMessages, isValidLocale } from "@/lib/i18n";
 import { localeMetadata } from "@/lib/seo";
 import { TICKER_CONFIG as C } from "@/lib/ticker/config";
@@ -9,6 +10,7 @@ import { TickerTape } from "@/components/ticker/ticker-tape";
 import { Countdown } from "@/components/ticker/countdown";
 import { HallPlan } from "@/components/ticker/hall-plan";
 import { QueueGate } from "@/components/ticker/queue-gate";
+import { Tilt } from "@/components/ticker/tilt";
 import { ScrollReveal } from "@/components/scroll-reveal";
 
 export const revalidate = 3600; // Fallback — Webhook/Tick revalidieren on-demand
@@ -26,7 +28,7 @@ export async function generateMetadata({
   };
 }
 
-// Verkäufe der letzten 24 h aus der Historie (Nachfrage-Badge + Volumen)
+// Verkäufe der letzten 24 h aus der Historie (Nachfrage-Zeile + Volumen)
 function salesLast24h(state: TickerState, now: Date): number {
   const cutoff = now.getTime() - 24 * 3_600_000;
   return state.history.filter(
@@ -44,10 +46,8 @@ function dayChangePct(state: TickerState, now: Date): number {
   return ((state.price - ref) / ref) * 100;
 }
 
-// Euro deutsch formatiert (Komma), ganze Beträge ohne Cent
 const euro = (n: number) => `€${n.toFixed(2).replace(".", ",")}`;
-const euroInt = (n: number) =>
-  `€${Math.round(n).toLocaleString("de-AT")}`;
+const euroInt = (n: number) => `€${Math.round(n).toLocaleString("de-AT")}`;
 
 export default async function TicketsPage({
   params,
@@ -103,9 +103,10 @@ export default async function TicketsPage({
         : t.demandBadge.none;
   const trendCls = rising ? "text-market-up" : "text-market-down";
   const arrow = rising ? "▲" : "▼";
+  const pct = `${Math.abs(change).toFixed(1).replace(".", ",")} %`;
 
   const tapeItems = [
-    `${t.symbol} ${euro(price)} ${arrow} ${Math.abs(change).toFixed(1).replace(".", ",")} %`,
+    `${t.symbol} ${euro(price)} ${arrow} ${pct}`,
     `${t.tape.volumeLabel}: ${sales24}`,
     `${t.tape.availableLabel}: ${currentInventory} ${t.stats.availableUnit}`,
     `${t.stats.marketCap}: ${euroInt(marketCap)}`,
@@ -113,129 +114,164 @@ export default async function TicketsPage({
     `${t.tape.capLabel}: ${euro(C.capEuro)}`,
   ];
 
+  const stats: [string, string][] = [
+    [t.allTimeHigh, euro(ath)],
+    [t.allTimeLow, euro(atl)],
+    [t.stats.available, `${currentInventory} ${t.stats.availableUnit}`],
+    [t.stats.marketCap, euroInt(marketCap)],
+  ];
+
   return (
-    <section className="pt-28 md:pt-36 pb-[var(--spacing-section)]">
-      {/* Kopf */}
-      <div className="max-w-5xl mx-auto px-6">
-        <p className="text-[10px] md:text-xs tracking-[0.25em] uppercase text-sand-38">
-          {t.platformLabel}
-        </p>
-        <div className="mt-5 flex flex-wrap items-baseline gap-x-6 gap-y-2">
-          <h1 className="font-light text-5xl md:text-7xl text-sand leading-none">
+    <>
+      {/* ============ HERO — Bühne: Live-Atmosphäre + Preis als Typo-Objekt ============ */}
+      <section className="relative min-h-[92svh] flex flex-col">
+        {/* Hintergrund: Live-Crowd, warm, stark abgedunkelt */}
+        <div className="absolute inset-0 overflow-hidden">
+          <Image
+            src="/video-poster.jpg"
+            alt=""
+            fill
+            priority
+            className="object-cover opacity-50"
+            sizes="100vw"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-bg-base/80 via-bg-base/40 to-bg-base" />
+        </div>
+
+        <div className="relative flex-1 flex flex-col justify-end max-w-6xl mx-auto w-full px-6 pt-32 pb-14 md:pb-20">
+          <p className="text-[10px] md:text-xs tracking-[0.3em] uppercase text-sand/45 animate-fade-in">
+            {t.platformLabel}
+          </p>
+
+          <h1 className="font-light text-[clamp(3.5rem,10vw,9rem)] leading-[0.95] text-sand mt-6 animate-fade-in">
             {t.eventTitle}
           </h1>
-          <span className="font-light text-xl md:text-2xl text-sand/45">
-            {t.eventSubtitle}
-          </span>
-        </div>
-        <p className="text-sm md:text-base text-sand/50 tracking-wide mt-3">
-          {t.eventMeta}
-        </p>
-      </div>
 
-      {/* Laufband */}
-      <div className="mt-10 md:mt-14">
-        <TickerTape items={tapeItems} />
-      </div>
-
-      {/* Terminal-Karte: Kurs + Stats + Chart */}
-      <div className="max-w-5xl mx-auto px-6">
-        <ScrollReveal className="mt-10 md:mt-14" y={24}>
-          <div className="border border-line rounded-xl bg-bg-section/60 p-6 md:p-10">
-            {/* Status-Zeile */}
-            <div className="flex items-center gap-3">
-              <span className="relative flex w-2 h-2">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-market-up opacity-60 md:motion-safe:animate-ping" />
-                <span className="relative inline-flex rounded-full w-2 h-2 bg-market-up" />
-              </span>
-              <span className="text-[10px] md:text-xs tracking-[0.2em] uppercase text-sand/55">
-                {badge}
-              </span>
-            </div>
-
-            {/* Kurs + Kennzahlen */}
-            <div className="mt-8 grid md:grid-cols-[1fr_auto] gap-8 md:gap-12 items-end">
-              <div>
-                <p className="text-[10px] md:text-xs tracking-[0.15em] uppercase text-sand-38">
-                  {t.currentPrice} — {t.symbol}
-                </p>
-                <div className="flex items-end gap-5 mt-2">
-                  <span className="font-light text-6xl md:text-8xl text-sand tabular-nums leading-none">
-                    {euro(price)}
-                  </span>
-                  <span
-                    className={`text-lg md:text-2xl tabular-nums pb-1 ${trendCls}`}
-                  >
-                    {arrow} {Math.abs(change).toFixed(1).replace(".", ",")} %
-                    <span className="block text-[10px] md:text-xs tracking-[0.15em] uppercase text-sand-38 mt-1">
-                      {t.dayChange}
-                    </span>
-                  </span>
-                </div>
-              </div>
-              {/* Stat-Grid */}
-              <dl className="grid grid-cols-2 gap-x-10 gap-y-4 text-right md:text-left">
-                {[
-                  [t.allTimeHigh, euro(ath)],
-                  [t.allTimeLow, euro(atl)],
-                  [
-                    t.stats.available,
-                    `${currentInventory} ${t.stats.availableUnit}`,
-                  ],
-                  [t.stats.marketCap, euroInt(marketCap)],
-                ].map(([label, value]) => (
-                  <div key={label}>
-                    <dt className="text-[10px] tracking-[0.15em] uppercase text-sand-38">
-                      {label}
-                    </dt>
-                    <dd className="text-sand/80 tabular-nums mt-1">{value}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-
-            {/* Chart */}
-            <div className="mt-10">
-              <PriceChart
-                history={state.history}
-                rising={rising}
-                floorEuro={C.floorEuro}
-                labels={t.chart}
-              />
-            </div>
-            <p className="text-xs md:text-sm text-sand-38 mt-4">
-              {t.chartTitle}
+          <div className="mt-6 md:mt-8 flex flex-wrap items-baseline gap-x-8 gap-y-2 animate-fade-in-delay">
+            <p className="text-sm md:text-base text-sand/55 tracking-wide">
+              {t.eventSubtitle} · {t.eventMeta}
             </p>
           </div>
-        </ScrollReveal>
 
-        {/* Erklärung + Saalplan */}
-        <ScrollReveal className="mt-16 md:mt-24" y={24}>
-          <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-start">
-            <div>
-              <h2 className="font-light text-2xl md:text-3xl text-sand">
-                {t.howItWorksTitle}
-              </h2>
-              <p className="text-sand/60 leading-relaxed mt-5">
-                {t.howItWorks}
-              </p>
-              <p className="text-sm text-sand-38 leading-relaxed mt-4">
-                {t.fees}
-              </p>
-            </div>
-            <div className="border border-line rounded-xl bg-bg-section/60 p-6 md:p-8">
-              <h2 className="text-[10px] md:text-xs tracking-[0.2em] uppercase text-sand-38 mb-5">
-                {t.hallPlan.title}
-              </h2>
-              <HallPlan labels={t.hallPlan} />
-            </div>
+          {/* Der Preis — inszeniert, nicht gemessen */}
+          <div className="mt-12 md:mt-16 flex flex-wrap items-baseline gap-x-6 gap-y-3 animate-fade-in-delay">
+            <span className="font-[family-name:var(--font-heading)] font-light text-[clamp(4rem,12vw,10rem)] leading-none text-sand tabular-nums">
+              {euro(price)}
+            </span>
+            <span className={`text-xl md:text-3xl tabular-nums ${trendCls}`}>
+              {arrow} {pct}
+            </span>
+            <span className="w-full md:w-auto text-[10px] md:text-xs tracking-[0.2em] uppercase text-sand-38">
+              {t.currentPrice} · {t.dayChange}
+            </span>
           </div>
+        </div>
+
+        {/* Laufband als Hero-Abschluss */}
+        <div className="relative">
+          <TickerTape items={tapeItems} />
+        </div>
+      </section>
+
+      {/* ============ CHART — Der Markt als Kunstobjekt ============ */}
+      <section className="pt-[var(--spacing-section)]">
+        <div className="max-w-6xl mx-auto px-6">
+          <ScrollReveal y={24}>
+            <div className="flex items-center gap-3">
+              <span className="relative flex w-1.5 h-1.5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-market-up opacity-60 md:motion-safe:animate-ping" />
+                <span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-market-up" />
+              </span>
+              <p className="text-[10px] md:text-xs tracking-[0.25em] uppercase text-sand/50">
+                {badge}
+              </p>
+            </div>
+            <h2 className="font-light text-[length:var(--text-h2)] text-sand mt-5 max-w-2xl">
+              {t.chartHeadline}
+            </h2>
+          </ScrollReveal>
+        </div>
+
+        <ScrollReveal className="mt-10 md:mt-14" y={24}>
+          {/* Rahmenlos, volle Breite, leichtes Glühen (nur Desktop) */}
+          <Tilt className="max-w-6xl mx-auto px-6 md:[filter:drop-shadow(0_0_24px_rgba(192,133,82,0.18))]">
+            <PriceChart
+              history={state.history}
+              rising={rising}
+              floorEuro={C.floorEuro}
+              labels={t.chart}
+            />
+          </Tilt>
         </ScrollReveal>
 
-        {/* Countdown + CTA */}
-        <ScrollReveal className="mt-16 md:mt-24" y={24}>
-          <div className="text-center">
-            <div className="flex justify-center">
+        {/* Stats als eine ruhige Hairline-Zeile */}
+        <div className="max-w-6xl mx-auto px-6">
+          <ScrollReveal y={16}>
+            <dl className="mt-10 md:mt-12 grid grid-cols-2 md:grid-cols-4 gap-y-6 border-t border-line pt-6">
+              {stats.map(([label, value]) => (
+                <div key={label}>
+                  <dt className="text-[10px] tracking-[0.2em] uppercase text-sand-38">
+                    {label}
+                  </dt>
+                  <dd className="text-sand/80 tabular-nums text-lg md:text-xl font-light mt-2">
+                    {value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <p className="text-xs md:text-sm text-sand-38 mt-6">
+              {t.chartTitle}
+            </p>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* ============ EDITORIAL — Markt-Erklärung + Saalplan als Beilage ============ */}
+      <section className="pt-[var(--spacing-section)]">
+        <div className="max-w-6xl mx-auto px-6">
+          <ScrollReveal y={24}>
+            <div className="grid md:grid-cols-12 gap-12 md:gap-8 items-start border-t border-line pt-[var(--spacing-block)]">
+              <div className="md:col-span-6">
+                <h2 className="font-light text-[length:var(--text-h2)] text-sand leading-tight">
+                  {t.howItWorksTitle}
+                </h2>
+                <p className="text-sand/60 leading-relaxed mt-6 max-w-md">
+                  {t.howItWorks}
+                </p>
+                <p className="text-sm text-sand-38 leading-relaxed mt-5 max-w-md">
+                  {t.fees}
+                </p>
+              </div>
+              <div className="md:col-span-5 md:col-start-8">
+                <p className="text-[10px] tracking-[0.25em] uppercase text-sand-38 mb-6">
+                  {t.hallPlan.title}
+                </p>
+                <HallPlan labels={t.hallPlan} />
+              </div>
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* ============ FINALE — Band-Foto, Countdown, CTA ============ */}
+      <section className="relative mt-[var(--spacing-section)]">
+        <div className="absolute inset-0 overflow-hidden">
+          <Image
+            src="/band-photo.jpg"
+            alt=""
+            fill
+            className="object-cover object-top opacity-35"
+            sizes="100vw"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-bg-base via-bg-base/55 to-bg-base" />
+        </div>
+
+        <div className="relative max-w-6xl mx-auto px-6 py-[var(--spacing-section-lg)] text-center">
+          <ScrollReveal y={24}>
+            <h2 className="font-light text-[length:var(--text-h1)] text-sand leading-tight max-w-3xl mx-auto">
+              {t.closingLine}
+            </h2>
+            <div className="flex justify-center mt-12">
               <Countdown targetIso={C.gigDateIso} labels={t.countdown} />
             </div>
             <div className="mt-12">
@@ -245,12 +281,12 @@ export default async function TicketsPage({
                 queue={t.queue}
               />
             </div>
-            <p className="text-xs text-sand/35 mt-8 max-w-md mx-auto leading-relaxed">
+            <p className="text-xs text-sand/35 mt-10 max-w-md mx-auto leading-relaxed">
               {t.disclaimer}
             </p>
-          </div>
-        </ScrollReveal>
-      </div>
-    </section>
+          </ScrollReveal>
+        </div>
+      </section>
+    </>
   );
 }

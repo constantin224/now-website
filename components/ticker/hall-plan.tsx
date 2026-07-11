@@ -17,9 +17,10 @@ const SAND = "#d4cbbe";
 export function HallPlan({ labels }: Props) {
   return (
     <div>
+      {/* 3D-Kipp nur Desktop: der Plan liegt wie ein Bühnenplan im Raum */}
       <svg
         viewBox="0 0 400 250"
-        className="w-full h-auto"
+        className="w-full h-auto md:[transform:perspective(900px)_rotateX(32deg)] md:-my-4"
         role="img"
         aria-label={labels.title}
       >

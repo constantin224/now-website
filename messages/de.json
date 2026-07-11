@@ -128,7 +128,9 @@
       "volumeLabel": "Volumen 24h",
       "availableLabel": "Umlauf"
     },
-    "howItWorksTitle": "So funktioniert der Markt"
+    "howItWorksTitle": "So funktioniert der Markt",
+    "chartHeadline": "Der Markt hat entschieden. Er entscheidet stündlich neu.",
+    "closingLine": "Der Markt schließt am 17. Oktober. Danach gibt es Tickets nur noch an der Abendkassa — zum Fixpreis, wie im Mittelalter."
   },
   "impressum": {
     "title": "Impressum",
