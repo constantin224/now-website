@@ -41,7 +41,7 @@ Das Ticket-Produkt wird von der Shopify-App **Evey Events & Tickets** verwaltet 
 | Deckel | **40,00 €** (vorher 50 € — „fair statt Konzern-Abzocke") |
 | Rundung | interner Kurs exakt im State; Shop-Preis auf 0,10 € gerundet (krumme Preise wie 23,40 € sind Teil der Dynamic-Pricing-Parodie) |
 
-Kalibrierung auf kleine Venue (Drift −0,5 %/h ≈ −11 %/Tag): bei totaler Flaute fällt der Kurs von 22 € in ~1 Woche auf 10 €, in ~2 Wochen auf 5 €, und braucht insgesamt ~3 Wochen bis zum 1,50-€-Boden — der Sinkflug wird unten von selbst quälend langsam (letzter Halb-Euro dauert Tage). Ein einzelner Verkauf (+2 €) wirft den Kurs sichtbar zurück; ~1 Verkauf/Tag hält ihn im oberen Bereich stabil. Alle Parameter liegen als Konstanten in einem Config-Modul und sind ohne Logik-Änderung justierbar.
+Kalibrierung (Stand 07-11 abends, Drift −0,15 %/h ≈ −3,5 %/Tag ≈ −0,90 €/Tag bei 22 €): totale Flaute braucht ~47 Tage von 22 € bis zum 4-€-Boden — die Kurve lebt über die gesamte Restlaufzeit (98 Tage). Ein Kauf (+1 €) gleicht ungefähr einen Flaute-Tag aus („der Markt ist fair, in beide Richtungen"); ~1 Verkauf/Tag lässt den Kurs langsam steigen, Ausverkaufs-Tempo (~2/Tag) treibt ihn Richtung 40-€-Deckel. Alle Parameter liegen als Konstanten in `lib/ticker/config.ts`, Tests sind config-basiert.
 
 ### Verkaufszählung (PII-frei)
 
