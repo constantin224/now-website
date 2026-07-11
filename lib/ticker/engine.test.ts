@@ -22,10 +22,10 @@ describe("tick — Verkäufe", () => {
   it("hebt Preis um 2 € pro neu verkauftem Ticket", () => {
     const s0 = initState(22, 176, NOW);
     const s1 = tick(s0, 173, new Date(NOW.getTime() + H)); // 3 verkauft
-    expect(s1.price).toBe(28);
+    expect(s1.price).toBe(22 + 3 * TICKER_CONFIG.saleBumpEuro);
     expect(s1.soldCount).toBe(3);
     expect(s1.lastSaleAt).toBe(new Date(NOW.getTime() + H).toISOString());
-    expect(s1.history.at(-1)).toMatchObject({ price: 28, event: "sale" });
+    expect(s1.history.at(-1)).toMatchObject({ price: 22 + 3 * TICKER_CONFIG.saleBumpEuro, event: "sale" });
   });
 
   it("deckelt am konfigurierten Deckel", () => {
@@ -81,7 +81,7 @@ describe("tick — Drift", () => {
   it("Verkauf gewinnt gegen Drift im selben Tick", () => {
     const s0 = initState(22, 176, NOW);
     const s1 = tick(s0, 175, new Date(NOW.getTime() + 48 * H));
-    expect(s1.price).toBe(24); // +2, KEIN Drift zusätzlich
+    expect(s1.price).toBe(22 + TICKER_CONFIG.saleBumpEuro); // +Bump, KEIN Drift zusätzlich
     expect(s1.history.at(-1)).toMatchObject({ event: "sale" });
   });
 
@@ -98,11 +98,11 @@ describe("tick — Rebaseline bei Storno (Evey-Regel)", () => {
     const s1 = tick(s0, 174, NOW); // 2 verkauft → 26 €
     const s2 = tick(s1, 175, new Date(NOW.getTime() + H)); // 1 Storno
     expect(s2.soldCount).toBe(1);
-    expect(s2.price).toBe(26); // Preis bleibt
+    expect(s2.price).toBe(22 + 2 * TICKER_CONFIG.saleBumpEuro); // Preis bleibt
     expect(s2.history).toHaveLength(s1.history.length); // kein neuer Punkt
     // Folgeverkauf wird wieder korrekt erkannt:
     const s3 = tick(s2, 174, new Date(NOW.getTime() + 2 * H));
-    expect(s3.price).toBe(28);
+    expect(s3.price).toBe(22 + 3 * TICKER_CONFIG.saleBumpEuro);
     expect(s3.soldCount).toBe(2);
   });
 });
@@ -117,7 +117,7 @@ describe("tick — allowDrift-Flag", () => {
   it("allowDrift: false lässt Verkäufe + Rebaseline trotzdem durch", () => {
     const s0 = initState(22, 176, NOW);
     const s1 = tick(s0, 175, NOW, { allowDrift: false });
-    expect(s1.price).toBe(24);
+    expect(s1.price).toBe(22 + TICKER_CONFIG.saleBumpEuro);
   });
 });
 

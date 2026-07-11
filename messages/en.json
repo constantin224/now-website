@@ -84,7 +84,7 @@
       "some": "DEMAND DETECTED — {count} TICKET(S) IN 24 HOURS",
       "none": "PLENTY OF TICKETS AVAILABLE. GENUINELY PLENTY."
     },
-    "howItWorks": "Someone buys a ticket, the price jumps instantly. Nobody buys, it sinks hour by hour. That's it. We could have made it sound more complicated.",
+    "howItWorks": "Someone buys a ticket, the price instantly rises by one euro. Nobody buys, it sinks hour by hour. One purchase and one quiet day roughly cancel out — the market is fair, just in both directions.",
     "buyCta": "Secure tickets",
     "fees": "Service fee: €0. Handling fee: €0. Dynamic pricing fee: €0. We don't understand it either.",
     "disclaimer": "* Price includes VAT and excludes all the fees we don't charge.",

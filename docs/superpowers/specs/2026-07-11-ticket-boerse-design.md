@@ -34,7 +34,7 @@ Das Ticket-Produkt wird von der Shopify-App **Evey Events & Tickets** verwaltet 
 
 | Ereignis | Wirkung |
 |---|---|
-| Ticket verkauft | **+2,00 € pro verkauftem Ticket**, sofort |
+| Ticket verkauft | **+1,00 € pro verkauftem Ticket**, sofort (07-11 abends von 2 € reduziert: 1 Kauf ≈ 1 Flaute-Tag, faire Balance) |
 | 24 h Gnadenfrist nach letztem Verkauf | Preis stabil |
 | Danach je Stunde ohne Verkauf | **−0,15 % vom aktuellen Kurs** (exponentieller Drift; re-kalibriert 2026-07-11 auf 98 Tage Restlaufzeit + 176 Tickets — Boden wird bei totaler Flaute erst kurz vorm Gig erreicht, ~1 Verkauf alle 3 Tage hält den Kurs) |
 | Boden | **4,00 €** (Constantin 2026-07-11, vorher 1,50 €) — bewusst niedrig; Drift wird nach unten automatisch immer langsamer und kriecht asymptotisch dorthin |

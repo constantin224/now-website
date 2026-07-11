@@ -7,7 +7,9 @@ export const TICKER_CONFIG = {
   metafieldNamespace: "ticker",
   metafieldKey: "state",
 
-  saleBumpEuro: 2.0,        // Preis-Sprung pro verkauftem Ticket
+  // +1 € pro Kauf ≈ ein Flaute-Tag (−0,15 %/h ≈ −0,90 €/Tag bei 22 €) —
+  // ein Käufer und ein Tag Stille heben sich ungefähr auf. Faire Balance.
+  saleBumpEuro: 1.0,
   graceHours: 24,           // Gnadenfrist nach letztem Verkauf
   // −0,15 %/h ≈ −3,5 %/Tag: kalibriert auf ~98 Tage bis zum Gig und 176 Tickets.
   // Totale Flaute erreicht den Boden erst kurz vorm Gig (statt nach 3 Wochen);

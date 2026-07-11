@@ -22,12 +22,13 @@ describe("Simulation: 3 Wochen Kleine-Venue-Realität", () => {
       expect(JSON.stringify(state).length).toBeLessThan(60_000);
     }
 
-    // nach 2 Wochen Flaute muss der Kurs sichtbar unter dem Woche-1-Hoch (36 €) liegen —
+    // nach 2 Wochen Flaute muss der Kurs sichtbar unter dem Woche-1-Hoch liegen —
     // Erwartung formelbasiert aus dem konfigurierten Drift-Faktor (robust gegen Re-Kalibrierung)
     const driftHours = 13 * 24; // 14 Tage Flaute minus 24h Gnadenfrist
-    const expected = 36 * Math.pow(TICKER_CONFIG.driftFactorPerHour, driftHours);
+    const peak = 22 + 7 * TICKER_CONFIG.saleBumpEuro; // Kurs nach Woche 1
+    const expected = peak * Math.pow(TICKER_CONFIG.driftFactorPerHour, driftHours);
     expect(state.price).toBeCloseTo(expected, 1);
-    expect(state.price).toBeLessThan(36);
+    expect(state.price).toBeLessThan(22 + 7 * TICKER_CONFIG.saleBumpEuro);
     expect(state.soldCount).toBe(7);
   });
 });

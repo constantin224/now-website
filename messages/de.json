@@ -84,7 +84,7 @@
       "some": "NACHFRAGE REGISTRIERT — {count} TICKET(S) IN 24 STUNDEN",
       "none": "VIELE TICKETS VERFÜGBAR. WIRKLICH VIELE."
     },
-    "howItWorks": "Kauft jemand ein Ticket, steigt der Preis sofort. Kauft niemand eines, sinkt er Stunde für Stunde. Das ist alles. Wir hätten es auch komplizierter erklären können.",
+    "howItWorks": "Kauft jemand ein Ticket, steigt der Preis sofort um einen Euro. Kauft niemand eines, sinkt er Stunde für Stunde. Ein Kauf und ein Tag Stille heben sich ungefähr auf — der Markt ist fair, nur eben in beide Richtungen.",
     "buyCta": "Tickets sichern",
     "fees": "Servicegebühr: 0 €. Bearbeitungsgebühr: 0 €. Dynamische-Preis-Gebühr: 0 €. Wir verstehen es auch nicht.",
     "disclaimer": "* Angezeigter Preis inkl. gesetzl. USt. und exkl. sämtlicher Gebühren, die wir nicht erheben.",
