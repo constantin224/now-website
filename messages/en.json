@@ -137,7 +137,7 @@
     "live": "LIVE",
     "chartHint": "Run your finger or cursor along the curve — every point is real (non-)demand.",
     "nextDrop": "Next price drop: on the hour — unless somebody buys.",
-    "terminalLine": "NOW.T · THE LOFT · VIENNA · TRADING UNTIL 17 OCT 2026",
+    "terminalLine": "The Loft, Vienna · Dynamic price runs until 17 Oct 2026",
     "share": "Share rate",
     "shared": "Link copied",
     "shareText": "The NOW. ticket is currently at {price}. Dynamic pricing like the superstars — only in the other direction:",

@@ -137,7 +137,7 @@
     "live": "LIVE",
     "chartHint": "Mit dem Finger oder der Maus über die Kurve fahren — jeder Punkt ist echte (Nicht-)Nachfrage.",
     "nextDrop": "Nächster Preisfall: zur vollen Stunde — außer, jemand kauft.",
-    "terminalLine": "NOW.T · THE LOFT · WIEN · HANDEL BIS 17.10.2026",
+    "terminalLine": "The Loft, Wien · Dynamischer Preis läuft bis 17.10.2026",
     "share": "Kurs teilen",
     "shared": "Link kopiert",
     "shareText": "Das NOW.-Ticket steht gerade bei {price}. Dynamic Pricing wie bei den Superstars — nur in die andere Richtung:",
