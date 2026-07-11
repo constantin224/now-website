@@ -140,7 +140,8 @@
     "share": "Share rate",
     "shared": "Link copied",
     "shareText": "The NOW. ticket is currently at {price}. Dynamic pricing like the superstars — only in the other direction:",
-    "queueStatus": "WAITING ROOM ACTIVE · POSITION 1 OF 1"
+    "queueStatus": "WAITING ROOM ACTIVE · POSITION 1 OF 1",
+    "priceEyebrow": "Dynamic ticket price — not fixed, changes hourly"
   },
   "impressum": {
     "title": "Legal Notice",

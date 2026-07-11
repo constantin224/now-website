@@ -6,6 +6,7 @@ import { TICKER_CONFIG as C } from "@/lib/ticker/config";
 import { shopPrice, type TickerState } from "@/lib/ticker/engine";
 import { readTicker } from "@/lib/ticker/shopify-admin";
 import { PriceChart } from "@/components/ticker/price-chart";
+import { PriceHero } from "@/components/ticker/price-hero";
 import { TickerTape } from "@/components/ticker/ticker-tape";
 import { Countdown } from "@/components/ticker/countdown";
 import { HallPlan } from "@/components/ticker/hall-plan";
@@ -112,6 +113,13 @@ export default async function TicketsPage({
     `${t.tape.capLabel}: ${euro(C.capEuro)}`,
   ];
 
+  // Hero-Animation: 12 echte Kurs-Stationen von Handelsstart bis jetzt
+  const step = Math.max(1, Math.floor(state.history.length / 12));
+  const heroWaypoints = [
+    ...state.history.filter((_, i) => i % step === 0).map((p) => p.price),
+    price,
+  ];
+
   const stats: [string, string][] = [
     [t.allTimeHigh, euro(ath)],
     [t.allTimeLow, euro(atl)],
@@ -146,10 +154,15 @@ export default async function TicketsPage({
           </h1>
 
           <div className="mt-10 md:mt-14 animate-fade-in-delay">
-            {/* Preis bewusst in Inter statt Serif: sofort lesbar, Ziffern klar */}
-            <span className="block font-extralight text-[clamp(4.5rem,14vw,12rem)] leading-none tracking-tight text-sand tabular-nums">
-              {euro(price)}
-            </span>
+            <p className="text-[10px] md:text-xs tracking-[0.25em] uppercase text-sand/55 mb-4">
+              {t.priceEyebrow}
+            </p>
+            {/* Preis bewusst in Inter statt Serif: sofort lesbar, Ziffern klar.
+                Tickt beim Laden durch die echte Kurshistorie — Dynamik sichtbar. */}
+            <PriceHero
+              waypoints={heroWaypoints}
+              className="block font-extralight text-[clamp(4.5rem,14vw,12rem)] leading-none tracking-tight text-sand tabular-nums"
+            />
             <p
               className={`mt-4 flex items-center justify-center gap-3 text-lg md:text-2xl tabular-nums ${trendCls}`}
             >
