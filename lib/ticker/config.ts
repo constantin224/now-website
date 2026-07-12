@@ -7,6 +7,10 @@ export const TICKER_CONFIG = {
   metafieldNamespace: "ticker",
   metafieldKey: "state",
 
+  // Startpreis der Börse — bewusst fix, nicht "was gerade im Shop steht".
+  // Wird nur beim allerersten Tick verwendet (Init), danach nie wieder.
+  startPriceEuro: 22.0,
+
   // +1 € pro Kauf ≈ ein Flaute-Tag (−0,15 %/h ≈ −0,90 €/Tag bei 22 €) —
   // ein Käufer und ein Tag Stille heben sich ungefähr auf. Faire Balance.
   saleBumpEuro: 1.0,

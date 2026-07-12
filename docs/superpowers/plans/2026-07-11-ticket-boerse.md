@@ -1535,12 +1535,18 @@ git commit -m "test(ticker): 3-Wochen-Szenario-Simulation"
 ```
 
   Danach das Webhook-Signing-Secret ermitteln: Client-Credentials-Apps signieren mit dem **Client Secret** — d.h. `SHOPIFY_WEBHOOK_SECRET` = Client Secret. Falls Shopify stattdessen ein eigenes Secret liefert (Antwort/Doku prüfen via Shopify-Dev-MCP `search_docs_chunks` „webhook hmac client credentials dev dashboard app"), dieses verwenden. Nach dem Setzen: Redeploy.
-- [ ] **Step 4: Börse initialisieren** — ersten Tick manuell feuern:
+- [ ] **Step 4: Börse STARTEN** (bewusster Handgriff — vorher passiert nichts!). Ohne `?start=1` meldet die Route nur `not_started` und lässt den Shop-Preis in Ruhe, auch wenn der Cron schon läuft:
 
 ```bash
+# Vorher-Check (ändert nichts):
 curl -s -H "Authorization: Bearer $CRON_SECRET" https://now-music.at/api/ticker/tick
+# → {"status":"not_started",...}
+
+# Erst wenn Constantin bereit ist — Börse starten (Startpreis 22 € aus config.ts):
+curl -s -H "Authorization: Bearer $CRON_SECRET" "https://now-music.at/api/ticker/tick?start=1"
+# → {"price":22,"soldCount":0,"event":"init"}
 ```
-Erwartet: `{"price":22,"soldCount":0,"event":"init"}`. (`$CRON_SECRET` tippt Constantin selbst — nicht loggen.)
+(`$CRON_SECRET` tippt Constantin selbst — nicht loggen.)
 - [ ] **Step 5: Webhook-E2E-Test** — Constantin macht eine Test-Bestellung (1 Ticket) im Shop → binnen Sekunden: Shop-Preis 24,00 €, `/de/tickets` zeigt neuen Kurs + sale-Punkt im Chart. Danach Bestellung im Shopify-Admin stornieren + Inventar zurücksetzen? NEIN — Inventar-Rückgabe würde als „negativer Verkauf" ignoriert (Engine reagiert nur auf `newSales > 0`), aber die Baseline verschöbe sich. Sauberer Weg: Test-Bestellung drin lassen (echter Verkauf an uns selbst, 22 €) ODER nach dem Storno das Metafield einmal löschen und Tick neu initialisieren lassen:
 
 ```bash
