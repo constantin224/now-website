@@ -43,13 +43,17 @@ export function PriceChart({ history: raw, rising, floorEuro, locale, labels }: 
   const wrapRef = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<number | null>(null);
 
-  // Immer der gerundete SHOP-Preis, in der Sprache des Besuchers
-  const fmt = useMemo(() => {
+  // Kurse: immer der gerundete SHOP-Preis, in der Sprache des Besuchers.
+  // Deltas: OHNE shopPrice() — das würde kleine Differenzen auf den Boden klemmen.
+  const { fmt, fmtDelta } = useMemo(() => {
     const nf = new Intl.NumberFormat(locale === "en" ? "en-IE" : "de-AT", {
       style: "currency",
       currency: "EUR",
     });
-    return (n: number) => nf.format(shopPrice(n));
+    return {
+      fmt: (n: number) => nf.format(shopPrice(n)),
+      fmtDelta: (n: number) => nf.format(n),
+    };
   }, [locale]);
 
   const geo = useMemo(() => {
@@ -325,8 +329,8 @@ export function PriceChart({ history: raw, rising, floorEuro, locale, labels }: 
                     hvDelta > 0 ? "text-market-up" : "text-market-down"
                   }`}
                 >
-                  {hvDelta > 0 ? "+" : "−"}€
-                  {Math.abs(hvDelta).toFixed(2).replace(".", ",")} ·{" "}
+                  {hvDelta > 0 ? "+" : "−"}
+                  {fmtDelta(Math.abs(hvDelta))} ·{" "}
                   {hv.p.event === "sale" ? labels.sale : labels.drift}
                 </span>
               )}
