@@ -88,6 +88,16 @@ export async function readTicker(): Promise<{
 
 // Neuen Zustand schreiben: Shop-Preis (gerundet) + Metafield (exakter State)
 export async function writeTicker(state: TickerState): Promise<void> {
+  // SCHUTZ: Im Mock-Modus wird NIE in den echten Shop geschrieben. Ohne diesen
+  // Guard würde ein lokaler Tick mit TICKER_MOCK=1 Fantasie-Preise (aus
+  // mock.ts) in den echten Shopify-Shop schreiben.
+  if (process.env.TICKER_MOCK === "1") {
+    console.warn(
+      `[ticker] TICKER_MOCK=1 — Schreibvorgang übersprungen (Preis wäre ${shopPrice(state.price)} € gewesen)`
+    );
+    return;
+  }
+
   const data = await adminQuery<{
     productVariantsBulkUpdate: { userErrors: { message: string }[] };
     metafieldsSet: { userErrors: { message: string }[] };
