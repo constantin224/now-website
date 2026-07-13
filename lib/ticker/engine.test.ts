@@ -92,6 +92,25 @@ describe("tick — Drift", () => {
   });
 });
 
+describe("tick — Inventar-Aufstockung (Kollege legt Tickets nach)", () => {
+  it("soldCount fällt nie unter 0, Preis bleibt unangetastet", () => {
+    const s0 = initState(22, 176, NOW);
+    // Kollege stockt Kontingent auf 250 auf — kein Verkauf, keine Preisänderung
+    const s1 = tick(s0, 250, new Date(NOW.getTime() + H));
+    expect(s1.soldCount).toBe(0); // NICHT -74
+    expect(s1.price).toBe(22);
+    expect(s1.history).toHaveLength(1);
+  });
+
+  it("nach Aufstockung wird der nächste echte Verkauf wieder gezählt", () => {
+    const s0 = initState(22, 176, NOW);
+    const s1 = tick(s0, 250, new Date(NOW.getTime() + H)); // Aufstockung
+    const s2 = tick(s1, 249, new Date(NOW.getTime() + 2 * H)); // 1 Verkauf
+    expect(s2.soldCount).toBe(1);
+    expect(s2.price).toBe(22 + TICKER_CONFIG.saleBumpEuro);
+  });
+});
+
 describe("tick — Rebaseline bei Storno (Evey-Regel)", () => {
   it("Inventar-Erhöhung senkt soldCount, ändert Preis nicht", () => {
     const s0 = initState(22, 176, NOW);

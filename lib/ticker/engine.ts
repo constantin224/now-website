@@ -63,10 +63,20 @@ export function tick(
     };
   }
 
-  // Rebaseline: Inventar extern erhöht (Storno/Evey-Korrektur) →
-  // Zähler anpassen, Preis NICHT ändern, kein History-Punkt
+  // Inventar extern erhöht — Preis bleibt IMMER unangetastet, kein History-Punkt.
+  // Zwei Fälle:
+  //  a) Storno/Korrektur (Inventar bleibt unter der Baseline): Zähler zurücknehmen.
+  //  b) Aufstockung über die Baseline hinaus (jemand legt Tickets nach): die
+  //     Baseline wandert mit, damit spätere echte Verkäufe wieder zählen.
   if (newSales < 0) {
-    return { ...state, soldCount: totalSold };
+    if (totalSold >= 0) {
+      return { ...state, soldCount: totalSold };
+    }
+    return {
+      ...state,
+      startInventory: currentInventory + state.soldCount,
+      // soldCount bleibt: bereits verkaufte Tickets verschwinden nicht
+    };
   }
 
   // Drift: nur nach Ablauf der Gnadenfrist, exponentiell Richtung Boden
