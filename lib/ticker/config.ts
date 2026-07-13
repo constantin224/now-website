@@ -19,8 +19,8 @@ export const TICKER_CONFIG = {
   // Totale Flaute erreicht den Boden erst kurz vorm Gig (statt nach 3 Wochen);
   // ~1 Verkauf alle 3 Tage hält den Kurs stabil.
   driftFactorPerHour: 0.9985,
-  floorEuro: 4.0,           // bewusst niedriger Boden — lächerlich, aber nicht gratis
-  capEuro: 40.0,            // Deckel — fair statt Konzern-Abzocke
+  floorEuro: 5.0,           // Boden — lächerlich niedrig, aber nicht gratis
+  capEuro: 25.0,            // Deckel — fair statt Konzern-Abzocke
 
   // Historie: letzte 7 Tage stündlich, älter nur alle 6 h (Metafield-Größenlimit)
   historyDenseDays: 7,
