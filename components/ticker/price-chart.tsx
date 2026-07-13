@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import type { HistoryPoint } from "@/lib/ticker/engine";
+import { shopPrice, type HistoryPoint } from "@/lib/ticker/engine";
 
 interface Props {
   history: HistoryPoint[];
@@ -25,7 +25,7 @@ const GRID = "rgba(212, 203, 190, 0.07)";
 const INK_MUTED = "rgba(212, 203, 190, 0.42)";
 const SURFACE = "#161210";
 
-const fmt = (n: number) => `€${n.toFixed(2).replace(".", ",")}`;
+
 
 const W = 960;
 const H = 380;
@@ -39,11 +39,32 @@ function linePathOf(pts: { x: number; y: number }[]): string {
 
 // Interaktiver Börsen-Chart: Kurs-Linie + Fläche, Grid, Boden-Linie,
 // Verkaufs-Events — und Crosshair mit Tooltip beim Zeigen/Streichen.
-export function PriceChart({ history, rising, floorEuro, locale, labels }: Props) {
+export function PriceChart({ history: raw, rising, floorEuro, locale, labels }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<number | null>(null);
 
+  // Immer der gerundete SHOP-Preis, in der Sprache des Besuchers
+  const fmt = useMemo(() => {
+    const nf = new Intl.NumberFormat(locale === "en" ? "en-IE" : "de-AT", {
+      style: "currency",
+      currency: "EUR",
+    });
+    return (n: number) => nf.format(shopPrice(n));
+  }, [locale]);
+
   const geo = useMemo(() => {
+    // Launch-Tag: nur ein History-Punkt → zu einer flachen Linie verdoppeln,
+    // damit der Chart nicht komplett verschwindet.
+    const history =
+      raw.length === 1
+        ? [
+            raw[0],
+            {
+              ...raw[0],
+              t: new Date(new Date(raw[0].t).getTime() + 3_600_000).toISOString(),
+            },
+          ]
+        : raw;
     const iw = W - PAD.left - PAD.right;
     const ih = H - PAD.top - PAD.bottom;
     const prices = history.map((p) => p.price);
@@ -59,9 +80,11 @@ export function PriceChart({ history, rising, floorEuro, locale, labels }: Props
       p,
     }));
     return { iw, ih, yMin, yMax, pts };
-  }, [history, floorEuro]);
+  }, [raw, floorEuro]);
 
-  if (history.length < 2) return null;
+  // Am Launch-Tag existiert nur EIN Punkt — dann eine flache Linie zeigen,
+  // statt den Chart ganz verschwinden zu lassen.
+  if (raw.length === 0) return null;
 
   const { ih, yMin, yMax, pts } = geo;
   const y = (v: number) => PAD.top + (1 - (v - yMin) / (yMax - yMin)) * ih;
@@ -109,8 +132,9 @@ export function PriceChart({ history, rising, floorEuro, locale, labels }: Props
       })
     : "";
   // Tooltip-Position in % (skaliert mit responsivem SVG)
-  const tipLeft = hv ? (hv.x / W) * 100 : 0;
-  const tipTop = hv ? (hv.y / H) * 100 : 0;
+  // In den sichtbaren Bereich klemmen, sonst wird der Tooltip am Rand abgeschnitten
+  const tipLeft = hv ? Math.min(88, Math.max(12, (hv.x / W) * 100)) : 0;
+  const tipTop = hv ? Math.max(14, (hv.y / H) * 100) : 0;
 
   return (
     <div
@@ -124,7 +148,7 @@ export function PriceChart({ history, rising, floorEuro, locale, labels }: Props
         viewBox={`0 0 ${W} ${H}`}
         className="w-full h-auto"
         role="img"
-        aria-label={`${labels.start}: ${fmt(history[0].price)} — ${labels.today}: ${fmt(history[history.length - 1].price)}`}
+        aria-label={`${labels.start}: ${fmt(raw[0].price)} — ${labels.today}: ${fmt(raw[raw.length - 1].price)}`}
       >
         <defs>
           {/* Fläche läuft schnell auf null aus — kein „brauner Block" unter hoher Kurve */}
@@ -177,7 +201,7 @@ export function PriceChart({ history, rising, floorEuro, locale, labels }: Props
           fontSize="13"
           fill={INK_MUTED}
         >
-          {labels.floor}
+          {labels.floor.replace("{price}", fmt(floorEuro))}
         </text>
 
         {/* Fläche + weiche Kurs-Linie (zeichnet sich beim Reveal ein) */}

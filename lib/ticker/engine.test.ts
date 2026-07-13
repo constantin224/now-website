@@ -1,176 +1,211 @@
 import { describe, expect, it } from "vitest";
-import { TICKER_CONFIG } from "./config";
-import { initState, shopPrice, tick, pruneHistory } from "./engine";
+import { TICKER_CONFIG as C } from "./config";
+import { initState, priceOf, pruneHistory, shopPrice, tick } from "./engine";
 
-const NOW = new Date("2026-07-11T12:00:00Z");
+const NOW = new Date("2026-07-13T12:00:00Z");
 const H = 3_600_000; // eine Stunde in ms
+const INV = 250; // Start-Inventar
+const at = (h: number) => new Date(NOW.getTime() + h * H);
 
 describe("initState", () => {
-  it("übernimmt Preis + Inventar und schreibt init-Punkt", () => {
-    const s = initState(22, 176, NOW);
-    expect(s.price).toBe(22);
-    expect(s.startInventory).toBe(176);
+  it("friert Startpreis und Inventar-Baseline ein", () => {
+    const s = initState(22, INV, NOW);
+    expect(priceOf(s)).toBe(22);
+    expect(s.startPrice).toBe(22);
+    expect(s.startInventory).toBe(INV);
     expect(s.soldCount).toBe(0);
-    expect(s.lastSaleAt).toBe(NOW.toISOString());
-    expect(s.history).toEqual([
-      { t: NOW.toISOString(), price: 22, event: "init" },
-    ]);
+    expect(s.driftMultiplier).toBe(1);
+    expect(s.history).toEqual([{ t: NOW.toISOString(), price: 22, event: "init" }]);
   });
 });
 
-describe("tick — Verkäufe", () => {
-  it("hebt Preis um 2 € pro neu verkauftem Ticket", () => {
-    const s0 = initState(22, 176, NOW);
-    const s1 = tick(s0, 173, new Date(NOW.getTime() + H)); // 3 verkauft
-    expect(s1.price).toBe(22 + 3 * TICKER_CONFIG.saleBumpEuro);
+describe("Verkäufe", () => {
+  it("hebt den Preis um den Bump pro verkauftem Ticket", () => {
+    const s0 = initState(22, INV, NOW);
+    const s1 = tick(s0, INV - 3, at(1)); // 3 verkauft
+    expect(priceOf(s1)).toBeCloseTo(22 * Math.pow(1 + C.saleBumpPct, 3), 10);
     expect(s1.soldCount).toBe(3);
-    expect(s1.lastSaleAt).toBe(new Date(NOW.getTime() + H).toISOString());
-    expect(s1.history.at(-1)).toMatchObject({ price: 22 + 3 * TICKER_CONFIG.saleBumpEuro, event: "sale" });
+    expect(s1.history.at(-1)).toMatchObject({ event: "sale" });
   });
 
-  it("deckelt am konfigurierten Deckel", () => {
-    const s0 = initState(TICKER_CONFIG.capEuro - 2, 176, NOW);
-    const s1 = tick(s0, 170, NOW); // 6 verkauft → +12 → Deckel
-    expect(s1.price).toBe(TICKER_CONFIG.capEuro);
+  it("deckelt am Cap und schreibt dort keine leeren History-Punkte mehr", () => {
+    // Verkäufe kommen einzeln (Webhook pro Bestellung) — bis über den Deckel
+    let s = initState(22, INV, NOW);
+    const toCap =
+      Math.ceil(Math.log(C.capEuro / 22) / Math.log(1 + C.saleBumpPct)) + 3;
+    for (let i = 1; i <= toCap; i++) s = tick(s, INV - i, at(i));
+    expect(priceOf(s)).toBe(C.capEuro);
+
+    const before = s.history.length;
+    const s2 = tick(s, INV - toCap - 1, at(toCap + 1)); // Verkauf am Deckel
+    expect(priceOf(s2)).toBe(C.capEuro);
+    expect(s2.history.length).toBe(before); // kein flacher Punkt
+    expect(s2.soldCount).toBe(toCap + 1); // gezählt wird trotzdem
   });
 
   it("mutiert den alten State nicht", () => {
-    const s0 = initState(22, 176, NOW);
-    tick(s0, 173, NOW);
-    expect(s0.price).toBe(22);
+    const s0 = initState(22, INV, NOW);
+    tick(s0, INV - 1, at(1));
+    expect(priceOf(s0)).toBe(22);
     expect(s0.history).toHaveLength(1);
   });
 });
 
+describe("Storno — KEINE Preis-Ratsche (Angriffsszenario)", () => {
+  it("Storno senkt den Preis exakt so weit, wie der Kauf ihn gehoben hat", () => {
+    const s0 = initState(22, INV, NOW);
+    const s1 = tick(s0, INV - 1, at(1)); // Kauf
+    expect(priceOf(s1)).toBeCloseTo(22 * (1 + C.saleBumpPct), 10);
+    const s2 = tick(s1, INV, at(2)); // Storno mit Restock
+    expect(priceOf(s2)).toBeCloseTo(22, 10);
+    expect(s2.soldCount).toBe(0);
+    expect(s2.history.at(-1)).toMatchObject({ event: "refund" });
+  });
+
+  it("Kauf/Storno-Zyklen können den Preis NICHT zum Deckel pumpen", () => {
+    // Der Angriff, der die alte Engine in 3 Zyklen an den Deckel getrieben hat
+    let s = initState(22, INV, NOW);
+    for (let i = 0; i < 20; i++) {
+      s = tick(s, INV - 1, at(i * 2 + 1)); // kaufen
+      s = tick(s, INV, at(i * 2 + 2)); // stornieren
+    }
+    expect(priceOf(s)).toBeLessThanOrEqual(22); // nie höher als der Start
+    expect(s.soldCount).toBe(0);
+  });
+
+  it("Storno verlängert die Gnadenfrist nicht", () => {
+    const s0 = initState(22, INV, NOW);
+    const s1 = tick(s0, INV - 1, at(1));
+    const s2 = tick(s1, INV, at(2)); // Storno
+    expect(s2.lastSaleAt).toBe(s1.lastSaleAt); // NICHT auf "jetzt" gesetzt
+  });
+});
+
+describe("Inventar-Manipulation — Preis bleibt unangetastet", () => {
+  it("Aufstockung (Kollege legt Tickets nach) bewegt den Preis nicht", () => {
+    const s0 = initState(22, 176, NOW);
+    const s1 = tick(s0, 250, at(1)); // 176 → 250
+    expect(priceOf(s1)).toBe(22);
+    expect(s1.soldCount).toBe(0);
+    // danach zählt ein echter Verkauf wieder korrekt
+    const s2 = tick(s1, 249, at(2));
+    expect(s2.soldCount).toBe(1);
+    expect(priceOf(s2)).toBeCloseTo(22 * (1 + C.saleBumpPct), 10);
+  });
+
+  it("Admin senkt Inventar massiv → KEIN Preissprung (Klemme)", () => {
+    const s0 = initState(22, 250, NOW);
+    const s1 = tick(s0, 200, at(1)); // 50 auf einmal weg = Korrektur, kein Kauf
+    expect(priceOf(s1)).toBe(22); // vorher: Sprung auf den Deckel!
+    expect(s1.history.at(-1)).toMatchObject({ event: "rebaseline" });
+    // echte Verkäufe danach zählen wieder
+    const s2 = tick(s1, 199, at(2));
+    expect(priceOf(s2)).toBeCloseTo(22 * (1 + C.saleBumpPct), 10);
+  });
+
+  it("Bestands-Tracking aus (inventoryQuantity = 0) → kein Deckel-Sprung", () => {
+    const s0 = initState(22, 250, NOW);
+    const s1 = tick(s0, 0, at(1)); // Tracking aus → API liefert 0
+    expect(priceOf(s1)).toBe(22);
+    const s2 = tick(s1, 250, at(2)); // Tracking wieder an
+    expect(priceOf(s2)).toBe(22);
+  });
+});
+
+describe("Drift — zeitbasiert und idempotent", () => {
+  it("driftet nach verstrichener ZEIT, nicht pro Aufruf", () => {
+    const s0 = initState(22, INV, NOW);
+    const s1 = tick(s0, INV, at(10)); // 10 Stunden vergangen
+    expect(priceOf(s1)).toBeCloseTo(22 * Math.pow(C.driftFactorPerHour, 10), 8);
+  });
+
+  it("Hammering: 200 Aufrufe in derselben Sekunde senken den Preis NICHT", () => {
+    // Angriff mit geleaktem CRON_SECRET gegen die alte Engine: Preis auf Boden
+    let s = initState(22, INV, NOW);
+    for (let i = 0; i < 200; i++) s = tick(s, INV, at(1));
+    expect(priceOf(s)).toBeCloseTo(22 * Math.pow(C.driftFactorPerHour, 1), 8);
+  });
+
+  it("Cron-Kadenz egal: 1×/Tag ergibt denselben Kurs wie stündlich", () => {
+    let hourly = initState(22, INV, NOW);
+    for (let h = 1; h <= 30 * 24; h++) hourly = tick(hourly, INV, at(h));
+    let daily = initState(22, INV, NOW);
+    for (let d = 1; d <= 30; d++) daily = tick(daily, INV, at(d * 24));
+    expect(priceOf(hourly)).toBeCloseTo(priceOf(daily), 6);
+  });
+
+  it("verpasste Cron-Läufe werden nachgeholt", () => {
+    const s0 = initState(22, INV, NOW);
+    const s1 = tick(s0, INV, at(1));
+    const s2 = tick(s1, INV, at(50)); // 49 h Ausfall
+    expect(priceOf(s2)).toBeCloseTo(22 * Math.pow(C.driftFactorPerHour, 50), 8);
+  });
+
+  it("rückwärts springende Uhr senkt den Preis nicht", () => {
+    const s0 = initState(22, INV, NOW);
+    const s1 = tick(s0, INV, at(10));
+    const s2 = tick(s1, INV, at(5)); // Uhr springt zurück
+    expect(priceOf(s2)).toBeCloseTo(priceOf(s1), 10);
+  });
+
+  it("stoppt exakt am Boden und schreibt dort keine Punkte mehr", () => {
+    let s = initState(22, INV, NOW);
+    s = tick(s, INV, at(10000)); // sehr lange Flaute
+    expect(priceOf(s)).toBe(C.floorEuro);
+    const before = s.history.length;
+    s = tick(s, INV, at(11000));
+    expect(priceOf(s)).toBe(C.floorEuro);
+    expect(s.history.length).toBe(before);
+  });
+
+  it("Webhook (allowDrift: false) driftet nie, verarbeitet aber Verkäufe", () => {
+    const s0 = initState(22, INV, NOW);
+    const s1 = tick(s0, INV, at(48), { allowDrift: false });
+    expect(priceOf(s1)).toBe(22); // kein Drift
+    const s2 = tick(s0, INV - 1, at(48), { allowDrift: false });
+    expect(priceOf(s2)).toBeCloseTo(22 * (1 + C.saleBumpPct), 10); // Kauf zählt
+  });
+});
+
 describe("shopPrice", () => {
-  it("rundet auf 10 Cent", () => {
+  it("rundet auf 10 Cent und klemmt an den Grenzen", () => {
     expect(shopPrice(21.9412)).toBe(21.9);
     expect(shopPrice(21.96)).toBe(22);
-  });
-  it("klemmt auf Boden und Deckel", () => {
-    expect(shopPrice(0.8)).toBe(TICKER_CONFIG.floorEuro);
-    expect(shopPrice(777)).toBe(TICKER_CONFIG.capEuro);
-  });
-});
-
-describe("tick — Drift", () => {
-  it("kein Drift innerhalb der 24h-Gnadenfrist", () => {
-    const s0 = initState(22, 176, NOW);
-    const s1 = tick(s0, 176, new Date(NOW.getTime() + 23 * H));
-    expect(s1.price).toBe(22);
-    expect(s1.history).toHaveLength(1); // kein neuer Punkt
-  });
-
-  it("nach Gnadenfrist: −0,5 % pro Tick", () => {
-    const s0 = initState(22, 176, NOW);
-    const s1 = tick(s0, 176, new Date(NOW.getTime() + 25 * H));
-    expect(s1.price).toBeCloseTo(22 * TICKER_CONFIG.driftFactorPerHour, 10);
-    expect(s1.history.at(-1)).toMatchObject({ event: "drift" });
-  });
-
-  it("Drift wird unten immer langsamer und stoppt am Boden", () => {
-    let s = initState(TICKER_CONFIG.floorEuro + 0.01, 176, NOW);
-    let t = NOW.getTime() + 25 * H;
-    for (let i = 0; i < 10; i++) {
-      s = tick(s, 176, new Date(t));
-      t += H;
-    }
-    expect(s.price).toBe(TICKER_CONFIG.floorEuro); // geklemmt, nie darunter
-  });
-
-  it("Verkauf gewinnt gegen Drift im selben Tick", () => {
-    const s0 = initState(22, 176, NOW);
-    const s1 = tick(s0, 175, new Date(NOW.getTime() + 48 * H));
-    expect(s1.price).toBe(22 + TICKER_CONFIG.saleBumpEuro); // +Bump, KEIN Drift zusätzlich
-    expect(s1.history.at(-1)).toMatchObject({ event: "sale" });
-  });
-
-  it("Drift am Boden erzeugt keine neuen History-Punkte", () => {
-    const s0 = { ...initState(TICKER_CONFIG.floorEuro, 176, NOW) };
-    const s1 = tick(s0, 176, new Date(NOW.getTime() + 30 * H));
-    expect(s1.history).toHaveLength(1); // Preis unverändert → kein Punkt
-  });
-});
-
-describe("tick — Inventar-Aufstockung (Kollege legt Tickets nach)", () => {
-  it("soldCount fällt nie unter 0, Preis bleibt unangetastet", () => {
-    const s0 = initState(22, 176, NOW);
-    // Kollege stockt Kontingent auf 250 auf — kein Verkauf, keine Preisänderung
-    const s1 = tick(s0, 250, new Date(NOW.getTime() + H));
-    expect(s1.soldCount).toBe(0); // NICHT -74
-    expect(s1.price).toBe(22);
-    expect(s1.history).toHaveLength(1);
-  });
-
-  it("nach Aufstockung wird der nächste echte Verkauf wieder gezählt", () => {
-    const s0 = initState(22, 176, NOW);
-    const s1 = tick(s0, 250, new Date(NOW.getTime() + H)); // Aufstockung
-    const s2 = tick(s1, 249, new Date(NOW.getTime() + 2 * H)); // 1 Verkauf
-    expect(s2.soldCount).toBe(1);
-    expect(s2.price).toBe(22 + TICKER_CONFIG.saleBumpEuro);
-  });
-});
-
-describe("tick — Rebaseline bei Storno (Evey-Regel)", () => {
-  it("Inventar-Erhöhung senkt soldCount, ändert Preis nicht", () => {
-    const s0 = initState(22, 176, NOW);
-    const s1 = tick(s0, 174, NOW); // 2 verkauft → 26 €
-    const s2 = tick(s1, 175, new Date(NOW.getTime() + H)); // 1 Storno
-    expect(s2.soldCount).toBe(1);
-    expect(s2.price).toBe(22 + 2 * TICKER_CONFIG.saleBumpEuro); // Preis bleibt
-    expect(s2.history).toHaveLength(s1.history.length); // kein neuer Punkt
-    // Folgeverkauf wird wieder korrekt erkannt:
-    const s3 = tick(s2, 174, new Date(NOW.getTime() + 2 * H));
-    expect(s3.price).toBe(22 + 3 * TICKER_CONFIG.saleBumpEuro);
-    expect(s3.soldCount).toBe(2);
-  });
-});
-
-describe("tick — allowDrift-Flag", () => {
-  it("allowDrift: false unterdrückt Drift (Webhook-Schutz)", () => {
-    const s0 = initState(22, 176, NOW);
-    const s1 = tick(s0, 176, new Date(NOW.getTime() + 48 * H), { allowDrift: false });
-    expect(s1).toBe(s0); // identisches Objekt, kein Drift
-  });
-
-  it("allowDrift: false lässt Verkäufe + Rebaseline trotzdem durch", () => {
-    const s0 = initState(22, 176, NOW);
-    const s1 = tick(s0, 175, NOW, { allowDrift: false });
-    expect(s1.price).toBe(22 + TICKER_CONFIG.saleBumpEuro);
+    expect(shopPrice(0.8)).toBe(C.floorEuro);
+    expect(shopPrice(999)).toBe(C.capEuro);
   });
 });
 
 describe("pruneHistory", () => {
   const D = 24 * H;
 
-  it("behält init- und sale-Punkte immer", () => {
-    const old = new Date(NOW.getTime() - 30 * D).toISOString();
-    const hist = [
-      { t: old, price: 22, event: "init" as const },
-      { t: old, price: 24, event: "sale" as const },
-    ];
-    expect(pruneHistory(hist, NOW)).toHaveLength(2);
-  });
-
-  it("dünnt drift-Punkte älter als 7 Tage auf 6h-Raster aus", () => {
-    // 24 stündliche Drift-Punkte, alle 10 Tage alt → nur jeder 6. bleibt
-    const base = NOW.getTime() - 10 * D;
+  it("behält junge Punkte vollständig", () => {
     const hist = Array.from({ length: 24 }, (_, i) => ({
-      t: new Date(base + i * H).toISOString(),
-      price: 20 - i * 0.1,
+      t: new Date(NOW.getTime() - 2 * D + i * H).toISOString(),
+      price: 20,
       event: "drift" as const,
     }));
-    const pruned = pruneHistory(hist, NOW);
-    expect(pruned.length).toBe(4); // 24h / 6h-Raster
+    expect(pruneHistory(hist, NOW)).toHaveLength(24);
   });
 
-  it("lässt junge drift-Punkte (< 7 Tage) unangetastet", () => {
-    const base = NOW.getTime() - 2 * D;
+  it("dünnt alte Punkte auf das 6h-Raster aus", () => {
+    const base = NOW.getTime() - 10 * D;
     const hist = Array.from({ length: 24 }, (_, i) => ({
       t: new Date(base + i * H).toISOString(),
       price: 20,
       event: "drift" as const,
     }));
-    expect(pruneHistory(hist, NOW)).toHaveLength(24);
+    expect(pruneHistory(hist, NOW).length).toBeLessThanOrEqual(5);
+  });
+
+  it("kappt hart bei historyMaxPoints (Metafield-Schutz)", () => {
+    const hist = Array.from({ length: 3000 }, (_, i) => ({
+      t: new Date(NOW.getTime() - 3000 * H + i * H).toISOString(),
+      price: 20,
+      event: "sale" as const, // sale-Punkte wurden früher NIE geprunt
+    }));
+    const pruned = pruneHistory(hist, NOW);
+    expect(pruned.length).toBeLessThanOrEqual(C.historyMaxPoints);
+    expect(JSON.stringify(pruned).length).toBeLessThan(60_000);
   });
 });

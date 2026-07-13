@@ -11,20 +11,40 @@ export const TICKER_CONFIG = {
   // Wird nur beim allerersten Tick verwendet (Init), danach nie wieder.
   startPriceEuro: 22.0,
 
-  // +1 € pro Kauf ≈ ein Flaute-Tag (−0,15 %/h ≈ −0,90 €/Tag bei 22 €) —
-  // ein Käufer und ein Tag Stille heben sich ungefähr auf. Faire Balance.
-  saleBumpEuro: 1.0,
-  graceHours: 24,           // Gnadenfrist nach letztem Verkauf
-  // −0,15 %/h ≈ −3,5 %/Tag: kalibriert auf ~98 Tage bis zum Gig und 176 Tickets.
-  // Totale Flaute erreicht den Boden erst kurz vorm Gig (statt nach 3 Wochen);
-  // ~1 Verkauf alle 3 Tage hält den Kurs stabil.
-  driftFactorPerHour: 0.9985,
-  floorEuro: 5.0,           // Boden — lächerlich niedrig, aber nicht gratis
-  capEuro: 25.0,            // Deckel — fair statt Konzern-Abzocke
+  // Preis = Startpreis × (1 + Kauf-Schub)^verkaufte × Drift^Stunden.
+  // Kauf und Flaute wirken beide PROZENTUAL — dadurch ist die Wirkung eines
+  // Kaufs immer gleich stark (nicht später entwertet), und ein Storno macht
+  // exakt den Kauf rückgängig. +1 % ≈ +22 Cent bei 22 €.
+  //
+  // GLEICHGEWICHT: Kauf-Schub (1 %) × Verkäufe/Tag = Tages-Drift (1,43 %)
+  // → bei ~1,4 Verkäufen/Tag (≈ halbe Halle bis zum Gig) steht der Kurs still.
+  //   Weniger Nachfrage → Kurs fällt. Mehr → Kurs steigt Richtung Deckel.
+  saleBumpPct: 0.01,
 
-  // Historie: letzte 7 Tage stündlich, älter nur alle 6 h (Metafield-Größenlimit)
+  // Keine Gnadenfrist: Der Drift läuft immer. Mit Gnadenfrist würde bei
+  // ≥1 Verkauf/Tag NIE gedriftet — der Kurs klebte dauerhaft am Deckel.
+  graceHours: 0,
+
+  // −0,06 %/h ≈ −1,4 %/Tag. Bei totaler Flaute erreicht der Kurs den Boden
+  // erst kurz vor dem Gig (~100 Tage von 22 € auf 5 €), statt schon nach
+  // 6 Wochen dort zu kleben. Drift ist ZEITBASIERT (siehe engine.ts) — die
+  // Cron-Kadenz beeinflusst die Kurve nicht mehr.
+  driftFactorPerHour: 0.9994,
+
+  floorEuro: 5.0, // Boden — lächerlich niedrig, aber nicht gratis
+  capEuro: 25.0, // Deckel — fair statt Konzern-Abzocke
+
+  // Sicherheitsklemme: Mehr als so viele "Verkäufe" in EINEM Tick sind real
+  // unmöglich (Käufe feuern einzeln per Webhook). Ein größerer Inventar-Sturz
+  // stammt aus einer Admin-Korrektur, einem Evey-Sync oder deaktiviertem
+  // Bestands-Tracking (liefert 0!) — er darf den Preis NICHT bewegen.
+  maxSalesPerTick: 5,
+
+  // Historie: letzte 7 Tage vollständig, älter auf 6h-Raster; hartes Limit,
+  // damit das Shopify-Metafield nie überläuft (das würde die Börse einfrieren)
   historyDenseDays: 7,
   historySparseHours: 6,
+  historyMaxPoints: 800,
 
   gigDateIso: "2026-10-17T19:00:00+02:00",
   shopProductUrl:

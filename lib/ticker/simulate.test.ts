@@ -1,38 +1,58 @@
 import { describe, expect, it } from "vitest";
-import { TICKER_CONFIG } from "./config";
-import { initState, pruneHistory, shopPrice, tick } from "./engine";
+import { TICKER_CONFIG as C } from "./config";
+import { initState, priceOf, pruneHistory, shopPrice, tick } from "./engine";
 
-// Simuliert 3 Wochen Börse mit realistischem Kleine-Venue-Verlauf.
-describe("Simulation: 3 Wochen Kleine-Venue-Realität", () => {
-  it("Kurve bleibt in den Grenzen und reagiert plausibel", () => {
-    const start = new Date("2026-08-01T12:00:00Z");
-    let state = initState(22, 176, start);
-    let inventory = 176;
+const H = 3_600_000;
+const START = new Date("2026-07-13T12:00:00Z");
+const DAYS = 96; // bis zum Gig am 17.10.2026
 
-    for (let h = 1; h <= 21 * 24; h++) {
-      const now = new Date(start.getTime() + h * 3_600_000);
-      // Woche 1: 1 Verkauf/Tag, danach totale Flaute
-      if (h % 24 === 0 && h <= 7 * 24) inventory -= 1;
-      state = tick(state, inventory, now);
-      state = { ...state, history: pruneHistory(state.history, now) };
+/** Spielt die echten 96 Tage bis zum Gig mit stündlichem Cron durch. */
+function simulate(salesPerDay: number) {
+  let inv = 250;
+  let s = initState(C.startPriceEuro, inv, START);
+  let maxBytes = 0;
+  const everyH = salesPerDay > 0 ? Math.max(1, Math.round(24 / salesPerDay)) : 0;
 
-      expect(state.price).toBeGreaterThanOrEqual(TICKER_CONFIG.floorEuro);
-      expect(state.price).toBeLessThanOrEqual(TICKER_CONFIG.capEuro);
-      // Metafield-Budget: State muss klein bleiben
-      expect(JSON.stringify(state).length).toBeLessThan(60_000);
+  for (let h = 1; h <= DAYS * 24; h++) {
+    const now = new Date(START.getTime() + h * H);
+    if (everyH && h % everyH === 0 && inv > 0) inv -= 1;
+    s = tick(s, inv, now);
+    s = { ...s, history: pruneHistory(s.history, now) };
+
+    expect(priceOf(s)).toBeGreaterThanOrEqual(C.floorEuro);
+    expect(priceOf(s)).toBeLessThanOrEqual(C.capEuro);
+    maxBytes = Math.max(maxBytes, JSON.stringify(s).length);
+  }
+  return { price: shopPrice(priceOf(s)), sold: s.soldCount, maxBytes, state: s };
+}
+
+describe("Simulation: 96 Tage bis zum Gig", () => {
+  it("totale Flaute: Kurs fällt, erreicht den Boden aber nicht zu früh", () => {
+    const r = simulate(0);
+    expect(r.price).toBeLessThan(C.startPriceEuro); // gefallen
+    expect(r.price).toBeGreaterThan(C.floorEuro); // aber nicht seit Wochen am Boden
+    expect(r.sold).toBe(0);
+  });
+
+  it("guter Verkauf: Kurs steigt, klebt aber nicht ab Tag 2 am Deckel", () => {
+    const r = simulate(2);
+    expect(r.price).toBeGreaterThan(C.startPriceEuro);
+    // Der frühere Killer: nach 3 Verkäufen (=1,5 Tagen) permanent am Deckel.
+    // Jetzt braucht es dafür mindestens 10 Netto-Verkäufe.
+    const salesToCap = Math.log(C.capEuro / C.startPriceEuro) / Math.log(1 + C.saleBumpPct);
+    expect(salesToCap).toBeGreaterThanOrEqual(10);
+  });
+
+  it("mittlerer Verkauf: Kurve lebt (weder Boden noch Deckel)", () => {
+    const r = simulate(0.5);
+    expect(r.price).toBeGreaterThan(C.floorEuro);
+    expect(r.price).toBeLessThan(C.capEuro);
+  });
+
+  it("Metafield bleibt in JEDEM Szenario weit unter dem Shopify-Limit", () => {
+    for (const rate of [0, 0.5, 1, 2, 3]) {
+      const r = simulate(rate);
+      expect(r.maxBytes).toBeLessThan(60_000); // Limit: 65.535
     }
-
-    // nach 2 Wochen Flaute muss der Kurs sichtbar unter dem Woche-1-Hoch liegen —
-    // Erwartung formelbasiert aus der Config (robust gegen Re-Kalibrierung).
-    // Peak ist der Deckel, sobald 22 € + 7 Verkäufe darüber hinausschießen.
-    const driftHours = 13 * 24; // 14 Tage Flaute minus 24h Gnadenfrist
-    const peak = Math.min(
-      TICKER_CONFIG.capEuro,
-      22 + 7 * TICKER_CONFIG.saleBumpEuro
-    );
-    const expected = peak * Math.pow(TICKER_CONFIG.driftFactorPerHour, driftHours);
-    expect(state.price).toBeCloseTo(expected, 1);
-    expect(state.price).toBeLessThan(peak);
-    expect(state.soldCount).toBe(7);
   });
 });

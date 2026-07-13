@@ -84,7 +84,7 @@
       "some": "NACHFRAGE REGISTRIERT — {count} TICKET(S) IN 24 STUNDEN",
       "none": "VIELE TICKETS VERFÜGBAR. WIRKLICH VIELE."
     },
-    "howItWorks": "Jedes verkaufte Ticket: +1 €. Jede Stunde ohne Verkauf: ein Stück billiger. Ein Kauf und ein Tag Stille heben sich ungefähr auf.",
+    "howItWorks": "Jedes verkaufte Ticket hebt den Kurs um 1 %. Jede Stunde ohne Verkauf senkt ihn wieder. Bei etwa anderthalb Tickets pro Tag steht der Preis still — darunter fällt er, darüber steigt er.",
     "buyCta": "Tickets sichern",
     "fees": "Servicegebühr: 0 €. Bearbeitungsgebühr: 0 €. Dynamische-Preis-Gebühr: 0 €. Wir verstehen es auch nicht.",
     "disclaimer": "* Angezeigter Preis inkl. gesetzl. USt. und exkl. sämtlicher Gebühren, die wir nicht erheben.",
@@ -120,7 +120,7 @@
       "sold": "Verkauft seit Handelsstart"
     },
     "chart": {
-      "floor": "Boden €4,00 — tiefer geht rechtlich, aber nicht emotional",
+      "floor": "Boden {price} — tiefer geht rechtlich, aber nicht emotional",
       "sale": "Kauf",
       "drift": "Flaute",
       "start": "Handelsstart",
@@ -138,7 +138,6 @@
     "closingLine": "Dynamic Pricing endet am 17. Oktober. Danach gibt es die Abendkassa — Fixpreis, wie im Mittelalter.",
     "heroTagline": "Dynamic Pricing wie bei den Superstars — nur in die andere Richtung.",
     "live": "LIVE",
-    "chartHint": "",
     "nextDrop": "Nächster Preisfall: zur vollen Stunde — außer, jemand kauft.",
     "terminalLine": "The Loft, Wien · Dynamischer Preis läuft bis 17.10.2026",
     "share": "Kurs teilen",

@@ -25,7 +25,11 @@ export function QueueGate({ href, label, queue }: Props) {
     };
   }, []);
 
-  function start() {
+  function start(e: React.MouseEvent<HTMLAnchorElement>) {
+    // Ohne JS (oder vor der Hydration) bleibt der Link ein normaler Link zum
+    // Shop — der Kaufweg ist NIE tot. Nur wenn JS läuft, schieben wir die
+    // Fake-Warteschlange dazwischen.
+    e.preventDefault();
     setPhase("queueing");
     // Bewusste Verzögerung: die „Warteschlange" muss sich echt anfühlen.
     timeoutIdRef.current = setTimeout(() => {
@@ -54,11 +58,12 @@ export function QueueGate({ href, label, queue }: Props) {
   }
 
   return (
-    <button
+    <a
+      href={href}
       onClick={start}
       className="inline-flex w-max items-center justify-center whitespace-nowrap border border-terracotta/30 bg-terracotta/10 text-terracotta px-10 py-4 text-xs tracking-[3px] uppercase hover:bg-terracotta/20 transition-colors duration-200 rounded-full cursor-pointer"
     >
       {label}
-    </button>
+    </a>
   );
 }

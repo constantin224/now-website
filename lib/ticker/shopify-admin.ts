@@ -1,10 +1,19 @@
 import { TICKER_CONFIG as C } from "./config";
-import { shopPrice, type TickerState } from "./engine";
+import { priceOf, shopPrice, type TickerState } from "./engine";
 
 const STORE = "03e6c1.myshopify.com";
 const API_VERSION = "2026-04";
 
-// Token-Cache: Client-Credentials-Token gilt 24 h, wir holen alle 23 h frisch
+/**
+ * Mock-Modus für lokale Design-Arbeit. Doppelt verriegelt: er lässt sich in
+ * einem Produktions-Build gar nicht erst scharfschalten, damit ein versehentlich
+ * gesetztes TICKER_MOCK in Vercel niemals Fantasie-Preise in den echten Shop
+ * schreiben kann.
+ */
+const MOCK =
+  process.env.NODE_ENV !== "production" && process.env.TICKER_MOCK === "1";
+
+// Token-Cache (Client-Credentials-Token gilt 24 h)
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
 async function getAccessToken(): Promise<string> {
@@ -19,17 +28,20 @@ async function getAccessToken(): Promise<string> {
     }),
   });
   if (!res.ok) throw new Error(`Shopify-Token fehlgeschlagen: ${res.status}`);
-  const json = (await res.json()) as { access_token: string };
-  cachedToken = {
-    token: json.access_token,
-    expiresAt: Date.now() + 23 * 3_600_000,
+  const json = (await res.json()) as {
+    access_token: string;
+    expires_in?: number;
   };
+  // Ablauf aus der Antwort übernehmen (mit 5 min Sicherheitsabzug)
+  const ttlMs = (json.expires_in ? json.expires_in - 300 : 23 * 3600) * 1000;
+  cachedToken = { token: json.access_token, expiresAt: Date.now() + ttlMs };
   return json.access_token;
 }
 
 async function adminQuery<T>(
   query: string,
-  variables: Record<string, unknown>
+  variables: Record<string, unknown>,
+  retryOn401 = true
 ): Promise<T> {
   const token = await getAccessToken();
   const res = await fetch(
@@ -43,6 +55,12 @@ async function adminQuery<T>(
       body: JSON.stringify({ query, variables }),
     }
   );
+  // Abgelaufenes/zurückgezogenes Token: Cache leeren und EINMAL neu versuchen.
+  // Sonst würde eine warme Serverless-Instanz stundenlang mit totem Token laufen.
+  if (res.status === 401 && retryOn401) {
+    cachedToken = null;
+    return adminQuery<T>(query, variables, false);
+  }
   if (!res.ok) throw new Error(`Shopify-API ${res.status}`);
   const json = (await res.json()) as { data: T; errors?: unknown[] };
   if (json.errors?.length) throw new Error(JSON.stringify(json.errors));
@@ -54,20 +72,28 @@ export async function readTicker(): Promise<{
   state: TickerState | null;
   currentPriceEuro: number;
   currentInventory: number;
+  inventoryTracked: boolean;
 }> {
-  // Dev-Mock für Design-Arbeit (TICKER_MOCK=1) — niemals in Produktion setzen
-  if (process.env.TICKER_MOCK === "1") {
+  if (MOCK) {
     const { mockTicker } = await import("./mock");
     return mockTicker();
   }
 
   const data = await adminQuery<{
     product: { metafield: { value: string } | null } | null;
-    productVariant: { price: string; inventoryQuantity: number } | null;
+    productVariant: {
+      price: string;
+      inventoryQuantity: number;
+      inventoryItem: { tracked: boolean } | null;
+    } | null;
   }>(
     `query TickerRead($productId: ID!, $variantId: ID!, $ns: String!, $key: String!) {
       product(id: $productId) { metafield(namespace: $ns, key: $key) { value } }
-      productVariant(id: $variantId) { price inventoryQuantity }
+      productVariant(id: $variantId) {
+        price
+        inventoryQuantity
+        inventoryItem { tracked }
+      }
     }`,
     {
       productId: C.productGid,
@@ -83,38 +109,61 @@ export async function readTicker(): Promise<{
       : null,
     currentPriceEuro: parseFloat(data.productVariant.price),
     currentInventory: data.productVariant.inventoryQuantity,
+    inventoryTracked: data.productVariant.inventoryItem?.tracked ?? false,
   };
 }
 
-// Neuen Zustand schreiben: Shop-Preis (gerundet) + Metafield (exakter State)
-export async function writeTicker(state: TickerState): Promise<void> {
-  // SCHUTZ: Im Mock-Modus wird NIE in den echten Shop geschrieben. Ohne diesen
-  // Guard würde ein lokaler Tick mit TICKER_MOCK=1 Fantasie-Preise (aus
-  // mock.ts) in den echten Shopify-Shop schreiben.
-  if (process.env.TICKER_MOCK === "1") {
+/**
+ * Neuen Zustand schreiben.
+ *
+ * EVEY-REGEL: Angefasst werden ausschließlich das Preis-Feld der bestehenden
+ * Variante und das eigene Metafield `ticker.state`. Niemals Titel, Optionen,
+ * Inventar, Varianten-Struktur oder `evey.*`-Felder.
+ *
+ * @param previousShopPrice Der zuletzt geschriebene Shop-Preis. Stimmt er mit
+ *   dem neuen überein, wird der Varianten-Preis gar nicht erst geschrieben —
+ *   das spart pro Tag dutzende Schreibvorgänge am echten Produkt.
+ */
+export async function writeTicker(
+  state: TickerState,
+  previousShopPrice: number | null
+): Promise<void> {
+  const nextShopPrice = shopPrice(priceOf(state));
+
+  if (MOCK) {
     console.warn(
-      `[ticker] TICKER_MOCK=1 — Schreibvorgang übersprungen (Preis wäre ${shopPrice(state.price)} € gewesen)`
+      `[ticker] MOCK aktiv — kein Schreibvorgang (Preis wäre ${nextShopPrice} € gewesen)`
     );
     return;
   }
 
+  const priceChanged = previousShopPrice === null || previousShopPrice !== nextShopPrice;
+
+  // Metafield IMMER schreiben (der Zustand hat sich geändert), den Preis nur
+  // bei echter Änderung.
   const data = await adminQuery<{
-    productVariantsBulkUpdate: { userErrors: { message: string }[] };
     metafieldsSet: { userErrors: { message: string }[] };
+    productVariantsBulkUpdate?: { userErrors: { message: string }[] };
   }>(
-    `mutation TickerWrite($productId: ID!, $variants: [ProductVariantsBulkInput!]!, $metafields: [MetafieldsSetInput!]!) {
-      productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-        userErrors { message }
-      }
-      metafieldsSet(metafields: $metafields) {
-        userErrors { message }
-      }
-    }`,
+    priceChanged
+      ? `mutation TickerWrite($productId: ID!, $variants: [ProductVariantsBulkInput!]!, $metafields: [MetafieldsSetInput!]!) {
+          metafieldsSet(metafields: $metafields) { userErrors { message } }
+          productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+            userErrors { message }
+          }
+        }`
+      : `mutation TickerWriteStateOnly($metafields: [MetafieldsSetInput!]!) {
+          metafieldsSet(metafields: $metafields) { userErrors { message } }
+        }`,
     {
-      productId: C.productGid,
-      variants: [
-        { id: C.variantGid, price: shopPrice(state.price).toFixed(2) },
-      ],
+      ...(priceChanged
+        ? {
+            productId: C.productGid,
+            variants: [
+              { id: C.variantGid, price: nextShopPrice.toFixed(2) },
+            ],
+          }
+        : {}),
       metafields: [
         {
           ownerId: C.productGid,
@@ -126,9 +175,10 @@ export async function writeTicker(state: TickerState): Promise<void> {
       ],
     }
   );
+
   const errs = [
-    ...data.productVariantsBulkUpdate.userErrors,
     ...data.metafieldsSet.userErrors,
+    ...(data.productVariantsBulkUpdate?.userErrors ?? []),
   ];
   if (errs.length) throw new Error(errs.map((e) => e.message).join("; "));
 }

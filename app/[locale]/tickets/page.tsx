@@ -3,7 +3,7 @@ import Image from "next/image";
 import { getMessages, isValidLocale } from "@/lib/i18n";
 import { localeMetadata } from "@/lib/seo";
 import { TICKER_CONFIG as C } from "@/lib/ticker/config";
-import { shopPrice, type TickerState } from "@/lib/ticker/engine";
+import { priceOf, shopPrice, type TickerState } from "@/lib/ticker/engine";
 import { readTicker } from "@/lib/ticker/shopify-admin";
 import { PriceChart } from "@/components/ticker/price-chart";
 import { PriceHero } from "@/components/ticker/price-hero";
@@ -45,10 +45,17 @@ function dayChangePct(state: TickerState, now: Date): number {
     .reverse()
     .find((p) => new Date(p.t).getTime() < cutoff);
   const ref = before?.price ?? state.history[0].price;
-  return ((state.price - ref) / ref) * 100;
+  return ((priceOf(state) - ref) / ref) * 100;
 }
 
-const euro = (n: number) => `€${n.toFixed(2).replace(".", ",")}`;
+// Beträge in der Sprache des Besuchers — auf der EN-Seite mit Punkt, nicht Komma
+function euroIn(locale: string) {
+  const fmt = new Intl.NumberFormat(locale === "en" ? "en-IE" : "de-AT", {
+    style: "currency",
+    currency: "EUR",
+  });
+  return (n: number) => fmt.format(n);
+}
 
 export default async function TicketsPage({
   params,
@@ -59,11 +66,14 @@ export default async function TicketsPage({
   const m = getMessages(isValidLocale(locale) ? locale : "de");
   const t = m.tickets;
 
+  const euro = euroIn(locale);
   const now = new Date();
-  const { state, currentInventory } = await readTicker().catch(() => ({
-    state: null,
-    currentInventory: 0,
-  }));
+  const { state, currentInventory } = await readTicker().catch((err) => {
+    // Fehler sichtbar machen — sonst sieht ein echter Shopify-Ausfall genauso
+    // aus wie "Börse noch nicht gestartet".
+    console.error("[tickets] readTicker fehlgeschlagen:", err);
+    return { state: null, currentInventory: 0 };
+  });
 
   // Börse noch nicht initialisiert / API-Fehler → nüchterner Fallback
   if (!state) {
@@ -88,11 +98,13 @@ export default async function TicketsPage({
     );
   }
 
-  const price = shopPrice(state.price);
+  const price = shopPrice(priceOf(state));
   const change = dayChangePct(state, now);
   const rising = change >= 0;
   const sales24 = salesLast24h(state, now);
-  const prices = state.history.map((p) => p.price);
+  // Anzeige immer als SHOP-Preis (10-Cent-Rundung) — sonst zeigt die Seite
+  // historische Kurse, die im Shop nie so berechnet wurden.
+  const prices = state.history.map((p) => shopPrice(p.price));
   const ath = Math.max(...prices);
   const atl = Math.min(...prices);
   const badge =
@@ -165,6 +177,7 @@ export default async function TicketsPage({
                 Tickt beim Laden durch die echte Kurshistorie — Dynamik sichtbar. */}
             <PriceHero
               waypoints={heroWaypoints}
+              locale={locale}
               className="block font-extralight text-[clamp(4.5rem,14vw,12rem)] leading-none tracking-tight text-sand tabular-nums"
             />
             <p

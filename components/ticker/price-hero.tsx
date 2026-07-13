@@ -1,18 +1,24 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface Props {
   waypoints: number[]; // echte Kurs-Stationen, letzter Wert = aktueller Preis
+  locale: string;
   className?: string;
 }
-
-const fmt = (n: number) => `€${n.toFixed(2).replace(".", ",")}`;
 
 // Der Hero-Preis tickt beim Laden einmal durch die echte Kurshistorie zum
 // aktuellen Wert — man SIEHT, dass der Preis dynamisch ist, statt es zu lesen.
 // Bei prefers-reduced-motion steht er sofort still auf dem Endwert.
-export function PriceHero({ waypoints, className }: Props) {
+export function PriceHero({ waypoints, locale, className }: Props) {
+  const fmt = useMemo(() => {
+    const nf = new Intl.NumberFormat(locale === "en" ? "en-IE" : "de-AT", {
+      style: "currency",
+      currency: "EUR",
+    });
+    return (n: number) => nf.format(n);
+  }, [locale]);
   const final = waypoints[waypoints.length - 1];
   const [value, setValue] = useState(final);
   const rafRef = useRef<number | null>(null);

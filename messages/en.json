@@ -84,7 +84,7 @@
       "some": "DEMAND DETECTED — {count} TICKET(S) IN 24 HOURS",
       "none": "PLENTY OF TICKETS AVAILABLE. GENUINELY PLENTY."
     },
-    "howItWorks": "Every ticket sold: +€1. Every hour without a sale: a little cheaper. One purchase and one quiet day roughly cancel out.",
+    "howItWorks": "Every ticket sold lifts the price by 1%. Every hour without a sale lowers it again. At around one and a half tickets per day the price stands still — below that it falls, above it rises.",
     "buyCta": "Secure tickets",
     "fees": "Service fee: €0. Handling fee: €0. Dynamic pricing fee: €0. We don't understand it either.",
     "disclaimer": "* Price includes VAT and excludes all the fees we don't charge.",
@@ -120,7 +120,7 @@
       "sold": "Sold since trading start"
     },
     "chart": {
-      "floor": "Floor €4.00 — legally it could go lower, emotionally it can't",
+      "floor": "Floor {price} — legally it could go lower, emotionally it can't",
       "sale": "Sale",
       "drift": "Lull",
       "start": "Trading start",
@@ -138,7 +138,6 @@
     "closingLine": "Dynamic pricing ends on October 17. After that: box office — fixed price, like in the Middle Ages.",
     "heroTagline": "Dynamic pricing like the superstars — only in the other direction.",
     "live": "LIVE",
-    "chartHint": "",
     "nextDrop": "Next price drop: on the hour — unless somebody buys.",
     "terminalLine": "The Loft, Vienna · Dynamic price runs until 17 Oct 2026",
     "share": "Share rate",
