@@ -1,8 +1,21 @@
 import { TICKER_CONFIG as C } from "./config";
-import { priceOf, shopPrice, type TickerState } from "./engine";
+import { parseState, priceOf, shopPrice, type TickerState } from "./engine";
 
 const STORE = "03e6c1.myshopify.com";
 const API_VERSION = "2026-04";
+
+// Wie lange darf ein Shopify-Aufruf hängen? Deutlich unter dem Vercel-Limit,
+// damit die Route sauber mit einer Fehlermeldung endet statt ins Plattform-
+// Timeout zu laufen (dort gäbe es keine Logzeile, die den Ausfall erklärt).
+const SHOPIFY_TIMEOUT_MS = 10_000;
+
+/** Ein anderer Schreiber war schneller — der Zustand muss neu gelesen werden. */
+export class TickerConflictError extends Error {
+  constructor() {
+    super("Börsen-Zustand wurde zwischenzeitlich von jemand anderem geändert");
+    this.name = "TickerConflictError";
+  }
+}
 
 /**
  * Mock-Modus für lokale Design-Arbeit. Doppelt verriegelt: er lässt sich in
@@ -53,6 +66,7 @@ async function adminQuery<T>(
         "X-Shopify-Access-Token": token,
       },
       body: JSON.stringify({ query, variables }),
+      signal: AbortSignal.timeout(SHOPIFY_TIMEOUT_MS),
     }
   );
   // Abgelaufenes/zurückgezogenes Token: Cache leeren und EINMAL neu versuchen.
@@ -67,20 +81,27 @@ async function adminQuery<T>(
   return json.data;
 }
 
-// Aktuellen Börsen-Zustand lesen: Metafield + Live-Preis + Live-Inventar
-export async function readTicker(): Promise<{
+export interface TickerRead {
   state: TickerState | null;
+  /** Der Preis, den der Shop JETZT verlangt. Die einzige Wahrheit für Kunden. */
   currentPriceEuro: number;
   currentInventory: number;
   inventoryTracked: boolean;
-}> {
+  /** Shopifys Prüfsumme des Metafields — Grundlage des Compare-and-Swap. */
+  compareDigest: string | null;
+}
+
+// Aktuellen Börsen-Zustand lesen: Metafield + Live-Preis + Live-Inventar
+export async function readTicker(): Promise<TickerRead> {
   if (MOCK) {
     const { mockTicker } = await import("./mock");
     return mockTicker();
   }
 
   const data = await adminQuery<{
-    product: { metafield: { value: string } | null } | null;
+    product: {
+      metafield: { value: string; compareDigest: string } | null;
+    } | null;
     productVariant: {
       price: string;
       inventoryQuantity: number;
@@ -88,7 +109,9 @@ export async function readTicker(): Promise<{
     } | null;
   }>(
     `query TickerRead($productId: ID!, $variantId: ID!, $ns: String!, $key: String!) {
-      product(id: $productId) { metafield(namespace: $ns, key: $key) { value } }
+      product(id: $productId) {
+        metafield(namespace: $ns, key: $key) { value compareDigest }
+      }
       productVariant(id: $variantId) {
         price
         inventoryQuantity
@@ -103,30 +126,50 @@ export async function readTicker(): Promise<{
     }
   );
   if (!data.productVariant) throw new Error("Ticket-Variante nicht gefunden");
+  const mf = data.product?.metafield ?? null;
   return {
-    state: data.product?.metafield
-      ? (JSON.parse(data.product.metafield.value) as TickerState)
-      : null,
+    // parseState statt JSON.parse: Ein von Hand im Admin verbogener Zustand
+    // darf nicht durch die Preis-Mathematik propagieren.
+    state: mf ? parseState(mf.value) : null,
     currentPriceEuro: parseFloat(data.productVariant.price),
     currentInventory: data.productVariant.inventoryQuantity,
     inventoryTracked: data.productVariant.inventoryItem?.tracked ?? false,
+    compareDigest: mf?.compareDigest ?? null,
   };
 }
 
 /**
- * Neuen Zustand schreiben.
+ * Neuen Zustand schreiben — in ZWEI getrennten Schritten, in dieser Reihenfolge:
+ *
+ *   1. Zustand ins Metafield, mit Compare-and-Swap (`compareDigest`).
+ *   2. Nur bei erfolgreichem Schritt 1: den Preis der Variante.
+ *
+ * Die beiden dürfen NICHT in einer Mutation stehen. GraphQL führt alle
+ * Top-Level-Felder aus: Bei einem CAS-Konflikt würde `metafieldsSet` scheitern,
+ * der Preis-Schreibvorgang aber trotzdem laufen — und dann einen Preis setzen,
+ * der aus einem überholten Zustand stammt.
+ *
+ * Warum CAS: Cron und Webhook schreiben dasselbe Metafield. Ohne Vergleich
+ * überschreibt der Langsamere den Schnelleren blind (zwei gleichzeitige
+ * Bestellungen → ein Verkauf verschwindet).
  *
  * EVEY-REGEL: Angefasst werden ausschließlich das Preis-Feld der bestehenden
  * Variante und das eigene Metafield `ticker.state`. Niemals Titel, Optionen,
  * Inventar, Varianten-Struktur oder `evey.*`-Felder.
  *
- * @param previousShopPrice Der zuletzt geschriebene Shop-Preis. Stimmt er mit
- *   dem neuen überein, wird der Varianten-Preis gar nicht erst geschrieben —
- *   das spart pro Tag dutzende Schreibvorgänge am echten Produkt.
+ * @param liveShopPrice Der Preis, den der Shop GERADE verlangt (aus readTicker).
+ *   Nicht der aus dem Zustand abgeleitete! Nur so repariert sich eine Divergenz
+ *   zwischen Shop und Zustand von selbst — etwa nachdem ein Preis-Schreibvorgang
+ *   einmal fehlgeschlagen ist, während der Zustand schon geschrieben war.
+ * @param compareDigest Prüfsumme aus readTicker. `null` = Metafield existiert
+ *   noch nicht (Börsenstart) und darf nur angelegt werden, wenn es das immer
+ *   noch nicht tut.
+ * @throws TickerConflictError wenn jemand anderes zwischenzeitlich geschrieben hat
  */
 export async function writeTicker(
   state: TickerState,
-  previousShopPrice: number | null
+  liveShopPrice: number | null,
+  compareDigest: string | null
 ): Promise<void> {
   const nextShopPrice = shopPrice(priceOf(state));
 
@@ -137,33 +180,14 @@ export async function writeTicker(
     return;
   }
 
-  const priceChanged = previousShopPrice === null || previousShopPrice !== nextShopPrice;
-
-  // Metafield IMMER schreiben (der Zustand hat sich geändert), den Preis nur
-  // bei echter Änderung.
-  const data = await adminQuery<{
-    metafieldsSet: { userErrors: { message: string }[] };
-    productVariantsBulkUpdate?: { userErrors: { message: string }[] };
+  // Schritt 1: Zustand — nur, wenn ihn seit dem Lesen niemand verändert hat.
+  const stateRes = await adminQuery<{
+    metafieldsSet: { userErrors: { code: string | null; message: string }[] };
   }>(
-    priceChanged
-      ? `mutation TickerWrite($productId: ID!, $variants: [ProductVariantsBulkInput!]!, $metafields: [MetafieldsSetInput!]!) {
-          metafieldsSet(metafields: $metafields) { userErrors { message } }
-          productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-            userErrors { message }
-          }
-        }`
-      : `mutation TickerWriteStateOnly($metafields: [MetafieldsSetInput!]!) {
-          metafieldsSet(metafields: $metafields) { userErrors { message } }
-        }`,
+    `mutation TickerWriteState($metafields: [MetafieldsSetInput!]!) {
+      metafieldsSet(metafields: $metafields) { userErrors { code message } }
+    }`,
     {
-      ...(priceChanged
-        ? {
-            productId: C.productGid,
-            variants: [
-              { id: C.variantGid, price: nextShopPrice.toFixed(2) },
-            ],
-          }
-        : {}),
       metafields: [
         {
           ownerId: C.productGid,
@@ -171,14 +195,43 @@ export async function writeTicker(
           key: C.metafieldKey,
           type: "json",
           value: JSON.stringify(state),
+          compareDigest, // null = "es darf noch keines geben"
         },
       ],
     }
   );
 
-  const errs = [
-    ...data.metafieldsSet.userErrors,
-    ...(data.productVariantsBulkUpdate?.userErrors ?? []),
-  ];
-  if (errs.length) throw new Error(errs.map((e) => e.message).join("; "));
+  const stateErrs = stateRes.metafieldsSet.userErrors;
+  if (stateErrs.length) {
+    // STALE_OBJECT = "das Metafield wurde geändert, seit du es gelesen hast",
+    // also der verlorene Wettlauf. Der Aufrufer liest neu und rechnet neu — er
+    // darf NICHT einfach überschreiben.
+    if (stateErrs.some((e) => e.code === "STALE_OBJECT")) {
+      throw new TickerConflictError();
+    }
+    throw new Error(stateErrs.map((e) => e.message).join("; "));
+  }
+
+  // Schritt 2: Preis — nur wenn der Shop wirklich einen anderen verlangt.
+  // Verglichen wird gegen den LIVE-Preis, nicht gegen den zuletzt berechneten:
+  // Sonst bliebe eine Divergenz für immer bestehen (der Vergleich sähe seinen
+  // eigenen Wunschwert und fände nie einen Unterschied).
+  if (liveShopPrice !== null && liveShopPrice === nextShopPrice) return;
+
+  const priceRes = await adminQuery<{
+    productVariantsBulkUpdate: { userErrors: { message: string }[] };
+  }>(
+    `mutation TickerWritePrice($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+      productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+        userErrors { message }
+      }
+    }`,
+    {
+      productId: C.productGid,
+      variants: [{ id: C.variantGid, price: nextShopPrice.toFixed(2) }],
+    }
+  );
+
+  const priceErrs = priceRes.productVariantsBulkUpdate.userErrors;
+  if (priceErrs.length) throw new Error(priceErrs.map((e) => e.message).join("; "));
 }

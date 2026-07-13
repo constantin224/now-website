@@ -1,11 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { TICKER_CONFIG as C } from "./config";
-import { initState, priceOf, pruneHistory, shopPrice, tick } from "./engine";
+import {
+  hasSeenOrder,
+  initState,
+  parseState,
+  priceOf,
+  pruneHistory,
+  rememberOrder,
+  shopPrice,
+  tick,
+} from "./engine";
 
 const NOW = new Date("2026-07-13T12:00:00Z");
 const H = 3_600_000; // eine Stunde in ms
 const INV = 250; // Start-Inventar
 const at = (h: number) => new Date(NOW.getTime() + h * H);
+
+// Der Webhook-Pfad: signierte Bestellung, kein Drift. So prüft man die Wirkung
+// eines Kaufs isoliert — über den Cron-Pfad käme immer die Flaute-Zeit dazu.
+const WEBHOOK = { allowDrift: false, trustSales: true } as const;
+// Wie stark der Kurs allein durch Flaute gefallen ist (Cron-Pfad, h Stunden).
+const drift = (h: number) => Math.pow(C.driftFactorPerHour, h);
 
 describe("initState", () => {
   it("friert Startpreis und Inventar-Baseline ein", () => {
@@ -22,7 +37,7 @@ describe("initState", () => {
 describe("Verkäufe", () => {
   it("hebt den Preis um den Bump pro verkauftem Ticket", () => {
     const s0 = initState(22, INV, NOW);
-    const s1 = tick(s0, INV - 3, at(1)); // 3 verkauft
+    const s1 = tick(s0, INV - 3, at(1), WEBHOOK); // 3 verkauft
     expect(priceOf(s1)).toBeCloseTo(22 * Math.pow(1 + C.saleBumpPct, 3), 10);
     expect(s1.soldCount).toBe(3);
     expect(s1.history.at(-1)).toMatchObject({ event: "sale" });
@@ -53,10 +68,11 @@ describe("Verkäufe", () => {
 
 describe("Storno — KEINE Preis-Ratsche (Angriffsszenario)", () => {
   it("Storno senkt den Preis exakt so weit, wie der Kauf ihn gehoben hat", () => {
+    // Ohne Drift geprüft: Der Storno muss den Kauf EXAKT aufheben.
     const s0 = initState(22, INV, NOW);
-    const s1 = tick(s0, INV - 1, at(1)); // Kauf
+    const s1 = tick(s0, INV - 1, at(1), WEBHOOK); // Kauf
     expect(priceOf(s1)).toBeCloseTo(22 * (1 + C.saleBumpPct), 10);
-    const s2 = tick(s1, INV, at(2)); // Storno mit Restock
+    const s2 = tick(s1, INV, at(2), WEBHOOK); // Storno mit Restock
     expect(priceOf(s2)).toBeCloseTo(22, 10);
     expect(s2.soldCount).toBe(0);
     expect(s2.history.at(-1)).toMatchObject({ event: "refund" });
@@ -81,34 +97,42 @@ describe("Storno — KEINE Preis-Ratsche (Angriffsszenario)", () => {
   });
 });
 
-describe("Inventar-Manipulation — Preis bleibt unangetastet", () => {
+describe("Inventar-Manipulation — kein Preissprung", () => {
+  // Der Cron driftet in jedem Lauf die verstrichene Zeit. Die Anomalie selbst
+  // darf den Kurs aber NICHT bewegen: soldCount bleibt, der Preis folgt allein
+  // der Flaute. Geprüft wird also gegen den reinen Drift-Wert — nicht gegen
+  // Stillstand (das würde den alten Bug wieder einzementieren).
+
   it("Aufstockung (Kollege legt Tickets nach) bewegt den Preis nicht", () => {
     const s0 = initState(22, 176, NOW);
     const s1 = tick(s0, 250, at(1)); // 176 → 250
-    expect(priceOf(s1)).toBe(22);
     expect(s1.soldCount).toBe(0);
+    expect(priceOf(s1)).toBeCloseTo(22 * drift(1), 10);
     // danach zählt ein echter Verkauf wieder korrekt
     const s2 = tick(s1, 249, at(2));
     expect(s2.soldCount).toBe(1);
-    expect(priceOf(s2)).toBeCloseTo(22 * (1 + C.saleBumpPct), 10);
+    expect(priceOf(s2)).toBeCloseTo(22 * drift(2) * (1 + C.saleBumpPct), 10);
   });
 
   it("Admin senkt Inventar massiv → KEIN Preissprung (Klemme)", () => {
     const s0 = initState(22, 250, NOW);
     const s1 = tick(s0, 200, at(1)); // 50 auf einmal weg = Korrektur, kein Kauf
-    expect(priceOf(s1)).toBe(22); // vorher: Sprung auf den Deckel!
+    expect(s1.soldCount).toBe(0);
+    expect(priceOf(s1)).toBeCloseTo(22 * drift(1), 10); // vorher: Sprung auf den Deckel!
     expect(s1.history.at(-1)).toMatchObject({ event: "rebaseline" });
     // echte Verkäufe danach zählen wieder
     const s2 = tick(s1, 199, at(2));
-    expect(priceOf(s2)).toBeCloseTo(22 * (1 + C.saleBumpPct), 10);
+    expect(priceOf(s2)).toBeCloseTo(22 * drift(2) * (1 + C.saleBumpPct), 10);
   });
 
   it("Bestands-Tracking aus (inventoryQuantity = 0) → kein Deckel-Sprung", () => {
     const s0 = initState(22, 250, NOW);
     const s1 = tick(s0, 0, at(1)); // Tracking aus → API liefert 0
-    expect(priceOf(s1)).toBe(22);
+    expect(s1.soldCount).toBe(0);
+    expect(priceOf(s1)).toBeCloseTo(22 * drift(1), 10);
     const s2 = tick(s1, 250, at(2)); // Tracking wieder an
-    expect(priceOf(s2)).toBe(22);
+    expect(s2.soldCount).toBe(0);
+    expect(priceOf(s2)).toBeCloseTo(22 * drift(2), 10);
   });
 });
 
@@ -167,6 +191,123 @@ describe("Drift — zeitbasiert und idempotent", () => {
   });
 });
 
+describe("Verkauf frisst den Drift NICHT (Codex-Audit)", () => {
+  it("Cron verrechnet im selben Schritt Drift UND Verkauf", () => {
+    // Alter Fehler: Der Verkaufs-Zweig kehrte sofort zurück und setzte
+    // lastTickAt — die verstrichene Zeit war damit gelöscht.
+    const s0 = initState(22, INV, NOW);
+    const s1 = tick(s0, INV - 1, at(24)); // 24 h später, dabei 1 verkauft
+    const erwartet = 22 * Math.pow(C.driftFactorPerHour, 24) * (1 + C.saleBumpPct);
+    expect(priceOf(s1)).toBeCloseTo(erwartet, 8);
+  });
+
+  it("Webhook verschiebt den Drift-Anker nicht — der Cron holt die Zeit nach", () => {
+    // Das eigentliche Killer-Szenario: Cron 0 h, Verkauf (Webhook) bei 23 h,
+    // Cron bei 24 h. Es MÜSSEN 24 h gedriftet werden, nicht bloß eine.
+    const s0 = initState(22, INV, NOW);
+    const verkauft = tick(s0, INV - 1, at(23), { allowDrift: false, trustSales: true });
+    expect(verkauft.lastTickAt).toBe(s0.lastTickAt); // Anker unberührt!
+
+    const nachCron = tick(verkauft, INV - 1, at(24));
+    const erwartet = 22 * Math.pow(C.driftFactorPerHour, 24) * (1 + C.saleBumpPct);
+    expect(priceOf(nachCron)).toBeCloseTo(erwartet, 8);
+  });
+
+  it("täglicher Verkauf + täglicher Cron treibt den Kurs NICHT an den Deckel", () => {
+    // Der teuerste Fall: Vor dem Fix klebte der Kurs nach ~2 Wochen bei 25 €.
+    // Ein Verkauf pro Tag liegt UNTER der Gleichgewichtsrate (~1,4/Tag),
+    // der Kurs muss also langsam FALLEN.
+    let s = initState(22, INV, NOW);
+    let verkauft = 0;
+    for (let d = 1; d <= 30; d++) {
+      verkauft += 1;
+      // Verkauf kurz vor dem Cron (Webhook), dann der Cron
+      s = tick(s, INV - verkauft, at(d * 24 - 1), {
+        allowDrift: false,
+        trustSales: true,
+      });
+      s = tick(s, INV - verkauft, at(d * 24));
+    }
+    expect(s.soldCount).toBe(30);
+    expect(priceOf(s)).toBeLessThan(22);
+    expect(priceOf(s)).toBeGreaterThan(C.floorEuro);
+  });
+});
+
+describe("Mengenkauf — signierter Webhook zählt voll", () => {
+  it("Bestellung über 6 Tickets bewegt den Preis (trustSales)", () => {
+    const s0 = initState(22, INV, NOW);
+    const s1 = tick(s0, INV - 6, at(1), { allowDrift: false, trustSales: true });
+    expect(s1.soldCount).toBe(6);
+    expect(priceOf(s1)).toBeCloseTo(22 * Math.pow(1 + C.saleBumpPct, 6), 10);
+  });
+
+  it("aber der Cron bleibt misstrauisch: Inventar-Sturz um 6 ist eine Korrektur", () => {
+    const s0 = initState(22, INV, NOW);
+    const s1 = tick(s0, INV - 6, at(1)); // ohne trustSales
+    expect(s1.soldCount).toBe(0);
+    expect(s1.history.at(-1)).toMatchObject({ event: "rebaseline" });
+  });
+
+  it("auch mit trustSales ist eine Aufstockung keine Verkaufszahl", () => {
+    const s0 = initState(22, 100, NOW);
+    const s1 = tick(s0, 250, at(1), { allowDrift: false, trustSales: true });
+    expect(s1.soldCount).toBe(0);
+    expect(priceOf(s1)).toBe(22);
+  });
+});
+
+describe("Doppel-Webhook (Shopify stellt mindestens einmal zu)", () => {
+  it("merkt sich verarbeitete Bestellungen und vergisst die ältesten", () => {
+    let s = initState(22, INV, NOW);
+    expect(hasSeenOrder(s, "4711")).toBe(false);
+    s = rememberOrder(s, "4711");
+    expect(hasSeenOrder(s, "4711")).toBe(true);
+
+    for (let i = 0; i < C.recentOrdersMax; i++) s = rememberOrder(s, `order-${i}`);
+    expect(s.recentOrders).toHaveLength(C.recentOrdersMax);
+    expect(hasSeenOrder(s, "4711")).toBe(false); // rausgerutscht, aber begrenzt
+  });
+});
+
+describe("parseState — kaputter Zustand darf NIE in den Shop", () => {
+  const gut = () => JSON.stringify(initState(22, INV, NOW));
+
+  it("liest einen gültigen Zustand", () => {
+    const s = parseState(gut());
+    expect(priceOf(s)).toBe(22);
+    expect(s.recentOrders).toEqual([]);
+  });
+
+  it("wirft bei kaputtem JSON", () => {
+    expect(() => parseState("{nope")).toThrow(/kein gültiges JSON/);
+  });
+
+  it("wirft bei NaN/Infinity statt einen NaN-Preis zu schreiben", () => {
+    const s = JSON.parse(gut());
+    s.driftMultiplier = null; // JSON.stringify(NaN) === "null"
+    expect(() => parseState(JSON.stringify(s))).toThrow(/driftMultiplier/);
+  });
+
+  it("wirft bei unlesbarem Datum (sonst wird die Drift-Mathe NaN)", () => {
+    const s = JSON.parse(gut());
+    s.lastTickAt = "morgen";
+    expect(() => parseState(JSON.stringify(s))).toThrow(/lastTickAt/);
+  });
+
+  it("wirft bei fehlender History", () => {
+    const s = JSON.parse(gut());
+    delete s.history;
+    expect(() => parseState(JSON.stringify(s))).toThrow(/history/);
+  });
+
+  it("verträgt Zustände ohne recentOrders (Feld kam später dazu)", () => {
+    const s = JSON.parse(gut());
+    delete s.recentOrders;
+    expect(parseState(JSON.stringify(s)).recentOrders).toEqual([]);
+  });
+});
+
 describe("shopPrice", () => {
   it("rundet auf 10 Cent und klemmt an den Grenzen", () => {
     expect(shopPrice(21.9412)).toBe(21.9);
@@ -206,6 +347,25 @@ describe("pruneHistory", () => {
     }));
     const pruned = pruneHistory(hist, NOW);
     expect(pruned.length).toBeLessThanOrEqual(C.historyMaxPoints);
-    expect(JSON.stringify(pruned).length).toBeLessThan(60_000);
+  });
+
+  it("hält das BYTE-Budget ein — auch im schlimmsten Fall", () => {
+    // Das Metafield-Limit ist in Byte bemessen, nicht in Punkten. Der alte Test
+    // maß nur die Punktzahl und benutzte kurze Werte ("sale", Preis 20) — mit
+    // langen Events und ungerundeten Preisen lag der echte Zustand knapp unter
+    // dem Shopify-Limit von 65.535 Byte.
+    const hist = Array.from({ length: 3000 }, (_, i) => ({
+      t: new Date(NOW.getTime() - i * H).toISOString(),
+      price: 22.220000000000002, // ungerundet = teuerste Schreibweise
+      event: "rebaseline" as const, // längster Event-Name
+    })).reverse();
+    const bytes = new TextEncoder().encode(JSON.stringify(pruneHistory(hist, NOW))).length;
+    expect(bytes).toBeLessThanOrEqual(C.metafieldMaxBytes);
+  });
+
+  it("die Engine schreibt gerundete Preise in die History", () => {
+    const s = tick(initState(22, INV, NOW), INV - 1, at(1));
+    const p = s.history.at(-1)!.price;
+    expect(String(p).length).toBeLessThanOrEqual(8); // nicht 22.220000000000002
   });
 });

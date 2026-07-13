@@ -68,12 +68,14 @@ export default async function TicketsPage({
 
   const euro = euroIn(locale);
   const now = new Date();
-  const { state, currentInventory } = await readTicker().catch((err) => {
-    // Fehler sichtbar machen — sonst sieht ein echter Shopify-Ausfall genauso
-    // aus wie "Börse noch nicht gestartet".
-    console.error("[tickets] readTicker fehlgeschlagen:", err);
-    return { state: null, currentInventory: 0 };
-  });
+  const { state, currentInventory, currentPriceEuro } = await readTicker().catch(
+    (err) => {
+      // Fehler sichtbar machen — sonst sieht ein echter Shopify-Ausfall genauso
+      // aus wie "Börse noch nicht gestartet".
+      console.error("[tickets] readTicker fehlgeschlagen:", err);
+      return { state: null, currentInventory: 0, currentPriceEuro: 0 };
+    }
+  );
 
   // Börse noch nicht initialisiert / API-Fehler → nüchterner Fallback
   if (!state) {
@@ -98,7 +100,13 @@ export default async function TicketsPage({
     );
   }
 
-  const price = shopPrice(priceOf(state));
+  // Angezeigt wird, was der Shop WIRKLICH verlangt — nicht der aus dem Zustand
+  // abgeleitete Kurs. Die beiden sind im Normalbetrieb identisch; laufen sie
+  // nach einem halb fehlgeschlagenen Schreibvorgang kurz auseinander, darf die
+  // Seite keinen Preis versprechen, den der Checkout nicht hält.
+  // (Nur falls Shopify gar keinen brauchbaren Preis liefert: abgeleiteter Kurs.)
+  const price =
+    currentPriceEuro > 0 ? shopPrice(currentPriceEuro) : shopPrice(priceOf(state));
   const change = dayChangePct(state, now);
   const rising = change >= 0;
   const sales24 = salesLast24h(state, now);

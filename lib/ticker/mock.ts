@@ -1,4 +1,4 @@
-import { initState, priceOf, tick, type TickerState } from "./engine";
+import { initState, priceOf, shopPrice, tick, type TickerState } from "./engine";
 
 // Dev-Mock für Design-Arbeit: simuliert 3 Wochen Börsen-Verlauf mit der
 // ECHTEN Engine (Verkäufe + Drift), damit die Seite realistisch rendert.
@@ -8,6 +8,7 @@ export function mockTicker(now: Date = new Date()): {
   currentPriceEuro: number;
   currentInventory: number;
   inventoryTracked: boolean;
+  compareDigest: string | null;
 } {
   const H = 3_600_000;
   const start = new Date(now.getTime() - 21 * 24 * H);
@@ -24,8 +25,11 @@ export function mockTicker(now: Date = new Date()): {
 
   return {
     state,
-    currentPriceEuro: priceOf(state),
+    // Der Shop-Preis ist immer der gerundete — so sieht die Preview genau das,
+    // was ein Kunde im Checkout zahlen würde.
+    currentPriceEuro: shopPrice(priceOf(state)),
     currentInventory: inventory,
     inventoryTracked: true,
+    compareDigest: null,
   };
 }

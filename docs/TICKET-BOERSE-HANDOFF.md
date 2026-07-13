@@ -10,10 +10,11 @@ Die Band **Now.** parodiert das Dynamic Pricing der großen Ticketkonzerne — n
 
 ## STATUS: fertig gebaut, **NICHT live**
 
-- Alles committet auf `main`, letzter Commit `4a85a79`. **28/28 Tests grün**, Build sauber.
+- Alles committet auf `main`. **59/59 Tests grün**, Build sauber.
 - Die Börse **läuft nicht**: In Shopify existiert kein `ticker.state`-Metafield, der Ticketpreis steht unverändert auf **22,00 €**.
 - Selbst nach einem Deploy passiert nichts, bis jemand bewusst `?start=1` auslöst **und** `TICKER_ENABLED=1` gesetzt ist.
 - **Go-Live wartet** auf Constantins eigene Evey-Ablösung (`project_tonherd_tickets`).
+- **Zweiter Audit (Codex gpt-5.6-sol + gpt-5.5, 14.07.)** hat vier weitere Blocker gefunden — alle behoben, siehe unten. Die Engine-Tests allein hatten keinen davon gesehen: Sie saßen an der Naht zur Außenwelt. Deshalb gibt es jetzt `lib/ticker/routes.test.ts` (Routen gegen einen gefälschten Shopify-Server).
 
 ## Preismodell (nach dem Sicherheits-Audit vom 13.07.)
 
@@ -26,9 +27,11 @@ Der Preis wird **nie gespeichert, sondern immer neu abgeleitet** — das ist die
 | Startpreis | 22,00 € (fix, nicht „was im Shop steht") | `lib/ticker/config.ts` |
 | Kauf-Schub | **+1 %** pro verkauftem Ticket | `saleBumpPct` |
 | Flaute-Drift | **−0,06 %/Stunde** (≈ −1,4 %/Tag), **zeitbasiert** | `driftFactorPerHour` |
-| Gnadenfrist | **keine** (0 h) | `graceHours` |
+| Gnadenfrist | **gibt es nicht mehr** (Parameter entfernt) | — |
 | Boden / Deckel | 5 € / 25 € | `floorEuro` / `capEuro` |
 | Shop-Preis | auf 10 Cent gerundet | `shopPrice()` |
+
+**Ein Tick rechnet immer in dieser Reihenfolge: erst Drift, dann Inventar.** Beide wirken unabhängig auf denselben Schritt. Wer den Verkaufs-Zweig je wieder vorzeitig zurückkehren lässt, baut den teuersten Fehler des Projekts nach (siehe unten, Punkt 6).
 
 **Gleichgewicht bei ~1,4 Verkäufen/Tag.** Weniger → Kurs fällt (Flaute: ~5,50 € kurz vor dem Gig). Mehr → steigt Richtung Deckel.
 **Bekannte, von Constantin akzeptierte Einschränkung:** Nur 13 % Luft nach oben → ab ~2 Verkäufen/Tag klebt der Kurs am 25-€-Deckel.
@@ -48,16 +51,39 @@ Vier parallele Auditoren fanden am 13.07. schwere Fehler. Alle behoben:
 5. **`TICKER_MOCK` las gemockt, schrieb aber echt** → hätte Fantasie-Preise in den echten Shop geschrieben.
    → Doppelt verriegelt: in Produktions-Builds wirkungslos, `writeTicker` ist dort ein No-Op.
 
+### Zweiter Audit (Codex, 14.07.) — nochmal vier Blocker
+
+Der erste Audit prüfte nur die Engine. Die folgenden Fehler saßen alle **an der Naht zur Außenwelt** — und keiner davon wurde von den 28 Engine-Tests gesehen:
+
+6. **Jeder Verkauf löschte den aufgelaufenen Drift.** Der Verkaufs-Zweig kehrte sofort zurück und setzte dabei `lastTickAt` — die verstrichene Flaute-Zeit war damit weg. Ein Verkauf um 23:00 ließ den Cron um 24:00 nur EINE statt vierundzwanzig Stunden driften. Bei einem Verkauf pro Tag klebte der Kurs binnen zwei Wochen am Deckel.
+   Beim Fix kam heraus, dass die **Gnadenfrist-Formel dasselbe nochmal tat**: Sie klemmte den Drift auf `hoursSinceSale` — auch bei Gnadenfrist NULL. Ein Verkauf fraß so rückwirkend Flaute-Zeit, die längst vor ihm lag.
+   → Drift und Inventar werden jetzt nacheinander im selben Tick verrechnet. Der Webhook verschiebt `lastTickAt` nicht mehr. Die Gnadenfrist ist **ganz raus**.
+
+7. **Doppelt zugestellte Webhooks zählten doppelt.** Der Code behauptete im Kommentar das Gegenteil. Shopify stellt Webhooks *mindestens* einmal zu — Wiederholung ist Normalbetrieb. Solange das Inventar noch nicht fortgeschrieben war, griff bei jeder Zustellung erneut der Payload-Fallback: 5 Tickets → 23,10 € → 24,30 € → 25,00 €.
+   → Bestell-IDs werden im Zustand gemerkt (`recentOrders`, letzte 60). Dieselbe Bestellung zählt nie zweimal.
+
+8. **Website und Shop konnten dauerhaft auseinanderlaufen.** `readTicker` las den echten Variantenpreis — und **niemand benutzte ihn**. Verglichen wurde der aus dem Zustand abgeleitete Preis mit sich selbst. Schlug also der Preis-Schreibvorgang einmal fehl, während der Zustand schon geschrieben war, wurde das **nie wieder repariert**.
+   → `writeTicker` bekommt jetzt den Live-Preis. Die Divergenz heilt beim nächsten Tick. Die Seite zeigt ohnehin nur noch den Preis, den der Shop wirklich verlangt.
+
+9. **Kein Schutz gegen gleichzeitige Schreiber.** Cron und Webhook überschrieben dasselbe Metafield blind; zwei parallele Bestellungen → ein Verkauf verschwand.
+   → Compare-and-Swap über `compareDigest`. Bei Konflikt (`STALE_OBJECT`) wird neu gelesen und neu gerechnet. **Zustand und Preis sind zwei getrennte Requests** — in einer Mutation hätte GraphQL den Preis auch dann geschrieben, wenn der Zustands-Write am Konflikt scheiterte.
+
+Kleiner, ebenfalls behoben: kaputtes Metafield-JSON wird jetzt validiert (`parseState`), statt als `NaN` in den Shop zu laufen; die History wird gegen ein echtes **Byte**-Budget geprüft (nicht nur gegen die Punktzahl) und speichert gerundete Preise; Testbestellungen bewegen den Kurs nicht; ein Mengenkauf über 5 Tickets zählt im signierten Webhook voll, statt als Inventar-Panne verworfen zu werden.
+
 ## Schutzschichten
 
 | Schutz | Wirkung |
 |---|---|
 | `TICKER_ENABLED` | **Not-Aus.** Ohne `"1"` tun beide Routen gar nichts (`{"status":"disabled"}`). Umlegbar in Vercel ohne Deploy. |
 | `?start=1` | Die Börse startet nur auf ausdrücklichen Wunsch. Sonst: `{"status":"not_started"}`, Shop-Preis unangetastet. |
-| `inventoryTracked`-Check | Start wird verweigert, wenn Shopify keine Bestände führt (sonst käme `0` = Totalverkauf). |
+| `inventoryTracked`-Check | Börse pausiert, wenn Shopify keine Bestände führt (sonst käme `0` = Totalverkauf). Gilt bei jedem Lauf, nicht nur beim Start. |
 | HMAC + zeitkonstanter Bearer-Vergleich | beide Routen fail-closed (401) |
-| Preis-Write nur bei echter Änderung | spart dutzende Schreibvorgänge/Tag am echten Produkt |
-| History-Hartlimit (800 Punkte) | Metafield kann nicht überlaufen (das würde die Börse einfrieren) |
+| Bestell-Dedup (`recentOrders`) | dieselbe Bestellung zählt nie zweimal — Shopify stellt Webhooks mehrfach zu |
+| Compare-and-Swap (`compareDigest`) | gleichzeitige Schreiber überschreiben einander nicht; bei Konflikt wird neu gerechnet |
+| `parseState` | kaputtes/verbogenes Metafield-JSON wird abgewiesen, statt als `NaN`-Preis in den Shop zu laufen |
+| Preis-Write nur bei echter Änderung | verglichen wird gegen den **Live**-Preis → eine Divergenz heilt sich selbst |
+| Cron antwortet nie mit 5xx | ein Cron-Dienst, der Fehler sieht, kann sich abschalten; Fehler stehen in den Logs |
+| History-Byte-Budget (50 KB) | Metafield kann nicht überlaufen (das würde die Börse einfrieren) |
 
 **EVEY-REGEL (bindend):** Geschrieben werden ausschließlich das **Preis-Feld** der Variante und das eigene Metafield `ticker.state`. NIEMALS Titel, Optionen, Inventar, Varianten-Struktur oder `evey.*`-Felder.
 
@@ -65,14 +91,19 @@ Vier parallele Auditoren fanden am 13.07. schwere Fehler. Alle behoben:
 
 ```
 lib/ticker/config.ts         # ALLE Parameter — nur hier ändern, Tests sind config-basiert
-lib/ticker/engine.ts         # pure Engine: priceOf(), initState(), tick(), pruneHistory()
-lib/ticker/shopify-admin.ts  # readTicker/writeTicker (+ Mock-Riegel, 401-Retry)
+lib/ticker/engine.ts         # pure Engine: priceOf(), tick() [Drift DANN Inventar],
+                             #   parseState(), pruneHistory(), Bestell-Dedup
+lib/ticker/shopify-admin.ts  # readTicker/writeTicker: Compare-and-Swap, getrennte
+                             #   Requests für Zustand und Preis, Timeout, Mock-Riegel
 lib/ticker/guards.ts         # tickerEnabled(), authorizeCron()
 lib/ticker/hmac.ts           # Webhook-Signaturprüfung
 lib/ticker/mock.ts           # Dev-Mock (nur mit TICKER_MOCK=1 + nicht-Prod)
-app/api/ticker/tick/route.ts     # Cron: Drift + Selbstheilung + ?start=1
-app/api/ticker/webhook/route.ts  # orders/create: liest NUR variant_id+quantity (PII-frei)
-app/[locale]/tickets/page.tsx    # die Seite
+lib/ticker/engine.test.ts    # Engine-Verhalten
+lib/ticker/routes.test.ts    # ROUTEN gegen gefälschten Shopify-Server — hier hängen
+                             #   die vier Blocker des zweiten Audits als Netz
+app/api/ticker/tick/route.ts     # Cron: Drift + Selbstheilung + ?start=1, nie 5xx
+app/api/ticker/webhook/route.ts  # orders/create: liest NUR Bestell-ID, Menge, Testflag
+app/[locale]/tickets/page.tsx    # die Seite (zeigt den LIVE-Shop-Preis)
 components/ticker/*.tsx          # price-chart, price-hero, ticker-tape, countdown,
                                  # hall-plan, queue-gate, share-rate, tilt
 ```
@@ -92,9 +123,19 @@ Der Mock (`lib/ticker/mock.ts`) simuliert mit der echten Engine 3 Wochen Verlauf
 
 GraphQL gegen echtes Schema 2026-04 validiert · Auth beider Routen dicht (401) · Webhook mit echtem Shopify-Payload: erkennt Tickets, ignoriert Merch, rührt Kundendaten nicht an · Not-Aus greift · Mock-Riegel blockiert Schreibvorgänge · Produktions-Riegel hält · Launch-Tag (1 Datenpunkt) rendert sauber · Preise auf der Seite überall identisch und korrekt gerundet.
 
+## ⚠️ Die eine Annahme, die alles trägt
+
+**Shopifys `inventoryQuantity` MUSS beim Ticketkauf sinken.** Daraus leitet die Börse `soldCount` ab; der Webhook darf dem nur *vorgreifen* (der Bestand hinkt Sekunden hinterher), nicht widersprechen.
+
+Führt Evey die Ticket-Kontingente an Shopifys Bestandsverfolgung vorbei, sinkt der Bestand beim Kauf nie — und der nächste Cron macht aus **jedem Verkauf einen Storno**. Der Kurs würde hochspringen und wieder zurückfallen.
+
+**Vor dem Start ist das mit einer echten Testbestellung zu beweisen** (Testbestellungen bewegen den Kurs nicht mehr, das ist gefahrlos): Bestand vorher notieren, kaufen, Bestand nachher prüfen. Fällt er nicht, darf die Börse nicht starten. Festgeschrieben in `routes.test.ts` → „Das Inventar ist und bleibt die Wahrheit".
+
+Der `inventoryTracked`-Check greift bereits: Ist die Bestandsverfolgung ganz aus, pausiert die Börse von selbst — jetzt nicht nur beim Start, sondern in jedem Lauf.
+
 ## Offene Punkte
 
-1. **Go-Live** — wartet auf die Evey-Ablösung. Checkliste: Plan Task 12 (inkl. **Notfall-Rollback**: erst `TICKER_ENABLED=0`, dann Metafield löschen, DANN Preis zurücksetzen — Preis allein zurückstellen reicht NICHT, der nächste Tick überschreibt ihn).
+1. **Go-Live** — wartet auf die Evey-Ablösung. Checkliste: Plan Task 12 (inkl. **Notfall-Rollback**: erst `TICKER_ENABLED=0`, dann Metafield löschen, DANN Preis zurücksetzen — Preis allein zurückstellen reicht NICHT, der nächste Tick überschreibt ihn). **Neu und verpflichtend: der Bestands-Beweis oben.**
 2. **`read_all_orders`-Scope** ist in `~/claude-projects/tonherd-shopify/shopify.app.toml` eingetragen, aber **noch nicht deployt**. Ohne ihn zeigt die Shopify-API nur die letzten **60 Tage** an Bestellungen — echte Verkaufszahlen sind dadurch nicht sichtbar (siehe Memory `reference_shopify_orders_60_tage_limit`). Aktivieren: `shopify app deploy --allow-updates` + App im Dev Dashboard neu installieren.
 3. **Steuern:** Produkt liegt in der Kategorie „Concerts & Entertainment Events", Shopify Tax ist aktiv → 13 % (ermäßigt) kommen automatisch. Beweis liefert die Steuerzeile bei der Test-Bestellung.
 4. **Rechtlich geklärt:** Dynamic Pricing ist legal (nicht personalisiert, Checkout-Preis bindend). Leitplanken: nie als „Rabatt"/Statt-Preis bewerben (30-Tage-Regel), keine erfundene Knappheit.

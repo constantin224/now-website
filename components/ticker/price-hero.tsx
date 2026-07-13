@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { shopPrice } from "@/lib/ticker/engine";
 
 interface Props {
   waypoints: number[]; // echte Kurs-Stationen, letzter Wert = aktueller Preis
@@ -17,7 +18,11 @@ export function PriceHero({ waypoints, locale, className }: Props) {
       style: "currency",
       currency: "EUR",
     });
-    return (n: number) => nf.format(n);
+    // Immer über shopPrice: Die Animation interpoliert zwischen den Stationen,
+    // und ohne Rundung erschiene dabei sekundenlang ein Preis wie 22,13 €, den
+    // der Shop nie verlangt hat. Jeder gezeigte Wert muss ein Preis sein, den
+    // man tatsächlich zahlen könnte.
+    return (n: number) => nf.format(shopPrice(n));
   }, [locale]);
   const final = waypoints[waypoints.length - 1];
   const [value, setValue] = useState(final);
