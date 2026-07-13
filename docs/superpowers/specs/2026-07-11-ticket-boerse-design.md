@@ -30,18 +30,44 @@ Das Ticket-Produkt wird von der Shopify-App **Evey Events & Tickets** verwaltet 
 
 ## Preis-Engine
 
-### Regeln
+### Preismodell (überarbeitet 2026-07-13 nach Sicherheits-Audit)
+
+Der Preis wird **nicht gespeichert, sondern abgeleitet**:
+
+    Preis = clamp( Startpreis × (1 + Kauf-Schub)^verkaufteTickets × Drift^Stunden )
+
+Das ist die zentrale Sicherheitseigenschaft. Weil `soldCount` absolut aus dem Shopify-Inventar folgt und der Preis eine reine Funktion davon ist:
+- kann der Kurs nicht „ratschen" (Kauf/Storno-Zyklen trieben ihn vorher kostenlos an den Deckel),
+- macht ein Storno den Kauf exakt rückgängig,
+- heilt ein verlorener Schreibvorgang beim nächsten Tick von selbst (Race-Conditions sind harmlos),
+- zählt ein doppelt zugestellter Webhook nie doppelt.
 
 | Ereignis | Wirkung |
 |---|---|
-| Ticket verkauft | **+1,00 € pro verkauftem Ticket**, sofort (07-11 abends von 2 € reduziert: 1 Kauf ≈ 1 Flaute-Tag, faire Balance) |
-| 24 h Gnadenfrist nach letztem Verkauf | Preis stabil |
-| Danach je Stunde ohne Verkauf | **−0,15 % vom aktuellen Kurs** (exponentieller Drift; re-kalibriert 2026-07-11 auf 98 Tage Restlaufzeit + 176 Tickets — Boden wird bei totaler Flaute erst kurz vorm Gig erreicht, ~1 Verkauf alle 3 Tage hält den Kurs) |
-| Boden | **4,00 €** (Constantin 2026-07-11, vorher 1,50 €) — bewusst niedrig; Drift wird nach unten automatisch immer langsamer und kriecht asymptotisch dorthin |
-| Deckel | **40,00 €** (vorher 50 € — „fair statt Konzern-Abzocke") |
-| Rundung | interner Kurs exakt im State; Shop-Preis auf 0,10 € gerundet (krumme Preise wie 23,40 € sind Teil der Dynamic-Pricing-Parodie) |
+| Ticket verkauft | **+1 %** auf den Kurs (≈ +22 Cent bei 22 €) |
+| Storno | **−1 %** — exakt der umgekehrte Kauf |
+| Jede Stunde | **−0,06 %** Flaute-Drift (≈ −1,4 %/Tag), **zeitbasiert** |
+| Boden / Deckel | **5 € / 25 €** |
+| Startpreis | **22 €** (fix in der Config, nicht „was im Shop steht") |
+| Shop-Preis | auf 10 Cent gerundet |
 
-Kalibrierung (Stand 07-11 abends, Drift −0,15 %/h ≈ −3,5 %/Tag ≈ −0,90 €/Tag bei 22 €): totale Flaute braucht ~47 Tage von 22 € bis zum 4-€-Boden — die Kurve lebt über die gesamte Restlaufzeit (98 Tage). Ein Kauf (+1 €) gleicht ungefähr einen Flaute-Tag aus („der Markt ist fair, in beide Richtungen"); ~1 Verkauf/Tag lässt den Kurs langsam steigen, Ausverkaufs-Tempo (~2/Tag) treibt ihn Richtung 40-€-Deckel. Alle Parameter liegen als Konstanten in `lib/ticker/config.ts`, Tests sind config-basiert.
+**Keine Gnadenfrist mehr.** Mit 24-h-Gnadenfrist hätte bei ≥1 Verkauf/Tag *nie* ein Drift stattgefunden — der Kurs wäre ab Tag 2 dauerhaft am Deckel geklebt (der Normalfall, nicht der Randfall).
+
+**Drift ist zeitbasiert**, nicht pro Aufruf. Dadurch ist `tick()` zeit-idempotent: doppelte Cron-Läufe, ausgefallene Läufe und eine gröbere Kadenz (Vercel-Hobby: 1×/Tag) ergeben denselben Kurs. Ein Angreifer mit dem Cron-Secret kann den Preis nicht mehr durch wiederholte Aufrufe auf den Boden prügeln.
+
+**Gleichgewicht:** Kauf-Schub (1 %) × Verkäufe/Tag = Tages-Drift (1,4 %) → bei ~1,4 Verkäufen/Tag steht der Kurs still. Weniger Nachfrage → er fällt (bei totaler Flaute ~5,50 € kurz vor dem Gig). Mehr → er steigt Richtung Deckel.
+
+### Schutzmechanismen
+
+| Schutz | Wogegen |
+|---|---|
+| `maxSalesPerTick: 5` | Admin-Inventarkorrekturen, Evey-Syncs und deaktivierte Bestandsverfolgung (liefert `0`!) werden nicht als Massenverkauf gelesen — Baseline wandert mit, Preis bleibt |
+| `TICKER_ENABLED` | Not-Aus ohne Deploy; ohne `"1"` schreibt nichts |
+| `?start=1` | Die Börse startet nur auf ausdrücklichen Wunsch |
+| `inventoryTracked`-Check | Start wird verweigert, wenn Shopify keine Bestände führt |
+| Mock-Riegel | `TICKER_MOCK` ist in Produktions-Builds wirkungslos; `writeTicker` schreibt dort nie |
+| Preis-Write nur bei Änderung | spart dutzende Schreibvorgänge am echten Produkt pro Tag |
+| History-Hartlimit | Metafield kann nicht überlaufen (das würde die Börse einfrieren) |
 
 ### Verkaufszählung (PII-frei)
 

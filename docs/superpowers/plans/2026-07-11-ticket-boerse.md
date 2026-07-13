@@ -1497,73 +1497,85 @@ git commit -m "test(ticker): 3-Wochen-Szenario-Simulation"
 
 ### Task 12: Go-Live-Checkliste (manuell, mit Constantin)
 
-**Files:** keine Code-Änderungen — Ablauf-Checkliste.
+**Files:** keine Code-Änderungen — Ablauf-Checkliste. Stand nach dem Sicherheits-Audit vom 2026-07-13.
 
-- [ ] **Step 0: EVEY-KOMPATIBILITÄTS-GATE (Pflicht, VOR allem anderen).** Preis-Write einmal manuell testen, bevor das System automatisiert schreibt:
+**Aktuelle Parameter (lib/ticker/config.ts):** Start 22 €, Boden 5 €, Deckel 25 €,
++1 % pro verkauftem Ticket, −0,06 %/h Flaute-Drift (≈ −1,4 %/Tag), keine Gnadenfrist.
+Gleichgewicht bei ~1,4 Verkäufen/Tag.
 
-```bash
-# Preis 22,00 → 22,10 (nur Preis-Feld!)
-~/claude-projects/bin/shopify-admin-api.sh 'mutation {
-  productVariantsBulkUpdate(
-    productId: "gid://shopify/Product/15354134921547"
-    variants: [{ id: "gid://shopify/ProductVariant/55861172863307", price: "22.10" }]
-  ) { userErrors { field message } }
-}'
-```
+- [ ] **Step 0 — Inventar einfrieren.** Der Startwert wird zur Baseline für die
+      gesamte Verkaufszählung. Erst starten, wenn niemand mehr am Produkt
+      schraubt (Kollege hat zuletzt auf 250 aufgestockt).
 
-  Danach prüfen (Constantin, im Shopify-Admin → Apps → Evey): Event 226105 intakt? Ticket-Type „General Admission" zeigt 22,10 €? Dann Test-Bestellung (1 Ticket) → kommt ein gültiges Evey-Ticket (QR-Mail) an? Storefront-Preis korrekt? Anschließend Preis zurück auf 22,00 € (gleiche Mutation mit `price: "22.00"`). **Fällt irgendein Teil durch → STOPP, kein Go-Live, Plan B (Playwright durchs Evey-Admin) mit Constantin besprechen.**
+- [ ] **Step 1 — Evey-Kompatibilitäts-Gate** (unverändert): Preis testweise per API
+      um 0,10 € ändern → Evey-Dashboard prüfen (Event intakt, Ticket-Type zeigt
+      neuen Preis) → Test-Bestellung → gültiges QR-Ticket kommt an → **Steuerzeile
+      prüfen: 13 % (ermäßigt), nicht 20 %** → Preis zurück auf 22,00 €.
+      Fällt irgendetwas durch: STOPP.
 
-- [ ] **Step 1: Env-Vars in Vercel setzen** (Constantin, via Vercel-Dashboard → now-website → Settings → Environment Variables):
-  - `SHOPIFY_ADMIN_CLIENT_ID` = `aec9c6c4f780fd9d0a082bd97e501392`
-  - `SHOPIFY_ADMIN_CLIENT_SECRET` = aus macOS-Schlüsselbund (`security find-generic-password -a shopify -s tonherd-shopify-client-secret -w`) — NIE in Chat/Datei
-  - `SHOPIFY_WEBHOOK_SECRET` = kommt in Step 3 aus der Webhook-Registrierung
-  - `CRON_SECRET` existiert bereits (wird von `/api/revalidate` genutzt)
-- [ ] **Step 2: Deploy** via Skill `tonherd-web-deploy` (manuell, nie `git push`-Deploy).
-- [ ] **Step 2b: Cron-Kadenz prüfen** — Vercel-Hobby-Plan führt Crons nur 1×/Tag aus (stündlich braucht Pro). Im Vercel-Dashboard prüfen, welcher Plan aktiv ist. Falls Hobby: externen Pinger einrichten (z.B. cron-job.org, stündlich `GET https://now-music.at/api/ticker/tick` mit Header `Authorization: Bearer <CRON_SECRET>`) — Route ist dafür schon geeignet; den vercel.json-Ticker-Cron dann auf `"0 12 * * *"` (1×/Tag als Fallback) stellen.
-- [ ] **Step 3: Webhook registrieren** (einmalig, via bestehendem Helper):
+- [ ] **Step 2 — Vercel-Env-Vars** setzen:
+      `SHOPIFY_ADMIN_CLIENT_ID`, `SHOPIFY_ADMIN_CLIENT_SECRET` (aus dem Schlüsselbund),
+      `SHOPIFY_WEBHOOK_SECRET`, `CRON_SECRET` (existiert bereits),
+      **`TICKER_ENABLED=1`** (der Not-Aus — ohne diesen Wert tut die Börse nichts).
+      **Prüfen, dass `TICKER_MOCK` in KEINER Environment gesetzt ist.**
 
-```bash
-~/claude-projects/bin/shopify-admin-api.sh 'mutation {
-  webhookSubscriptionCreate(
-    topic: ORDERS_CREATE
-    webhookSubscription: { callbackUrl: "https://now-music.at/api/ticker/webhook", format: JSON }
-  ) {
-    webhookSubscription { id }
-    userErrors { field message }
-  }
-}'
-```
+- [ ] **Step 3 — Deploy** via Skill `tonherd-web-deploy` (manuell, nie `git push`).
+      Reihenfolge ist unkritisch: Ohne Env-Vars antworten die Routen 401/500 und
+      fassen den Shop-Preis nicht an.
 
-  Danach das Webhook-Signing-Secret ermitteln: Client-Credentials-Apps signieren mit dem **Client Secret** — d.h. `SHOPIFY_WEBHOOK_SECRET` = Client Secret. Falls Shopify stattdessen ein eigenes Secret liefert (Antwort/Doku prüfen via Shopify-Dev-MCP `search_docs_chunks` „webhook hmac client credentials dev dashboard app"), dieses verwenden. Nach dem Setzen: Redeploy.
-- [ ] **Step 4: Börse STARTEN** (bewusster Handgriff — vorher passiert nichts!). Ohne `?start=1` meldet die Route nur `not_started` und lässt den Shop-Preis in Ruhe, auch wenn der Cron schon läuft:
+- [ ] **Step 4 — Vorher-Check (ändert nichts):**
+      ```bash
+      curl -s -H "Authorization: Bearer $CRON_SECRET" https://now-music.at/api/ticker/tick
+      # erwartet: {"status":"not_started", ..., "inventoryTracked":true}
+      ```
+      Zeigt die Antwort `inventoryTracked:false` → **NICHT starten** (die Börse
+      könnte Verkäufe nicht erkennen; Bestandsverfolgung im Shopify-Admin einschalten).
 
-```bash
-# Vorher-Check (ändert nichts):
-curl -s -H "Authorization: Bearer $CRON_SECRET" https://now-music.at/api/ticker/tick
-# → {"status":"not_started",...}
+- [ ] **Step 5 — Webhook registrieren:**
+      ```bash
+      ~/claude-projects/bin/shopify-admin-api.sh 'mutation {
+        webhookSubscriptionCreate(
+          topic: ORDERS_CREATE
+          webhookSubscription: { callbackUrl: "https://now-music.at/api/ticker/webhook", format: JSON }
+        ) { webhookSubscription { id } userErrors { field message } }
+      }'
+      ```
+      Signing-Secret = Client Secret der App (verifizieren, dann als
+      `SHOPIFY_WEBHOOK_SECRET` setzen und neu deployen).
 
-# Erst wenn Constantin bereit ist — Börse starten (Startpreis 22 € aus config.ts):
-curl -s -H "Authorization: Bearer $CRON_SECRET" "https://now-music.at/api/ticker/tick?start=1"
-# → {"price":22,"soldCount":0,"event":"init"}
-```
-(`$CRON_SECRET` tippt Constantin selbst — nicht loggen.)
-- [ ] **Step 5: Webhook-E2E-Test** — Constantin macht eine Test-Bestellung (1 Ticket) im Shop → binnen Sekunden: Shop-Preis 24,00 €, `/de/tickets` zeigt neuen Kurs + sale-Punkt im Chart. Danach Bestellung im Shopify-Admin stornieren + Inventar zurücksetzen? NEIN — Inventar-Rückgabe würde als „negativer Verkauf" ignoriert (Engine reagiert nur auf `newSales > 0`), aber die Baseline verschöbe sich. Sauberer Weg: Test-Bestellung drin lassen (echter Verkauf an uns selbst, 22 €) ODER nach dem Storno das Metafield einmal löschen und Tick neu initialisieren lassen:
+- [ ] **Step 6 — BÖRSE STARTEN** (der bewusste Handgriff):
+      ```bash
+      curl -s -H "Authorization: Bearer $CRON_SECRET" "https://now-music.at/api/ticker/tick?start=1"
+      # erwartet: {"status":"started","price":22,"soldCount":0,"event":"init"}
+      ```
 
-```bash
-~/claude-projects/bin/shopify-admin-api.sh 'mutation {
-  metafieldsDelete(metafields: [{ ownerId: "gid://shopify/Product/15354134921547", namespace: "ticker", key: "state" }]) {
-    userErrors { field message }
-  }
-}'
-curl -s -H "Authorization: Bearer $CRON_SECRET" https://now-music.at/api/ticker/tick
-```
-- [ ] **Step 6: Cron beobachten** — nach der nächsten vollen Stunde Vercel-Logs prüfen (`/api/ticker/tick` → 200). 24 h später beginnt der Drift (erst dann, Gnadenfrist).
-- [ ] **Step 7: Text-Feinschliff-Session** mit Constantin auf der Live-Seite (Copy ist Entwurf).
+- [ ] **Step 7 — E2E-Test:** Ein Ticket kaufen. Erwartung: Shop-Preis binnen Sekunden
+      **22,20 €** (+1 %), Kurve auf /de/tickets zeigt einen Kauf-Punkt.
+
+- [ ] **Step 8 — Cron beobachten:** Nach der nächsten vollen Stunde Vercel-Logs prüfen
+      (`/api/ticker/tick` → 200). Die Cron-Kadenz ist unkritisch geworden (der Drift
+      rechnet mit echter Zeit) — auf dem Hobby-Plan reicht 1×/Tag, die Kurve stimmt
+      trotzdem, nur die Chart-Auflösung ist gröber.
+
+- [ ] **Step 9 — Uptime-Check** (z. B. cron-job.org) auf die Tick-Route, damit ein
+      stiller Dauerausfall auffällt.
 
 ---
 
-## Self-Review (erledigt)
+## NOTFALL-ROLLBACK (Reihenfolge zwingend!)
 
-- **Spec-Coverage:** Preisregeln → Tasks 2–4; PII-freie Zählung → T2/T7; Metafield-State → T5; Webhook → T7; Cron → T6; Selbstheilung → T6 (tick liest Inventar frisch); Seite/Chart/Badge/Gebühren → T8; Warteschlange/Countdown/Saalplan → T9; Shows-Badge → T10; Tests → T2–T4, T11; Go-Live → T12. Nicht-Ziele respektiert (kein Innsbruck, keine DB). Analysten-Kommentare (Spec „Design-Vorbilder", optional gelistet) bewusst in Feinschliff-Session T12/7 verschoben — braucht Fotos + O-Töne der Band, kein Blocker.
-- **Platzhalter-Scan:** T10 verlangt bewusst „erst Datei lesen, Muster nachziehen" statt Blind-Code (Nav-Struktur unbekannt) — einzige Stelle, begründet. Sonst voller Code überall.
-- **Typ-Konsistenz:** `tick(state, currentInventory, now)`, `TickerState`, `shopPrice`, `pruneHistory`, `verifyShopifyHmac`, `readTicker`/`writeTicker` — Signaturen in T2–T7 identisch verwendet.
+Der naheliegende Weg — Preis im Shopify-Admin manuell zurücksetzen — **funktioniert
+nicht**: Der nächste Tick überschreibt ihn wieder aus dem gespeicherten Zustand.
+
+1. **Not-Aus:** In Vercel `TICKER_ENABLED` auf `0` setzen (Redeploy nicht nötig,
+   Env-Änderung reicht bei der nächsten Invocation). Ab jetzt schreibt nichts mehr.
+2. **Zustand löschen:**
+   ```bash
+   ~/claude-projects/bin/shopify-admin-api.sh 'mutation {
+     metafieldsDelete(metafields: [{ ownerId: "gid://shopify/Product/15354134921547", namespace: "ticker", key: "state" }]) {
+       userErrors { field message }
+     }
+   }'
+   ```
+3. **Erst jetzt** den Preis im Shopify-Admin auf 22,00 € zurückstellen.
+4. Optional: Webhook-Subscription löschen (`webhookSubscriptionDelete`).
