@@ -23,12 +23,16 @@ describe("Simulation: 3 Wochen Kleine-Venue-Realität", () => {
     }
 
     // nach 2 Wochen Flaute muss der Kurs sichtbar unter dem Woche-1-Hoch liegen —
-    // Erwartung formelbasiert aus dem konfigurierten Drift-Faktor (robust gegen Re-Kalibrierung)
+    // Erwartung formelbasiert aus der Config (robust gegen Re-Kalibrierung).
+    // Peak ist der Deckel, sobald 22 € + 7 Verkäufe darüber hinausschießen.
     const driftHours = 13 * 24; // 14 Tage Flaute minus 24h Gnadenfrist
-    const peak = 22 + 7 * TICKER_CONFIG.saleBumpEuro; // Kurs nach Woche 1
+    const peak = Math.min(
+      TICKER_CONFIG.capEuro,
+      22 + 7 * TICKER_CONFIG.saleBumpEuro
+    );
     const expected = peak * Math.pow(TICKER_CONFIG.driftFactorPerHour, driftHours);
     expect(state.price).toBeCloseTo(expected, 1);
-    expect(state.price).toBeLessThan(22 + 7 * TICKER_CONFIG.saleBumpEuro);
+    expect(state.price).toBeLessThan(peak);
     expect(state.soldCount).toBe(7);
   });
 });
