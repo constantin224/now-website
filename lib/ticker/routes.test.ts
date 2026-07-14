@@ -24,6 +24,8 @@ interface FakeShop {
   priceWriteFails: boolean;
   /** Vor dem nächsten State-Write dazwischenfunken (simuliert den Wettlauf) */
   onBeforeStateWrite?: () => void;
+  /** Vor dem nächsten Preis-Write dazwischenfunken — der Preis hat KEIN CAS */
+  onBeforePriceWrite?: () => void;
   stateWrites: number;
   priceWrites: number;
 }
@@ -81,6 +83,7 @@ function fakeFetch(url: string | URL, init?: RequestInit): Promise<Response> {
   }
 
   if (req.query.includes("mutation TickerWritePrice")) {
+    shop.onBeforePriceWrite?.();
     if (shop.priceWriteFails) {
       return json({
         data: {
@@ -191,11 +194,29 @@ describe("Webhook — Doppelzustellung", () => {
 });
 
 describe("Webhook — was NICHT zählen darf", () => {
-  it("Testbestellung bewegt den Preis nicht", async () => {
+  it("Testbestellung bewegt den Preis nicht — auch nicht über den Bestand", async () => {
     const r = await postWebhook(orderBody({ id: 5, tickets: 3, test: true }));
     expect(await r.json()).toMatchObject({ ignoriert: "Testbestellung" });
     expect(shop.state!.soldCount).toBe(0);
     expect(shop.variantPrice).toBe(22);
+    expect(shop.state!.ignoredTickets).toBe(3);
+
+    // Die entscheidende Hälfte: Shopify senkt den Bestand auch bei einer
+    // Testbestellung. Der Cron darf sie trotzdem NICHT als Verkauf zählen.
+    shop.inventory = 247;
+    await getTick();
+    expect(shop.state!.soldCount).toBe(0);
+    expect(shop.variantPrice).toBe(22);
+  });
+
+  it("Bestellung mit negativer Menge kann den Kurs nicht drücken", async () => {
+    const body = JSON.stringify({
+      id: 77,
+      line_items: [{ variant_id: Number(VARIANT_ID), quantity: -5 }],
+    });
+    const r = await postWebhook(body);
+    expect(await r.json()).toMatchObject({ tickets: 0 });
+    expect(shop.stateWrites).toBe(0);
   });
 
   it("reine Merch-Bestellung rührt die Börse nicht an", async () => {
@@ -255,6 +276,32 @@ describe("Wettlauf: Cron und Webhook schreiben gleichzeitig", () => {
     // Der Verkauf des anderen Schreibers ist erhalten geblieben.
     expect(shop.state!.soldCount).toBe(1);
     expect(shop.variantPrice).toBeGreaterThan(22);
+  });
+
+  it("ein veralteter Schreiber kann den neueren PREIS nicht überschreiben", async () => {
+    // Der Preis ist das einzige Feld ohne Compare-and-Swap — Shopify bietet dafür
+    // keins. Der gefährliche Ablauf:
+    //   A schreibt Zustand (1 Verkauf) … A stockt …
+    //   B schreibt Zustand (2 Verkäufe) + Preis 22,40 €
+    //   A schreibt jetzt erst seinen Preis: 22,20 €   ← veraltet, gewinnt aber
+    // Der Abgleich nach dem Schreiben muss das wieder geradeziehen.
+    let dazwischen = false;
+    shop.onBeforePriceWrite = () => {
+      if (dazwischen) return;
+      dazwischen = true;
+      // Ein anderer Schreiber war schneller: Zustand steht schon auf 2 Verkäufen
+      shop.state = { ...shop.state!, soldCount: 2 };
+      shop.inventory = 248;
+      shop.digest = "neuer";
+    };
+
+    await postWebhook(orderBody({ id: 20, tickets: 1 }));
+
+    // Der Preis muss zum AKTUELLEN Zustand (2 Verkäufe) passen, nicht zu dem,
+    // den unser Lauf für richtig hielt (1 Verkauf).
+    const soll = 22 * Math.pow(1.01, 2);
+    expect(shop.variantPrice).toBeCloseTo(Math.round(soll * 10) / 10, 2);
+    expect(shop.state!.soldCount).toBe(2);
   });
 });
 
@@ -321,14 +368,18 @@ describe("Cron — Betriebsverhalten", () => {
     expect(shop.variantPrice).toBe(22); // KEIN Sprung auf den Deckel
   });
 
-  it("liefert bei Shopify-Ausfall KEIN 5xx (sonst schaltet der Cron sich ab)", async () => {
+  it("meldet einen Shopify-Ausfall als Fehler, statt ihn zu verstecken", async () => {
+    // Vercel-Cron schaltet bei 5xx NICHT ab, sondern markiert den Lauf als
+    // fehlgeschlagen. Eine 200er-Antwort würde einen Dauerausfall unsichtbar
+    // machen — das Schlimmste, was der Börse passieren kann.
     vi.stubGlobal(
       "fetch",
       vi.fn(() => Promise.reject(new Error("Shopify nicht erreichbar")))
     );
     const r = await getTick();
-    expect(r.status).toBe(200);
+    expect(r.status).toBe(500);
     expect(await r.json()).toMatchObject({ status: "error" });
+    expect(shop.variantPrice).toBe(22); // Preis bleibt unangetastet
   });
 
   it("ohne Bearer-Secret → 401", async () => {
@@ -337,6 +388,41 @@ describe("Cron — Betriebsverhalten", () => {
     const r = await GET(new NextRequest("https://now-music.at/api/ticker/tick"));
     expect(r.status).toBe(401);
     expect(shop.stateWrites).toBe(0);
+  });
+});
+
+describe("Bestands-Anomalie: halten statt raten", () => {
+  it("Bestands-Reset schreibt NICHTS und meldet sich mit 409", async () => {
+    shop.inventory = 0; // Reset / Tracking-Panne — Tracking meldet weiter true
+    const r = await getTick();
+    expect(r.status).toBe(409);
+    expect(await r.json()).toMatchObject({ status: "anomaly" });
+    expect(shop.stateWrites).toBe(0);
+    expect(shop.priceWrites).toBe(0);
+    expect(shop.variantPrice).toBe(22); // KEIN Sprung an den Deckel
+  });
+
+  it("?rebaseline=1 löst es bewusst auf — Kurs bleibt, Baseline zieht nach", async () => {
+    shop.inventory = 300; // Kollege hat 50 Tickets nachgelegt
+    expect((await getTick()).status).toBe(409); // erst mal: Stopp
+
+    const r = await getTick("?rebaseline=1");
+    expect(await r.json()).toMatchObject({ status: "rebaselined" });
+    expect(shop.state!.startInventory).toBe(300);
+    expect(shop.variantPrice).toBe(22); // Kurs unberührt
+
+    // und ab jetzt zählt wieder normal
+    shop.inventory = 299;
+    await getTick();
+    expect(shop.state!.soldCount).toBe(1);
+  });
+
+  it("der Webhook antwortet bei Anomalie NICHT mit 500 (kein Retry-Sturm)", async () => {
+    shop.inventory = 0;
+    const r = await postWebhook(orderBody({ id: 30, tickets: 1 }));
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ status: "anomaly" });
+    expect(shop.variantPrice).toBe(22);
   });
 });
 

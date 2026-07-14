@@ -68,7 +68,28 @@ Der erste Audit prüfte nur die Engine. Die folgenden Fehler saßen alle **an de
 9. **Kein Schutz gegen gleichzeitige Schreiber.** Cron und Webhook überschrieben dasselbe Metafield blind; zwei parallele Bestellungen → ein Verkauf verschwand.
    → Compare-and-Swap über `compareDigest`. Bei Konflikt (`STALE_OBJECT`) wird neu gelesen und neu gerechnet. **Zustand und Preis sind zwei getrennte Requests** — in einer Mutation hätte GraphQL den Preis auch dann geschrieben, wenn der Zustands-Write am Konflikt scheiterte.
 
-Kleiner, ebenfalls behoben: kaputtes Metafield-JSON wird jetzt validiert (`parseState`), statt als `NaN` in den Shop zu laufen; die History wird gegen ein echtes **Byte**-Budget geprüft (nicht nur gegen die Punktzahl) und speichert gerundete Preise; Testbestellungen bewegen den Kurs nicht; ein Mengenkauf über 5 Tickets zählt im signierten Webhook voll, statt als Inventar-Panne verworfen zu werden.
+Kleiner, ebenfalls behoben: kaputtes Metafield-JSON wird jetzt validiert (`parseState`), statt als `NaN` in den Shop zu laufen; die History speichert gerundete Preise; ein Mengenkauf über 5 Tickets zählt im signierten Webhook voll.
+
+### Dritter Audit (Codex, 14.07.) — die Härtung selbst hatte Löcher
+
+Der zweite Fix-Durchgang wurde erneut adversarial geprüft. Ergebnis: **zwei meiner eigenen Fixes waren neue Fehler**, dazu mehrere Lücken.
+
+10. **Die feste 5er-Klemme verwarf echte Verkäufe DAUERHAFT.** Fielen die Webhooks aus (bei Shopify realistisch) oder lief der Cron nur täglich, sammelten sich normale Verkäufe an — und die Engine hielt sie für eine Bestands-Panne. Die Börse hätte bei guter Nachfrage nie hochgezählt.
+    → Grenze wächst jetzt mit der Zeit (`maxSalesPerHour`).
+
+11. **Der Zeit-Fix kippte ins Gegenteil.** Nach 72 h Cron-Ausfall wären 576 „Verkäufe" erlaubt gewesen — ein Bestands-Reset von 250 auf 0 wäre als Ausverkauf durchgegangen und hätte den Kurs an den Deckel geschossen. Ein zweiter Blocker, eingebaut beim Beheben des ersten.
+    → Zusätzliche absolute Decke (`maxSalesAbsolute: 40`).
+
+12. **Der Webhook schluckte jeden Bestandssprung**, sobald irgendeine Bestellung eintraf (`trustSales: true`). Ein Reset auf 0 während einer 1-Ticket-Bestellung → 250 Verkäufe.
+    → Vertraut wird jetzt der **bestätigten Bestellmenge** (`trustedSales: number`), nicht dem Bestandssprung.
+
+13. **Kein automatisches Rebaseline mehr.** Ein Reset (250 → 0) und ein Ausverkauf (250 → 0) sind aus dem Bestand allein **nicht unterscheidbar**. Die Börse rät nicht mehr: Bei einem unerklärlichen Sprung wird **nichts geschrieben**, der Preis bleibt stehen, kein Verkauf geht verloren, und der Lauf meldet sich mit **HTTP 409 `anomaly`**.
+    Auflösung durch einen Menschen: **`?rebaseline=1`** zieht die Baseline bewusst nach (Kurs und Verkaufszahl bleiben unberührt) — für Admin-Korrekturen und Aufstockungen.
+
+14. **Testbestellungen bewegten den Kurs doch.** Der Webhook ignorierte sie, aber sie **senken den Bestand wie jede echte Bestellung** — der nächste Cron zählte sie als Verkauf. Die frühere Behauptung in diesem Dokument war schlicht falsch.
+    → Neues Zustandsfeld `ignoredTickets` rechnet sie dauerhaft heraus.
+
+Außerdem: Uhr-Rücksprung driftete doppelt (Anker wird nicht mehr zurückgesetzt); der Drift-Faktor konnte unter seine eigene Validierungsgrenze fallen und die Börse **einfrieren** (`MIN_DRIFT`); der Byte-Guard maß nur die History statt des ganzen Zustands (`prepareForWrite`); Verkäufe am Deckel erzeugten keinen History-Punkt, sodass die Seite „heute 0 verkauft" meldete, während zehn Tickets weggingen; der Hero klemmte den Live-Preis an den Deckel und hätte damit einen Preis versprochen, den der Checkout nicht hält.
 
 ## Schutzschichten
 
@@ -82,8 +103,11 @@ Kleiner, ebenfalls behoben: kaputtes Metafield-JSON wird jetzt validiert (`parse
 | Compare-and-Swap (`compareDigest`) | gleichzeitige Schreiber überschreiben einander nicht; bei Konflikt wird neu gerechnet |
 | `parseState` | kaputtes/verbogenes Metafield-JSON wird abgewiesen, statt als `NaN`-Preis in den Shop zu laufen |
 | Preis-Write nur bei echter Änderung | verglichen wird gegen den **Live**-Preis → eine Divergenz heilt sich selbst |
-| Cron antwortet nie mit 5xx | ein Cron-Dienst, der Fehler sieht, kann sich abschalten; Fehler stehen in den Logs |
-| History-Byte-Budget (50 KB) | Metafield kann nicht überlaufen (das würde die Börse einfrieren) |
+| Preis-Abgleich nach dem Schreiben | ein langsamer Schreiber kann keinen veralteten Preis hinterlassen (der Preis hat kein CAS) |
+| **Bestands-Anomalie → HTTP 409, kein Schreibvorgang** | unerklärliche Sprünge werden nicht geraten. Preis bleibt, Verkäufe bleiben. Auflösung nur per `?rebaseline=1` |
+| Verkaufsgrenze: zeitskaliert **+ absolute Decke** | normale Verkaufs-Staus zählen voll; ein Bestands-Reset geht nie als Ausverkauf durch |
+| Cron meldet Fehler mit 5xx | Vercel-Cron schaltet dabei **nicht** ab, markiert den Lauf aber als fehlgeschlagen. Eine 200er-Antwort würde einen Dauerausfall verstecken. ⚠️ Bei Wechsel auf QStash o.ä. neu bewerten — solche Dienste deaktivieren sich nach wiederholten 5xx |
+| `prepareForWrite` (50 KB) | misst den **ganzen** Zustand, nicht nur die History; scheitert notfalls laut, statt das Metafield zu sprengen |
 
 **EVEY-REGEL (bindend):** Geschrieben werden ausschließlich das **Preis-Feld** der Variante und das eigene Metafield `ticker.state`. NIEMALS Titel, Optionen, Inventar, Varianten-Struktur oder `evey.*`-Felder.
 
@@ -122,6 +146,18 @@ Der Mock (`lib/ticker/mock.ts`) simuliert mit der echten Engine 3 Wochen Verlauf
 ## Live verifiziert (13.07., alles bestanden)
 
 GraphQL gegen echtes Schema 2026-04 validiert · Auth beider Routen dicht (401) · Webhook mit echtem Shopify-Payload: erkennt Tickets, ignoriert Merch, rührt Kundendaten nicht an · Not-Aus greift · Mock-Riegel blockiert Schreibvorgänge · Produktions-Riegel hält · Launch-Tag (1 Datenpunkt) rendert sauber · Preise auf der Seite überall identisch und korrekt gerundet.
+
+## Bewusst akzeptierte Restrisiken
+
+Ehrlichkeit statt Sicherheitsversprechen — das hier ist **nicht** gelöst, sondern abgewogen:
+
+1. **Der Preis hat kein Compare-and-Swap.** Shopify bietet dafür keins. Zwei Schreiber im selben Millisekunden-Fenster können theoretisch einen veralteten Preis hinterlassen. Der Abgleich nach dem Schreiben macht das Fenster sehr klein, und der stündliche Cron zieht jede Abweichung nach. Maximaler Schaden: wenige Cent für weniger als eine Stunde. Für eine Band mit ~1 Verkauf/Tag ist das vertretbar; die saubere Lösung (ein einzelner serialisierter Schreiber mit dauerhafter Queue) wäre Ticketmaster-Architektur für 250 Tickets.
+
+2. **Reset und Ausverkauf sind aus dem Bestand nicht unterscheidbar.** Deshalb rät die Börse nicht mehr, sondern hält an (409) und fragt. Ein echter Ausverkauf über 40 Tickets ohne einen einzigen Webhook würde also ebenfalls anhalten — er müsste dann von Hand aufgelöst werden. Die Alternative (raten) hat in beiden Richtungen Schaden angerichtet.
+
+3. **Ein Storno ohne Restock senkt den Kurs nicht.** Die Börse rechnet über den Bestand; wird beim Stornieren nicht zurückgebucht, bleibt das Ticket als verkauft gezählt.
+
+4. **Es gibt kein Monitoring.** Der Cron meldet Fehler mit 5xx und Anomalien mit 409 — das sieht aber nur, wer in die Vercel-Oberfläche schaut. Ein externer Prüfer, der die Cron-Antwort überwacht, ist die naheliegende nächste Ausbaustufe.
 
 ## ⚠️ Die eine Annahme, die alles trägt
 

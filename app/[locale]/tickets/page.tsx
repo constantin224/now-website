@@ -30,22 +30,25 @@ export async function generateMetadata({
   };
 }
 
-// Verkäufe der letzten 24 h aus der Historie (Nachfrage-Zeile + Volumen)
+// Verkaufte TICKETS der letzten 24 h (nicht: Anzahl der Ereignisse — eine
+// Bestellung über sechs Tickets ist EIN Ereignis, aber sechs Tickets)
 function salesLast24h(state: TickerState, now: Date): number {
   const cutoff = now.getTime() - 24 * 3_600_000;
-  return state.history.filter(
-    (p) => p.event === "sale" && new Date(p.t).getTime() >= cutoff
-  ).length;
+  return state.history
+    .filter((p) => p.event === "sale" && new Date(p.t).getTime() >= cutoff)
+    .reduce((sum, p) => sum + (p.qty ?? 1), 0);
 }
 
-// 24h-Veränderung in Prozent
-function dayChangePct(state: TickerState, now: Date): number {
+// 24h-Veränderung in Prozent — gemessen gegen den PREIS, DER ANGEZEIGT WIRD.
+// Sonst behauptet die Seite einen Trend, der zum sichtbaren Kurs nicht passt.
+function dayChangePct(state: TickerState, now: Date, aktuell: number): number {
   const cutoff = now.getTime() - 24 * 3_600_000;
   const before = [...state.history]
     .reverse()
     .find((p) => new Date(p.t).getTime() < cutoff);
   const ref = before?.price ?? state.history[0].price;
-  return ((priceOf(state) - ref) / ref) * 100;
+  if (!ref) return 0; // niemals durch null teilen
+  return ((aktuell - ref) / ref) * 100;
 }
 
 // Beträge in der Sprache des Besuchers — auf der EN-Seite mit Punkt, nicht Komma
@@ -100,19 +103,19 @@ export default async function TicketsPage({
     );
   }
 
-  // Angezeigt wird, was der Shop WIRKLICH verlangt — nicht der aus dem Zustand
-  // abgeleitete Kurs. Die beiden sind im Normalbetrieb identisch; laufen sie
-  // nach einem halb fehlgeschlagenen Schreibvorgang kurz auseinander, darf die
-  // Seite keinen Preis versprechen, den der Checkout nicht hält.
+  // Angezeigt wird, was der Shop WIRKLICH verlangt — unverändert, nicht durch
+  // die eigene Preislogik geklemmt. Stünde im Shop aus irgendeinem Grund ein
+  // Preis außerhalb von Boden und Deckel, wäre es eine Lüge, ihn auf 25 €
+  // zurechtzurunden: Der Checkout verlangt trotzdem den echten Betrag.
   // (Nur falls Shopify gar keinen brauchbaren Preis liefert: abgeleiteter Kurs.)
-  const price =
-    currentPriceEuro > 0 ? shopPrice(currentPriceEuro) : shopPrice(priceOf(state));
-  const change = dayChangePct(state, now);
+  const price = currentPriceEuro > 0 ? currentPriceEuro : shopPrice(priceOf(state));
+  const change = dayChangePct(state, now, price);
   const rising = change >= 0;
   const sales24 = salesLast24h(state, now);
-  // Anzeige immer als SHOP-Preis (10-Cent-Rundung) — sonst zeigt die Seite
-  // historische Kurse, die im Shop nie so berechnet wurden.
-  const prices = state.history.map((p) => shopPrice(p.price));
+  // Historische Kurse als SHOP-Preis (10-Cent-Rundung) — so, wie sie damals im
+  // Shop standen. Der aktuelle Preis gehört dazu, sonst könnte der Höchststand
+  // unter dem liegen, was der Hero gerade anzeigt.
+  const prices = [...state.history.map((p) => shopPrice(p.price)), price];
   const ath = Math.max(...prices);
   const atl = Math.min(...prices);
   const badge =

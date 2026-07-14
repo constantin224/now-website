@@ -4,8 +4,9 @@ export type TickerEvent = "init" | "sale" | "drift" | "refund" | "rebaseline";
 
 export interface HistoryPoint {
   t: string; // ISO-Zeitstempel
-  price: number; // interner Kurs (exakt, ungerundet)
+  price: number; // interner Kurs (gerundet auf 4 Stellen)
   event: TickerEvent;
+  qty?: number; // wie viele Tickets dieses Ereignis umfasst (nur bei sale/refund)
 }
 
 /**
@@ -22,12 +23,22 @@ export interface TickerState {
   startPrice: number; // Startpreis beim Börsenstart (eingefroren)
   startInventory: number; // Inventar-Baseline für die Verkaufszählung
   soldCount: number; // verkaufte Tickets seit Börsenstart
+  ignoredTickets: number; // Tickets aus Testbestellungen — bewegen den Kurs nicht
   driftMultiplier: number; // kumulierter Flaute-Faktor (startet bei 1)
-  lastSaleAt: string; // ISO — steuert die Gnadenfrist
+  lastSaleAt: string; // ISO — nur Information
   lastTickAt: string; // ISO — Anker für den ZEITBASIERTEN Drift
   recentOrders: string[]; // bereits verarbeitete Bestellungen (Doppel-Webhooks)
   history: HistoryPoint[];
 }
+
+/**
+ * Untergrenze des Flaute-Faktors. Er fällt exponentiell und wäre nach einigen
+ * Jahren beliebig klein — zwei Probleme auf einmal: `parseState` würde den
+ * eigenen Zustand als ungültig ablehnen (die Börse erstickt an ihrer Prüfung),
+ * und `0` mal einem übergelaufenen `Infinity` ergäbe `NaN`. Der Preis liegt an
+ * dieser Stelle längst am Boden — tiefer muss der Faktor nicht.
+ */
+const MIN_DRIFT = 1e-6;
 
 const clamp = (p: number) => Math.min(C.capEuro, Math.max(C.floorEuro, p));
 
@@ -36,17 +47,31 @@ const clamp = (p: number) => Math.min(C.capEuro, Math.max(C.floorEuro, p));
 // das darüber, ob der Zustand ins Metafield passt.
 const round4 = (n: number) => Math.round(n * 10_000) / 10_000;
 
-/** Der Preis als reine Funktion des Zustands. */
+/**
+ * Der Preis als reine Funktion des Zustands.
+ *
+ * Der `Number.isFinite`-Riegel ist Absicht und kein toter Code: Ein sehr großer
+ * `soldCount` lässt `1,01^n` zu `Infinity` überlaufen. `clamp` fängt das zwar ab
+ * (Infinity wird zum Deckel), aber nur solange der Faktor positiv ist. Käme je
+ * eine `NaN` durch, würde `toFixed(2)` daraus den String "NaN" machen — und den
+ * als Preis an Shopify schicken. Lieber laut scheitern als still Unsinn verkaufen.
+ */
 export function priceOf(state: TickerState): number {
-  return clamp(
+  const roh =
     state.startPrice *
-      Math.pow(1 + C.saleBumpPct, state.soldCount) *
-      state.driftMultiplier
-  );
+    Math.pow(1 + C.saleBumpPct, state.soldCount) *
+    state.driftMultiplier;
+  if (Number.isNaN(roh)) {
+    throw new Error("Börsen-Zustand ergibt keinen Preis (NaN)");
+  }
+  return clamp(roh); // Infinity → Deckel, das ist korrekt
 }
 
 // Shop-Preis: geklemmt + auf 10 Cent gerundet (krumme Preise sind Absicht)
 export function shopPrice(priceEuro: number): number {
+  if (Number.isNaN(priceEuro)) {
+    throw new Error("Preis ist NaN");
+  }
   return Math.round(clamp(priceEuro) * 10) / 10;
 }
 
@@ -61,6 +86,7 @@ export function initState(
     startPrice: price,
     startInventory: currentInventory,
     soldCount: 0,
+    ignoredTickets: 0,
     driftMultiplier: 1,
     lastSaleAt: t,
     lastTickAt: t,
@@ -89,16 +115,29 @@ export function parseState(raw: string): TickerState {
   if (!o || typeof o !== "object") throw new Error("Börsen-Zustand ist kein Objekt");
   const s = o as Record<string, unknown>;
 
-  const num = (key: string, min: number, max: number): number => {
+  const num = (key: string, min: number, max: number, ganz = false): number => {
     const v = s[key];
-    if (typeof v !== "number" || !Number.isFinite(v) || v < min || v > max) {
+    if (
+      typeof v !== "number" ||
+      !Number.isFinite(v) ||
+      v < min ||
+      v > max ||
+      (ganz && !Number.isInteger(v))
+    ) {
       throw new Error(`Börsen-Zustand: '${key}' ist ungültig (${String(v)})`);
     }
     return v;
   };
   const iso = (key: string): string => {
     const v = s[key];
-    if (typeof v !== "string" || Number.isNaN(new Date(v).getTime())) {
+    // Längenlimit: `new Date()` schluckt auch absurd lange Strings (führende
+    // Leerzeichen, endlose Nachkommastellen). Ein solcher Wert wäre gültig UND
+    // groß genug, um den Zustand über das Metafield-Limit zu treiben.
+    if (
+      typeof v !== "string" ||
+      v.length > 40 ||
+      Number.isNaN(new Date(v).getTime())
+    ) {
       throw new Error(`Börsen-Zustand: '${key}' ist kein gültiges Datum (${String(v)})`);
     }
     return v;
@@ -111,28 +150,46 @@ export function parseState(raw: string): TickerState {
     const h = p as Record<string, unknown>;
     if (
       typeof h.t !== "string" ||
+      h.t.length > 40 ||
       Number.isNaN(new Date(h.t).getTime()) ||
       typeof h.price !== "number" ||
       !Number.isFinite(h.price) ||
+      h.price <= 0 || // ein Kurs von 0 ergäbe auf der Seite eine Änderung von ∞ %
       !EVENTS.includes(h.event as TickerEvent)
     ) {
       throw new Error(`Börsen-Zustand: History-Punkt ${i} ist ungültig`);
     }
-    return { t: h.t, price: h.price, event: h.event as TickerEvent };
+    // Nur bekannte Felder übernehmen — was sonst im JSON steht, fliegt raus und
+    // kann den Zustand nicht aufblähen. Mengen sind ganze positive Zahlen.
+    const qty =
+      typeof h.qty === "number" && Number.isInteger(h.qty) && h.qty > 0
+        ? h.qty
+        : undefined;
+    return { t: h.t, price: h.price, event: h.event as TickerEvent, ...(qty ? { qty } : {}) };
   });
 
   return {
-    // Grenzen großzügig, aber endlich — sie fangen Tippfehler und Manipulation,
-    // ohne legitime Zustände auszuschließen.
     startPrice: num("startPrice", 0.01, 10_000),
-    startInventory: num("startInventory", -1_000_000, 1_000_000),
-    soldCount: num("soldCount", 0, 1_000_000),
-    driftMultiplier: num("driftMultiplier", 1e-9, 1e9),
+    // Bestände und Verkaufszahlen sind ganze Zahlen. Bruchteile sind entweder
+    // ein Fehler oder ein Manipulationsversuch.
+    startInventory: num("startInventory", -1_000_000, 1_000_000, true),
+    // Obergrenze: `1,01^n` läuft ab n ≈ 71.333 zu Infinity über. 10.000 liegt
+    // sicher darunter und ist für einen Klub mit 250 Plätzen immer noch absurd
+    // hoch — die Engine selbst kann diesen Wert nie erzeugen.
+    soldCount: num("soldCount", 0, 10_000, true),
+    ignoredTickets:
+      s.ignoredTickets === undefined ? 0 : num("ignoredTickets", 0, 10_000, true),
+    // Der Faktor kann nur fallen (Flaute), nie über 1 steigen. Untergrenze =
+    // MIN_DRIFT, damit der eigene Drift den Zustand nicht ungültig macht.
+    driftMultiplier: num("driftMultiplier", MIN_DRIFT, 1),
     lastSaleAt: iso("lastSaleAt"),
     lastTickAt: iso("lastTickAt"),
-    recentOrders: Array.isArray(s.recentOrders)
-      ? s.recentOrders.filter((x): x is string => typeof x === "string")
-      : [], // Feld kam später dazu — fehlt es, ist die Liste eben leer
+    // Bestell-IDs: nur Ziffernfolgen vernünftiger Länge, Anzahl begrenzt. Sonst
+    // könnte ein manipuliertes Metafield den Zustand über das Shopify-Limit
+    // treiben und die Börse einfrieren.
+    recentOrders: (Array.isArray(s.recentOrders) ? s.recentOrders : [])
+      .filter((x): x is string => typeof x === "string" && /^\d{1,25}$/.test(x))
+      .slice(-C.recentOrdersMax),
     history: cleanHistory,
   };
 }
@@ -149,12 +206,17 @@ export interface TickOptions {
    */
   allowDrift?: boolean;
   /**
-   * Kommt die Verkaufszahl aus einer vertrauenswürdigen Quelle (HMAC-signierter,
-   * deduplizierter Webhook mit echter Bestellmenge)? Dann greift die
-   * `maxSalesPerTick`-Klemme nicht: Eine Bestellung über 6 Tickets ist ein
-   * echter Großkauf, keine Inventar-Panne, und muss voll zählen.
+   * Die von einem HMAC-signierten, deduplizierten Webhook BESTÄTIGTE Ticketmenge.
+   *
+   * Nur so viele Verkäufe dürfen die Klemme überschreiten — eine Bestellung über
+   * 6 Tickets ist ein echter Großkauf, keine Bestands-Panne, und zählt voll.
+   *
+   * Bewusst eine ZAHL, kein Ja/Nein: Ein bloßes "dem Webhook glauben wir" hieße,
+   * dass er auch einen Bestandssturz von 250 auf 0 als 250 Verkäufe schluckt —
+   * bloß weil zufällig gleichzeitig eine Bestellung über ein Ticket eintraf.
+   * Vertraut wird der Bestellmenge, nicht dem Bestandssprung.
    */
-  trustSales?: boolean;
+  trustedSales?: number;
 }
 
 /**
@@ -180,10 +242,18 @@ export function tick(
   opts: TickOptions = {}
 ): TickerState {
   const allowDrift = opts.allowDrift ?? true;
-  const trustSales = opts.trustSales ?? false;
+  const trustedSales = opts.trustedSales ?? 0;
+
+  // Die verstrichene Zeit MUSS vor dem Drift gemessen werden: `applyDrift` setzt
+  // `lastTickAt` auf jetzt, danach wäre der Abstand immer null — und die
+  // zeitskalierte Verkaufsgrenze fiele auf ihren Sockel zurück.
+  const stundenSeitTick = Math.max(
+    0,
+    (now.getTime() - new Date(state.lastTickAt).getTime()) / 3_600_000
+  );
 
   const drifted = allowDrift ? applyDrift(state, now) : state;
-  return applyInventory(drifted, currentInventory, now, trustSales);
+  return applyInventory(drifted, currentInventory, now, trustedSales, stundenSeitTick);
 }
 
 /** Schritt 1: die verstrichene Zeit verrechnen. Setzt als Einziger `lastTickAt`. */
@@ -203,18 +273,26 @@ function applyDrift(state: TickerState, now: Date): TickerState {
   //
   // `lastSaleAt` bleibt im Zustand — aber nur noch als Information, nie wieder
   // als Bremse für den Drift.
-  const driftHours = Math.max(
-    0,
-    (now.getTime() - new Date(state.lastTickAt).getTime()) / 3_600_000
-  );
-  if (driftHours <= 0) {
-    return state.lastTickAt === nowIso ? state : { ...state, lastTickAt: nowIso };
-  }
+  const driftHours =
+    (now.getTime() - new Date(state.lastTickAt).getTime()) / 3_600_000;
+
+  // Läuft die Uhr rückwärts (Zeitumstellung, NTP-Korrektur, Zustand aus der
+  // Zukunft), wird NICHT gedriftet — und der Anker bleibt, wo er ist. Ihn
+  // zurückzusetzen wäre der Fehler: Die Strecke zwischen dem alten Anker und
+  // dem Rücksprung würde später ein ZWEITES Mal gedriftet.
+  if (driftHours <= 0) return state;
 
   const next: TickerState = {
     ...state,
-    driftMultiplier:
-      state.driftMultiplier * Math.pow(C.driftFactorPerHour, driftHours),
+    // Untergrenze: Der Multiplikator fällt exponentiell und würde nach Jahren
+    // beliebig klein. `parseState` lehnt Werte unter 1e-9 ab — die Börse würde
+    // an ihrer eigenen Prüfung ersticken. Ausserdem hält der Wert > 0 die
+    // Mathematik von `Infinity × 0 = NaN` fern. Der Preis liegt hier längst
+    // am Boden; der Multiplikator muss nicht weiter sinken.
+    driftMultiplier: Math.max(
+      MIN_DRIFT,
+      state.driftMultiplier * Math.pow(C.driftFactorPerHour, driftHours)
+    ),
     lastTickAt: nowIso,
   };
   const price = priceOf(next);
@@ -226,62 +304,151 @@ function applyDrift(state: TickerState, now: Date): TickerState {
   };
 }
 
+/** Der Bestand ergibt keinen Sinn — nichts schreiben, laut melden, Mensch fragen. */
+export class InventoryAnomalyError extends Error {
+  constructor(
+    readonly details: {
+      erwartet: number;
+      gefunden: number;
+      spruenge: number;
+      erlaubt: number;
+    }
+  ) {
+    super(
+      `Bestands-Sprung unplausibel: ${details.spruenge} Verkäufe auf einmal ` +
+        `(erlaubt: ${details.erlaubt}). Bestand ${details.gefunden}, erwartet ~${details.erwartet}.`
+    );
+    this.name = "InventoryAnomalyError";
+  }
+}
+
+/**
+ * Wie viele Verkäufe darf EIN Cron-Lauf höchstens aus dem Bestand ableiten?
+ *
+ * Zwei Grenzen, und beide sind nötig:
+ *
+ * Die Zeit-Komponente: Eine feste Zahl war eine Falle. Fallen die Webhooks aus
+ * (bei Shopify durchaus üblich) oder läuft der Cron nur täglich, sammeln sich
+ * ganz normale Verkäufe an — und die Engine hielt sie für eine Panne. Was in
+ * einer Stunde unmöglich ist, ist über einen Tag hinweg alltäglich.
+ *
+ * Die absolute Obergrenze: Ohne sie kippt es ins Gegenteil. Nach drei Tagen
+ * Cron-Ausfall wären 576 Verkäufe "erlaubt" — ein Bestands-Reset von 250 auf 0
+ * ginge dann als Ausverkauf durch und schösse den Kurs an den Deckel. Deshalb
+ * gilt zusätzlich: Mehr als `maxSalesAbsolute` ohne Webhook-Bestätigung glaubt
+ * die Börse NIEMANDEM, egal wie viel Zeit vergangen ist.
+ */
+function erlaubteVerkaeufe(stundenSeitTick: number): number {
+  return Math.min(
+    C.maxSalesAbsolute,
+    Math.max(C.maxSalesPerTick, Math.ceil(stundenSeitTick * C.maxSalesPerHour))
+  );
+}
+
 /** Schritt 2: Verkäufe und Stornos aus dem Inventar ableiten. Rührt `lastTickAt` nicht an. */
 function applyInventory(
   state: TickerState,
   currentInventory: number,
   now: Date,
-  trustSales: boolean
+  trustedSales: number,
+  stundenSeitTick: number
 ): TickerState {
   const nowIso = now.toISOString();
-  const priceBefore = priceOf(state);
-  const totalSold = state.startInventory - currentInventory;
+  // `ignoredTickets` sind Tickets aus Testbestellungen: Sie haben den Bestand
+  // gesenkt, dürfen den Kurs aber nicht bewegen. Also hier wieder herausrechnen.
+  const totalSold =
+    state.startInventory - currentInventory - state.ignoredTickets;
   const newSales = totalSold - state.soldCount;
 
   if (newSales === 0) return state;
 
-  // ---- Unplausible Inventar-Sprünge: NICHT als Verkäufe werten ----
-  // Ein Sturz um viele Stück auf einmal stammt (im Cron-Pfad) nicht von Käufen,
-  // sondern von Admin-Korrekturen, Evey-Syncs oder deaktiviertem Bestands-
-  // Tracking (liefert 0!). Ebenso jede Aufstockung. In beiden Fällen wandert
-  // die Baseline mit: soldCount und Preis bleiben, wo sie sind.
-  const implausible = trustSales
-    ? totalSold < 0 // dem signierten Webhook glauben wir die Menge; nur Aufstockung ist Unsinn
-    : newSales > C.maxSalesPerTick || totalSold < 0;
+  // ---- Unplausible Bestands-Sprünge: NICHT als Verkäufe werten ----
+  // Bleibt ein Sturz auch nach der zeitskalierten Grenze noch absurd, stammt er
+  // nicht von Käufen, sondern von einer Admin-Korrektur, einem Evey-Sync oder
+  // deaktiviertem Bestands-Tracking (liefert 0!). Ebenso jede Aufstockung. In
+  // beiden Fällen wandert die Baseline mit: soldCount und Preis bleiben stehen.
+  // Die Grenze ist das Großzügigere aus: was die verstrichene Zeit hergibt, und
+  // was ein signierter Webhook ausdrücklich bestätigt hat. Eine 6er-Bestellung
+  // zählt damit voll — ein Bestandssturz von 250 auf 0 aber NICHT, bloß weil
+  // zufällig gleichzeitig eine Bestellung eintraf.
+  const erlaubt = Math.max(erlaubteVerkaeufe(stundenSeitTick), trustedSales);
+  const implausible = newSales > erlaubt || totalSold < 0;
 
   if (implausible) {
-    return {
-      ...state,
-      startInventory: currentInventory + state.soldCount,
-      history: [
-        ...state.history,
-        { t: nowIso, price: round4(priceBefore), event: "rebaseline" },
-      ],
-    };
+    // FRÜHER wurde hier still die Baseline nachgezogen. Das war in beide
+    // Richtungen falsch: Waren es echte Verkäufe, verschwanden sie DAUERHAFT.
+    // War es ein Bestands-Reset, lief die Börse mit einer erfundenen Baseline
+    // weiter. Beides ohne jede Spur.
+    //
+    // Ein Bestands-Reset (250 → 0) und ein Ausverkauf (250 → 0) sind aus dem
+    // Bestand allein NICHT unterscheidbar. Also raten wir nicht: Es wird nichts
+    // geschrieben, der Preis bleibt, wo er ist, und der Lauf meldet sich laut.
+    // Ein Mensch entscheidet — über `?rebaseline=1`, wenn die Baseline wirklich
+    // nachziehen soll.
+    throw new InventoryAnomalyError({
+      erwartet: state.startInventory - state.soldCount - state.ignoredTickets,
+      gefunden: currentInventory,
+      spruenge: newSales,
+      erlaubt,
+    });
   }
 
   const next: TickerState = {
     ...state,
     soldCount: totalSold,
-    // Nur echte Verkäufe erneuern die Gnadenfrist — ein Storno darf den
-    // Drift nicht künstlich hinauszögern.
     lastSaleAt: newSales > 0 ? nowIso : state.lastSaleAt,
   };
   const price = priceOf(next);
   return {
     ...next,
-    history:
-      price === priceBefore
-        ? next.history // am Deckel/Boden: kein neuer Punkt
-        : [
-            ...next.history,
-            {
-              t: nowIso,
-              price: round4(price),
-              event: newSales > 0 ? "sale" : "refund",
-            },
-          ],
+    // Verkäufe und Stornos bekommen IMMER einen Punkt — auch am Deckel, wo sich
+    // der Preis nicht mehr rührt. Sonst zählte die Seite "heute 0 verkauft",
+    // während in Wahrheit zehn Tickets weggingen. (Drift-Punkte bleiben
+    // unterdrückt, wenn sich nichts bewegt — die gäbe es sonst stündlich.)
+    history: [
+      ...next.history,
+      {
+        t: nowIso,
+        price: round4(price),
+        event: newSales > 0 ? "sale" : "refund",
+        // Die MENGE mitschreiben — sonst zählt die Seite "1 verkauft",
+        // wenn jemand sechs Tickets in einer Bestellung nimmt.
+        qty: Math.abs(newSales),
+      },
+    ],
   };
+}
+
+/**
+ * Die Baseline bewusst auf den aktuellen Bestand ziehen — nach einer
+ * Admin-Korrektur oder einer Aufstockung. Verkaufszahl und Preis bleiben, wo
+ * sie sind. Nur auf ausdrückliche Anweisung (`?rebaseline=1`), nie automatisch.
+ */
+export function rebaseline(
+  state: TickerState,
+  currentInventory: number,
+  now: Date
+): TickerState {
+  return {
+    ...state,
+    startInventory: currentInventory + state.soldCount + state.ignoredTickets,
+    history: [
+      ...state.history,
+      { t: now.toISOString(), price: round4(priceOf(state)), event: "rebaseline" },
+    ],
+  };
+}
+
+/** Tickets einer Testbestellung: senken den Bestand, dürfen den Kurs nicht bewegen. */
+export function ignoreTestTickets(
+  state: TickerState,
+  orderId: string,
+  tickets: number
+): TickerState {
+  return rememberOrder(
+    { ...state, ignoredTickets: state.ignoredTickets + tickets },
+    orderId
+  );
 }
 
 /** Eine Bestellung als verarbeitet vormerken (gegen Shopifys Doppelzustellung). */
@@ -324,12 +491,47 @@ export function pruneHistory(history: HistoryPoint[], now: Date): HistoryPoint[]
   if (pruned.length > C.historyMaxPoints) {
     pruned = [pruned[0], ...pruned.slice(-(C.historyMaxPoints - 1))];
   }
-
-  // Byte-Budget: notfalls die ältesten Punkte fallen lassen (der Startpunkt
-  // bleibt — er ist der Nullpunkt des Charts).
-  const bytes = (h: HistoryPoint[]) => new TextEncoder().encode(JSON.stringify(h)).length;
-  while (pruned.length > 2 && bytes(pruned) > C.metafieldMaxBytes) {
-    pruned = [pruned[0], ...pruned.slice(2)];
-  }
   return pruned;
+}
+
+const byteLength = (o: unknown) =>
+  new TextEncoder().encode(JSON.stringify(o)).length;
+
+/**
+ * Den Zustand schreibfertig machen: Historie ausdünnen UND sicherstellen, dass
+ * der GESAMTE serialisierte Zustand ins Shopify-Metafield passt.
+ *
+ * Der frühere Guard maß nur die Historie. Das genügt nicht: Ins Metafield geht
+ * der ganze Zustand, samt Bestell-IDs und allem anderen. Läuft er über, schlägt
+ * jeder weitere Schreibvorgang fehl — die Börse friert ein, und zwar dauerhaft,
+ * weil auch der reparierende Tick nicht mehr schreiben kann.
+ *
+ * Reicht das Ausdünnen nicht, wird die Historie notfalls bis auf Startpunkt und
+ * jüngsten Punkt eingedampft. Ein magerer Chart ist verkraftbar; eine
+ * eingefrorene Börse nicht.
+ */
+export function prepareForWrite(state: TickerState, now: Date): TickerState {
+  let s: TickerState = { ...state, history: pruneHistory(state.history, now) };
+  if (byteLength(s) <= C.metafieldMaxBytes) return s;
+
+  // Stufe 1: älteste History-Punkte opfern (der Startpunkt bleibt — Nullpunkt
+  // des Charts). Ein magerer Chart ist verkraftbar.
+  while (byteLength(s) > C.metafieldMaxBytes && s.history.length > 2) {
+    s = { ...s, history: [s.history[0], ...s.history.slice(2)] };
+  }
+  // Stufe 2: Bestell-IDs kürzen. Erst hier, denn sie schützen vor
+  // Doppelzählung — sie zu opfern ist teurer als ein kurzer Chart.
+  while (byteLength(s) > C.metafieldMaxBytes && s.recentOrders.length > 20) {
+    s = { ...s, recentOrders: s.recentOrders.slice(-20) };
+  }
+  // Stufe 3: Notbremse. Passt der Zustand immer noch nicht, ist etwas
+  // grundsätzlich faul — lieber laut scheitern als ein Metafield sprengen, das
+  // die Börse anschließend dauerhaft einfriert (auch der reparierende Tick
+  // könnte dann nicht mehr schreiben).
+  if (byteLength(s) > C.metafieldMaxBytes) {
+    throw new Error(
+      `Börsen-Zustand passt nicht ins Metafield (${byteLength(s)} Byte)`
+    );
+  }
+  return s;
 }

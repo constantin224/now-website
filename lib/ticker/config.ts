@@ -38,20 +38,36 @@ export const TICKER_CONFIG = {
   floorEuro: 5.0, // Boden — lächerlich niedrig, aber nicht gratis
   capEuro: 25.0, // Deckel — fair statt Konzern-Abzocke
 
-  // Sicherheitsklemme — gilt NUR für den Cron, der Verkäufe aus dem Inventar
-  // ableitet. Ein Sturz um viele Stück auf einmal ist dort verdächtig: Er kommt
-  // aus einer Admin-Korrektur, einem Evey-Sync oder deaktiviertem Bestands-
-  // Tracking (liefert 0!) und darf den Preis NICHT bewegen.
+  // Sicherheitsklemme gegen Inventar-Pannen — gilt NUR für den Cron, der
+  // Verkäufe aus dem Bestand ableitet. Ein absurder Sturz kommt dort nicht von
+  // Käufen, sondern aus einer Admin-Korrektur, einem Evey-Sync oder
+  // deaktiviertem Bestands-Tracking (liefert 0!).
   //
-  // Der Webhook ist davon ausgenommen: Er ist HMAC-signiert, kennt die echte
-  // Bestellmenge und wird dedupliziert — eine 6er-Bestellung zählt dort voll.
+  // Die Grenze WÄCHST MIT DER ZEIT (siehe `erlaubteVerkaeufe` in engine.ts):
+  // `maxSalesPerTick` ist der Sockel, `maxSalesPerHour` die Steigung. Eine feste
+  // Grenze war eine Falle — fallen die Webhooks aus oder läuft der Cron nur
+  // täglich, sammeln sich ganz normale Verkäufe an, und die Engine hätte sie als
+  // "Panne" verworfen. Die Börse hätte bei guter Nachfrage nie hochgezählt.
+  //
+  // 8/Stunde deckt jeden realistischen Ansturm ab. `maxSalesAbsolute` ist die
+  // harte Decke darüber: Ohne sie wären nach drei Tagen Cron-Ausfall 576
+  // "Verkäufe" erlaubt — ein Bestands-Reset von 250 auf 0 ginge als Ausverkauf
+  // durch und schösse den Kurs an den Deckel. 40 Tickets (16 % der Halle) ohne
+  // eine einzige Webhook-Bestätigung glaubt die Börse niemandem; darüber hält
+  // sie an und fragt (siehe `InventoryAnomalyError`).
   maxSalesPerTick: 5,
+  maxSalesPerHour: 8,
+  maxSalesAbsolute: 40,
+
+  // Der Webhook ist von der Klemme ausgenommen: HMAC-signiert, kennt die echte
+  // Bestellmenge, wird dedupliziert — eine 6er-Bestellung zählt dort voll.
 
   // Bereits verarbeitete Bestellungen (gegen Shopifys Doppelzustellung).
   // Shopify stellt Webhooks mindestens einmal zu — Wiederholungen sind Normal-
-  // betrieb, kein Randfall. Ohne diese Liste zählte dieselbe Bestellung erneut,
-  // solange das Inventar noch nicht fortgeschrieben ist.
-  recentOrdersMax: 60,
+  // betrieb, kein Randfall. 300 > die Zahl aller je möglichen Bestellungen für
+  // diesen Gig (250 Plätze), also kann eine Bestellung nie aus dem Gedächtnis
+  // fallen und dadurch bei einem späten Retry doppelt zählen.
+  recentOrdersMax: 300,
 
   // Historie: letzte 7 Tage vollständig, älter auf 6h-Raster; hartes Limit,
   // damit das Shopify-Metafield nie überläuft (das würde die Börse einfrieren)

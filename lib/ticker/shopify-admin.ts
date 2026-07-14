@@ -218,7 +218,31 @@ export async function writeTicker(
   // eigenen Wunschwert und fände nie einen Unterschied).
   if (liveShopPrice !== null && liveShopPrice === nextShopPrice) return;
 
-  const priceRes = await adminQuery<{
+  await schreibePreis(nextShopPrice);
+
+  // Schritt 3: Abgleich. Der Preis ist das einzige Feld OHNE Compare-and-Swap —
+  // Shopify bietet dafür keins. Damit ist folgender Wettlauf möglich:
+  //
+  //   A schreibt Zustand (1 Verkauf) … A stockt …
+  //   B schreibt Zustand (2 Verkäufe) und Preis 22,40 €
+  //   A schreibt jetzt erst SEINEN Preis: 22,20 €   ← veraltet, gewinnt aber
+  //
+  // Ergebnis: Der Zustand kennt zwei Verkäufe, der Checkout verlangt den Preis
+  // von einem. Deshalb nach dem Schreiben nachsehen, ob der Zustand inzwischen
+  // ein anderer ist — und den Preis dann auf den JETZT gültigen nachziehen.
+  const danach = await readTicker();
+  if (!danach.state) return;
+  const sollPreis = shopPrice(priceOf(danach.state));
+  if (danach.currentPriceEuro !== sollPreis) {
+    console.warn(
+      `[ticker] Preis-Abgleich: Shop ${danach.currentPriceEuro} € → ${sollPreis} €`
+    );
+    await schreibePreis(sollPreis);
+  }
+}
+
+async function schreibePreis(preis: number): Promise<void> {
+  const res = await adminQuery<{
     productVariantsBulkUpdate: { userErrors: { message: string }[] };
   }>(
     `mutation TickerWritePrice($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
@@ -228,10 +252,9 @@ export async function writeTicker(
     }`,
     {
       productId: C.productGid,
-      variants: [{ id: C.variantGid, price: nextShopPrice.toFixed(2) }],
+      variants: [{ id: C.variantGid, price: preis.toFixed(2) }],
     }
   );
-
-  const priceErrs = priceRes.productVariantsBulkUpdate.userErrors;
-  if (priceErrs.length) throw new Error(priceErrs.map((e) => e.message).join("; "));
+  const errs = res.productVariantsBulkUpdate.userErrors;
+  if (errs.length) throw new Error(errs.map((e) => e.message).join("; "));
 }
