@@ -40,9 +40,14 @@ Das Ergebnis liegt fertig in Redis (`evt:{pid}:entitled`). **Die Börse holt sic
 `now-website`, zwei Umgebungsvariablen:
 
 ```
-TICKETS_BASE_URL=https://tonherd-tickets.vercel.app
+TICKETS_BASE_URL=https://tickets.tonherd.com
 TICKETS_MONITOR_SECRET=<derselbe MONITOR_SECRET wie im Ticket-System>
 ```
+
+⚠️ **Die kanonische Domain nehmen, nicht `*.vercel.app`.** Leitet Vercel die alte
+Adresse auf die neue weiter, geht der `x-monitor-secret`-Header über den Redirect
+womöglich verloren — die Börse bekäme dann ein 401 und fiele stillschweigend in den
+Notpfad zurück. Ohne Slash am Ende (der Code hängt `/api/verkaufszahl` an).
 
 `MONITOR_SECRET` ist **schreibrechtlos** (`lib/admin-auth.ts:statusAuthOk`) — damit kann die Börse weder scharfschalten noch Geräte anlegen. Sie bekommt Zahlen, sonst nichts.
 
