@@ -155,7 +155,14 @@ async function handleOrder(orderId: string, tickets: number, isTest: boolean) {
   // Stattdessen werden ihre Tickets dauerhaft aus der Rechnung genommen.
   if (isTest) {
     const neutralisiert = ignoreTestTickets(state, orderId, tickets);
-    await writeTicker(prepareForWrite(neutralisiert, now), currentPriceEuro, compareDigest);
+    // mitAbgleich=false: Shopify erwartet die Webhook-Antwort in ~5 s, sonst löscht
+    // es irgendwann das Abo. Jeder gesparte Roundtrip zählt. Der Cron gleicht ab.
+    await writeTicker(
+      prepareForWrite(neutralisiert, now),
+      currentPriceEuro,
+      compareDigest,
+      false
+    );
     return NextResponse.json({
       ok: true,
       ignoriert: "Testbestellung",
@@ -193,7 +200,8 @@ async function handleOrder(orderId: string, tickets: number, isTest: boolean) {
   await writeTicker(
     prepareForWrite(gemerkt, now),
     currentPriceEuro, // der LIVE-Preis, nicht der abgeleitete
-    compareDigest
+    compareDigest,
+    false // kein Abgleich-Roundtrip — Shopify wartet nur ~5 s (siehe writeTicker)
   );
   revalidatePath("/de/tickets");
   revalidatePath("/en/tickets");

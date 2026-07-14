@@ -169,7 +169,19 @@ export async function readTicker(): Promise<TickerRead> {
 export async function writeTicker(
   state: TickerState,
   liveShopPrice: number | null,
-  compareDigest: string | null
+  compareDigest: string | null,
+  /**
+   * Nach dem Preis-Write noch einmal nachsehen, ob der Zustand inzwischen ein
+   * anderer ist (Schritt 3 unten).
+   *
+   * Der WEBHOOK schaltet das ab. Grund: Shopify erwartet eine Antwort in etwa
+   * fünf Sekunden — bleibt sie aus, wiederholt es die Zustellung und **löscht
+   * das Abo nach einigen Stunden**. Genau daran ist das Schwesterprojekt
+   * (tonherd-tickets) schon aufgelaufen; dort sind die Webhooks deshalb gesperrt.
+   * Jeder Shopify-Roundtrip zählt also. Der stündliche Cron macht den Abgleich
+   * ohnehin — ein paar Minuten später, aber sicher.
+   */
+  mitAbgleich = true
 ): Promise<void> {
   const nextShopPrice = shopPrice(priceOf(state));
 
@@ -219,6 +231,8 @@ export async function writeTicker(
   if (liveShopPrice !== null && liveShopPrice === nextShopPrice) return;
 
   await schreibePreis(nextShopPrice);
+
+  if (!mitAbgleich) return; // Webhook-Pfad: kein weiterer Roundtrip (siehe oben)
 
   // Schritt 3: Abgleich. Der Preis ist das einzige Feld OHNE Compare-and-Swap —
   // Shopify bietet dafür keins. Damit ist folgender Wettlauf möglich:

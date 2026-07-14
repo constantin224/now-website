@@ -21,7 +21,15 @@ export interface HistoryPoint {
  */
 export interface TickerState {
   startPrice: number; // Startpreis beim Börsenstart (eingefroren)
-  startInventory: number; // Inventar-Baseline für die Verkaufszählung
+  startInventory: number; // Bestands-Baseline (Notpfad, wenn das Ticket-System schweigt)
+  /**
+   * Wie viele gültige Tickets es beim Börsenstart schon gab (Quelle: Ticket-System).
+   *
+   * Für den Gig am 17.10. sind das die Alt-Bestellungen aus der Evey-Zeit. Ohne diese
+   * Baseline würde die Börse sie beim Start als frische Verkäufe lesen und den Kurs
+   * sofort hochreißen — bestraft würde also, wer FRÜH gekauft hat. Genau verkehrt herum.
+   */
+  startTickets: number;
   soldCount: number; // verkaufte Tickets seit Börsenstart
   ignoredTickets: number; // Tickets aus Testbestellungen — bewegen den Kurs nicht
   driftMultiplier: number; // kumulierter Flaute-Faktor (startet bei 1)
@@ -29,6 +37,29 @@ export interface TickerState {
   lastTickAt: string; // ISO — Anker für den ZEITBASIERTEN Drift
   recentOrders: string[]; // bereits verarbeitete Bestellungen (Doppel-Webhooks)
   history: HistoryPoint[];
+}
+
+/**
+ * Die Zahl des Ticket-Systems in den Bestand übersetzen, mit dem die Engine rechnet.
+ *
+ * Die Engine bildet `totalSold = startInventory − bestand − ignoredTickets`. Damit daraus
+ * `gueltigeTickets − startTickets − ignoredTickets` wird, reicht ein Bestand von:
+ *
+ *     startInventory − gueltigeTickets + startTickets
+ *
+ * So bleibt die gesamte Engine-Logik unverändert; nur die WAHRHEITSQUELLE wechselt —
+ * vom geratenen Bestand zum tatsächlichen Bestell-Ledger.
+ */
+export function bestandAusTicketZahl(state: TickerState, gueltigeTickets: number): number {
+  return state.startInventory - gueltigeTickets + state.startTickets;
+}
+
+/**
+ * Der Bestand, bei dem die Engine "keine Änderung" sieht — für Ticks, die NUR driften
+ * sollen, weil gerade keine verlässliche Verkaufszahl vorliegt.
+ */
+export function bestandOhneAenderung(state: TickerState): number {
+  return state.startInventory - state.soldCount - state.ignoredTickets;
 }
 
 /**
@@ -78,13 +109,16 @@ export function shopPrice(priceEuro: number): number {
 export function initState(
   startPriceEuro: number,
   currentInventory: number,
-  now: Date
+  now: Date,
+  /** Bereits verkaufte Tickets beim Start (aus dem Ticket-System). 0 im Bestands-Notpfad. */
+  startTickets = 0
 ): TickerState {
   const t = now.toISOString();
   const price = clamp(startPriceEuro);
   return {
     startPrice: price,
     startInventory: currentInventory,
+    startTickets,
     soldCount: 0,
     ignoredTickets: 0,
     driftMultiplier: 1,
@@ -177,6 +211,8 @@ export function parseState(raw: string): TickerState {
     // sicher darunter und ist für einen Klub mit 250 Plätzen immer noch absurd
     // hoch — die Engine selbst kann diesen Wert nie erzeugen.
     soldCount: num("soldCount", 0, 10_000, true),
+    startTickets:
+      s.startTickets === undefined ? 0 : num("startTickets", 0, 10_000, true),
     ignoredTickets:
       s.ignoredTickets === undefined ? 0 : num("ignoredTickets", 0, 10_000, true),
     // Der Faktor kann nur fallen (Flaute), nie über 1 steigen. Untergrenze =

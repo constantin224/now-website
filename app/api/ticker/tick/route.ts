@@ -2,6 +2,8 @@ import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { TICKER_CONFIG as C } from "@/lib/ticker/config";
 import {
+  bestandAusTicketZahl,
+  bestandOhneAenderung,
   initState,
   InventoryAnomalyError,
   prepareForWrite,
@@ -9,7 +11,12 @@ import {
   rebaseline,
   shopPrice,
   tick,
+  type TickerState,
 } from "@/lib/ticker/engine";
+import {
+  ticketQuelleKonfiguriert,
+  ticketVerkaufszahl,
+} from "@/lib/ticker/tickets-quelle";
 import {
   readTicker,
   TickerConflictError,
@@ -96,6 +103,10 @@ async function runTick(startRequested: boolean, rebaselineRequested: boolean) {
   const { state, currentPriceEuro, currentInventory, inventoryTracked, compareDigest } =
     await readTicker();
 
+  // Die Verkaufszahl kommt, wenn möglich, aus dem Ticket-System (Bestell-Ledger)
+  // statt aus dem Bestand. Siehe lib/ticker/tickets-quelle.ts.
+  const ticketZahl = ticketQuelleKonfiguriert() ? await ticketVerkaufszahl() : null;
+
   if (!state && !startRequested) {
     return NextResponse.json({
       status: "not_started",
@@ -104,17 +115,35 @@ async function runTick(startRequested: boolean, rebaselineRequested: boolean) {
       currentPriceEuro,
       currentInventory,
       inventoryTracked,
+      quelle: ticketZahl ? "ticket-system" : "bestand",
+      gueltigeTickets: ticketZahl?.gueltigeTickets,
+    });
+  }
+
+  // ---- Türöffnung: die Börse macht Schluss ----
+  // Das Ticket-System nullt bei Türöffnung den Bestand und nimmt das Produkt aus
+  // dem Shop (sein Verkaufs-Stopp). Liefe die Börse weiter, läse sie diesen
+  // Bestandssturz — vor der Härtung hätte sie ihn als Ausverkauf gelesen und den
+  // Kurs beim eigenen Konzert an den Deckel geschossen. Also: vorher aufhören.
+  // Der Preis bleibt stehen, wo er war; verkauft wird ohnehin nicht mehr.
+  const schluss = new Date(ticketZahl?.doorsUtc ?? C.gigDateIso).getTime();
+  if (now.getTime() >= schluss) {
+    return NextResponse.json({
+      status: "beendet",
+      reason: "Türöffnung erreicht — die Börse ist geschlossen, der Preis bleibt stehen.",
+      price: state ? shopPrice(priceOf(state)) : currentPriceEuro,
     });
   }
 
   // Ohne Bestandsverfolgung liefert Shopify inventoryQuantity = 0 — die Engine
-  // würde jeden Tick als Totalverkauf lesen. Das gilt beim Start UND im Betrieb:
-  // Wird das Tracking später abgeschaltet, muss die Börse ebenfalls anhalten.
-  if (!inventoryTracked) {
+  // würde jeden Tick als Totalverkauf lesen. Das gilt beim Start UND im Betrieb.
+  // Kommt die Zahl aus dem Ticket-System, ist uns der Bestand allerdings egal.
+  if (!inventoryTracked && !ticketZahl) {
     return NextResponse.json({
       status: "paused",
       reason:
-        "Bestandsverfolgung ist für die Ticket-Variante deaktiviert. Die Börse braucht sie, um Verkäufe zu erkennen — bis dahin bleibt der Preis stehen.",
+        "Bestandsverfolgung ist deaktiviert und das Ticket-System liefert keine Zahl. " +
+        "Ohne eine verlässliche Verkaufszahl bleibt der Preis stehen.",
     });
   }
 
@@ -134,9 +163,43 @@ async function runTick(startRequested: boolean, rebaselineRequested: boolean) {
     });
   }
 
-  const next = state
-    ? tick(state, currentInventory, now)
-    : initState(C.startPriceEuro, currentInventory, now);
+  let next: TickerState;
+  let quelle: string;
+
+  if (!state) {
+    // Börsenstart. Die bereits verkauften Tickets werden als Baseline eingefroren —
+    // die Alt-Bestellungen aus der Evey-Zeit dürfen den Kurs nicht hochreißen.
+    next = initState(
+      C.startPriceEuro,
+      currentInventory,
+      now,
+      ticketZahl?.gueltigeTickets ?? 0
+    );
+    quelle = ticketZahl ? "ticket-system" : "bestand";
+  } else if (ticketZahl) {
+    // NORMALFALL: Die Verkaufszahl kommt aus dem Bestell-Ledger des Ticket-Systems.
+    // Sie ist keine Schätzung, sondern gezählt — Stornos sind darin schon abgezogen.
+    // Darum darf sie die Sicherheitsklemme überschreiten (`trustedSales`), die nur
+    // dazu da war, geratene Bestandssprünge abzufangen.
+    const bestand = bestandAusTicketZahl(state, ticketZahl.gueltigeTickets);
+    const diff = Math.abs(
+      ticketZahl.gueltigeTickets - state.startTickets - state.ignoredTickets - state.soldCount
+    );
+    next = tick(state, bestand, now, { trustedSales: diff });
+    quelle = "ticket-system";
+  } else if (ticketQuelleKonfiguriert()) {
+    // Das Ticket-System ist die Quelle, schweigt aber gerade (nicht erreichbar, oder
+    // Event nicht scharf). Dann NUR driften — nicht heimlich auf den Bestand
+    // zurückfallen: Beide Quellen können auseinanderliegen (ein Storno ohne
+    // Rückbuchung etwa senkt den Bestand nie), und ein stiller Quellenwechsel
+    // erzeugte einen Preissprung aus dem Nichts.
+    next = tick(state, bestandOhneAenderung(state), now);
+    quelle = "nur-drift (Ticket-System schweigt)";
+  } else {
+    // Kein Ticket-System konfiguriert → alter Bestands-Modus, mit allen Klemmen.
+    next = tick(state, currentInventory, now);
+    quelle = "bestand";
+  }
 
   // Auch wenn sich der Zustand nicht geändert hat: Weicht der Shop-Preis vom
   // abgeleiteten Kurs ab, muss er nachgezogen werden. Sonst bliebe eine
@@ -158,6 +221,7 @@ async function runTick(startRequested: boolean, rebaselineRequested: boolean) {
 
   return NextResponse.json({
     status: state ? "ok" : "started",
+    quelle,
     price: sollPreis,
     soldCount: next.soldCount,
     event: next.history.at(-1)?.event,

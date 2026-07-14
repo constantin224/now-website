@@ -32,10 +32,24 @@ interface FakeShop {
 
 let shop: FakeShop;
 
+/** Antwort des Ticket-Systems (Repo tonherd-tickets, /api/verkaufszahl). */
+let tickets: {
+  scharf: boolean;
+  gueltigeTickets?: number;
+  doorsUtc?: string | null;
+  /** Simuliert: Ticket-System nicht erreichbar */
+  tot?: boolean;
+};
+
 function fakeFetch(url: string | URL, init?: RequestInit): Promise<Response> {
   const body = String(init?.body ?? "");
   const json = (o: unknown) =>
     Promise.resolve(new Response(JSON.stringify(o), { status: 200 }));
+
+  if (String(url).includes("/api/verkaufszahl")) {
+    if (tickets.tot) return Promise.reject(new Error("Ticket-System nicht erreichbar"));
+    return json(tickets);
+  }
 
   if (String(url).includes("access_token")) {
     return json({ access_token: "tok", expires_in: 86_400 });
@@ -150,6 +164,11 @@ beforeEach(() => {
   vi.stubEnv("TICKER_MOCK", "");
   vi.stubEnv("SHOPIFY_WEBHOOK_SECRET", SECRET);
   vi.stubEnv("CRON_SECRET", CRON_SECRET);
+  // Standard: KEIN Ticket-System konfiguriert → die bestehenden Tests prüfen
+  // weiterhin den Bestands-Notpfad.
+  vi.stubEnv("TICKETS_BASE_URL", "");
+  vi.stubEnv("TICKETS_MONITOR_SECRET", "");
+  tickets = { scharf: false };
   vi.stubGlobal("fetch", vi.fn(fakeFetch));
   shop = {
     state: initState(22, 250, new Date(Date.now() - 3_600_000)),
@@ -278,13 +297,13 @@ describe("Wettlauf: Cron und Webhook schreiben gleichzeitig", () => {
     expect(shop.variantPrice).toBeGreaterThan(22);
   });
 
-  it("ein veralteter Schreiber kann den neueren PREIS nicht überschreiben", async () => {
+  it("der CRON zieht einen veralteten Preis wieder gerade", async () => {
     // Der Preis ist das einzige Feld ohne Compare-and-Swap — Shopify bietet dafür
     // keins. Der gefährliche Ablauf:
     //   A schreibt Zustand (1 Verkauf) … A stockt …
     //   B schreibt Zustand (2 Verkäufe) + Preis 22,40 €
     //   A schreibt jetzt erst seinen Preis: 22,20 €   ← veraltet, gewinnt aber
-    // Der Abgleich nach dem Schreiben muss das wieder geradeziehen.
+    // Der Abgleich nach dem Schreiben zieht das im Cron wieder gerade.
     let dazwischen = false;
     shop.onBeforePriceWrite = () => {
       if (dazwischen) return;
@@ -295,13 +314,27 @@ describe("Wettlauf: Cron und Webhook schreiben gleichzeitig", () => {
       shop.digest = "neuer";
     };
 
-    await postWebhook(orderBody({ id: 20, tickets: 1 }));
+    shop.inventory = 249; // der Cron sieht zunächst 1 Verkauf
+    await getTick();
 
     // Der Preis muss zum AKTUELLEN Zustand (2 Verkäufe) passen, nicht zu dem,
     // den unser Lauf für richtig hielt (1 Verkauf).
     const soll = 22 * Math.pow(1.01, 2);
     expect(shop.variantPrice).toBeCloseTo(Math.round(soll * 10) / 10, 2);
     expect(shop.state!.soldCount).toBe(2);
+  });
+
+  it("der WEBHOOK spart sich den Abgleich — Shopify wartet nur ~5 s", async () => {
+    // Bewusster Trade-off: Der Abgleich kostet einen weiteren Shopify-Roundtrip.
+    // Bleibt die Webhook-Antwort zu lange aus, wiederholt Shopify die Zustellung
+    // und LÖSCHT das Abo nach einigen Stunden — genau daran ist das
+    // Schwesterprojekt (tonherd-tickets) aufgelaufen. Der Cron gleicht ab.
+    await postWebhook(orderBody({ id: 21, tickets: 1 }));
+
+    const reads = (fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.filter(
+      (c) => String(c[1] && (c[1] as RequestInit).body).includes("query TickerRead")
+    );
+    expect(reads).toHaveLength(1); // EIN Read — nicht zwei
   });
 });
 
@@ -423,6 +456,85 @@ describe("Bestands-Anomalie: halten statt raten", () => {
     expect(r.status).toBe(200);
     expect(await r.json()).toMatchObject({ status: "anomaly" });
     expect(shop.variantPrice).toBe(22);
+  });
+});
+
+describe("Verkaufszahl aus dem Ticket-System statt aus dem Bestand", () => {
+  // Die Börse rät nicht mehr. Sie fragt das Ticket-System (Repo tonherd-tickets),
+  // das die gültigen Tickets aus den BESTELLUNGEN kennt (Stornos raus).
+
+  beforeEach(() => {
+    vi.stubEnv("TICKETS_BASE_URL", "https://tickets.test");
+    vi.stubEnv("TICKETS_MONITOR_SECRET", "mon-geheim");
+    tickets = { scharf: true, gueltigeTickets: 0, doorsUtc: "2026-10-17T17:00:00Z" };
+  });
+
+  it("beim Start werden die Alt-Tickets als Baseline eingefroren", async () => {
+    // 24 Tickets aus der Evey-Zeit. Ohne Baseline läse die Börse sie als frische
+    // Verkäufe und risse den Kurs sofort hoch — bestraft würde, wer FRÜH gekauft hat.
+    shop.state = null;
+    tickets.gueltigeTickets = 24;
+
+    const r = await getTick("?start=1");
+    expect(await r.json()).toMatchObject({ status: "started", quelle: "ticket-system" });
+    expect(shop.state!.startTickets).toBe(24);
+    expect(shop.state!.soldCount).toBe(0);
+    expect(shop.variantPrice).toBe(22); // Startpreis, kein Sprung
+  });
+
+  it("neue Verkäufe zählen ab der Baseline", async () => {
+    shop.state = { ...shop.state!, startTickets: 24 };
+    tickets.gueltigeTickets = 27; // drei neue
+
+    await getTick();
+    expect(shop.state!.soldCount).toBe(3);
+    expect(shop.variantPrice).toBeCloseTo(22 * Math.pow(1.01, 3), 1);
+  });
+
+  it("ein Storno senkt den Kurs — auch OHNE Rückbuchung ins Lager", async () => {
+    // Das kann die Bestands-Quelle prinzipiell nicht: Ohne Restock bliebe das
+    // Ticket dort für immer als verkauft gezählt. Das Ticket-System weiß es besser.
+    shop.state = { ...shop.state!, startTickets: 0, soldCount: 5 };
+    shop.inventory = 250; // Bestand rührt sich NICHT
+    tickets.gueltigeTickets = 4; // einer hat storniert
+
+    await getTick();
+    expect(shop.state!.soldCount).toBe(4);
+    expect(shop.state!.history.at(-1)).toMatchObject({ event: "refund" });
+  });
+
+  it("der Cutoff (Bestand → 0 bei Türöffnung) löst KEINEN Ausverkauf aus", async () => {
+    // Das Ticket-System nullt bei Türöffnung den Bestand. Früher hätte die Börse
+    // das als 250 Verkäufe gelesen — Kurs am Deckel, beim eigenen Konzert.
+    shop.state = { ...shop.state!, startTickets: 0, soldCount: 10 };
+    shop.inventory = 0; // Cutoff hat zugeschlagen
+    tickets.gueltigeTickets = 10; // in Wahrheit: unverändert 10 Tickets
+
+    await getTick();
+    expect(shop.state!.soldCount).toBe(10); // kein Sprung auf 250
+    // Der Kurs bleibt der von 10 Verkäufen (~24,30 €) — NICHT der Deckel.
+    expect(shop.variantPrice).toBeLessThan(C.capEuro);
+    expect(shop.variantPrice).toBeCloseTo(22 * Math.pow(1.01, 10), 0);
+  });
+
+  it("schweigt das Ticket-System, wird NUR gedriftet — kein Rückfall auf den Bestand", async () => {
+    // Beide Quellen können auseinanderliegen. Ein stiller Quellenwechsel erzeugte
+    // einen Preissprung aus dem Nichts.
+    shop.state = { ...shop.state!, startTickets: 0, soldCount: 5 };
+    shop.inventory = 200; // Bestand behauptet 50 Verkäufe
+    tickets.scharf = false; // Ticket-System hat (noch) keine Wahrheit
+
+    const r = await getTick();
+    expect((await r.json()).quelle).toMatch(/nur-drift/);
+    expect(shop.state!.soldCount).toBe(5); // NICHT 50
+  });
+
+  it("nach Türöffnung ist die Börse zu", async () => {
+    tickets.doorsUtc = new Date(Date.now() - 3_600_000).toISOString(); // Türen sind auf
+    const r = await getTick();
+    expect(await r.json()).toMatchObject({ status: "beendet" });
+    expect(shop.stateWrites).toBe(0);
+    expect(shop.priceWrites).toBe(0);
   });
 });
 
