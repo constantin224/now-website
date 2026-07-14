@@ -1497,6 +1497,10 @@ git commit -m "test(ticker): 3-Wochen-Szenario-Simulation"
 
 ### Task 12: Go-Live-Checkliste (manuell, mit Constantin)
 
+> ⚠️ **VERALTET. Die gültige Checkliste steht in [`docs/TICKET-BOERSE-HANDOFF.md`](../../TICKET-BOERSE-HANDOFF.md) → „Go-Live: die Reihenfolge zählt".**
+>
+> Seit diesem Plan sind zwei weitere Audit-Runden und die Kopplung mit dem Ticket-System dazugekommen. Die Börse holt ihre Verkaufszahl inzwischen aus `tonherd-tickets` statt aus dem Bestand, und der Start braucht zwei zusätzliche Umgebungsvariablen. Der Abschnitt hier bleibt nur als Historie stehen.
+
 **Files:** keine Code-Änderungen — Ablauf-Checkliste. Stand nach dem Sicherheits-Audit vom 2026-07-13.
 
 **Aktuelle Parameter (lib/ticker/config.ts):** Start 22 €, Boden 5 €, Deckel 25 €,
