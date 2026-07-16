@@ -52,7 +52,9 @@ export function Countdown({ targetIso, labels }: Props) {
 
   return (
     <div>
-      <p className="text-[10px] md:text-xs tracking-[0.2em] uppercase text-sand-38 mb-3">
+      {/* sand-50 statt sand-38: Diese Zeile liegt auf einem FOTO-Hintergrund —
+          38 % Deckkraft reicht auf Flächen, säuft auf dem Bild aber ab. */}
+      <p className="text-[10px] md:text-xs tracking-[0.2em] uppercase text-sand-50 mb-3">
         {labels.title}
       </p>
       <div className="flex gap-3">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import type { LatestRelease } from "@/lib/deezer";
 
@@ -14,6 +15,10 @@ type Props = {
 
 export default function NewReleasePopup({ release, locale }: Props) {
   const [visible, setVisible] = useState(false);
+  const pathname = usePathname();
+  // Auf der Ticket-Börse kein Release-Popup: Es verdeckt dort unten rechts
+  // ausgerechnet VIP-Karten und die Gebühren-Zeile — die Pointe der Seite.
+  const aufTicketSeite = pathname?.includes("/tickets") ?? false;
 
   useEffect(() => {
     const dismissed = sessionStorage.getItem(STORAGE_KEY);
@@ -28,7 +33,7 @@ export default function NewReleasePopup({ release, locale }: Props) {
     sessionStorage.setItem(STORAGE_KEY, release.title);
   };
 
-  if (!visible) return null;
+  if (!visible || aufTicketSeite) return null;
 
   const typeLabel =
     release.type === "single"
