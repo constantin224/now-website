@@ -228,6 +228,17 @@ Der Mock simuliert mit der echten Engine drei Wochen Verlauf. **Er kann nichts k
 
 **Blockiert, bis die Evey-Ablösung steht.** Dann in dieser Reihenfolge:
 
+0. **Generalprobe gegen das ECHTE Shopify** — Script liegt fertig: `_scratch/boerse-generalprobe.ts`
+   (Workspace-Root). Legt ein Wegwerf-DRAFT-Produkt an, fährt den echten
+   readTicker/writeTicker-Zyklus (Token, Metafield-Anlage, parseState-Roundtrip, Preis-Write,
+   **CAS-Konflikt mit veraltetem compareDigest**, null-Digest-Grenzfall) und löscht es wieder.
+   Alle 119 Tests laufen gegen einen gefälschten Shopify — DIESE Naht war nie real erprobt.
+   ```bash
+   cd ~/claude-projects/now-website && \
+   SHOPIFY_ADMIN_CLIENT_ID=aec9c6c4f780fd9d0a082bd97e501392 \
+   SHOPIFY_ADMIN_CLIENT_SECRET=$(security find-generic-password -a shopify -s tonherd-shopify-client-secret -w) \
+   npx -y tsx ../_scratch/boerse-generalprobe.ts
+   ```
 1. **Evey-Attendee-CSV exportieren.** Nach dem Entfernen der App sind die Daten weg.
 2. **Ticket-System scharfschalten** (`/api/arm`). ☠️ Vorher **nicht** — der Cutoff würde das Produkt bei Türöffnung depublizieren und **Eveys Verkauf töten**.
 3. **Bestands-Beweis** (nur noch für den Notpfad): Eine echte Testbestellung zeigt, ob Shopifys Bestand beim Kauf wirklich sinkt.
@@ -237,7 +248,12 @@ Der Mock simuliert mit der echten Engine drei Wochen Verlauf. **Er kann nichts k
    TICKETS_BASE_URL=https://tickets.tonherd.com     ← kanonische Domain, NIE *.vercel.app
    TICKETS_MONITOR_SECRET=<MONITOR_SECRET des Ticket-Systems>
    MONITOR_SECRET=<neues Nur-Lese-Secret für /api/ticker/status>
+   SHOPIFY_ADMIN_CLIENT_ID=aec9c6c4f780fd9d0a082bd97e501392
+   SHOPIFY_ADMIN_CLIENT_SECRET=<Schlüsselbund: tonherd-shopify-client-secret>
    ```
+   ⚠️ Die beiden Shopify-Admin-Variablen **fehlten in Vercel komplett** (Fund 16.07.) — ohne sie kann
+   die Börse gar nicht mit Shopify reden. Keine Audit-Runde sah das: Alle Tests mocken `fetch`.
+   Genau dafür gibt es jetzt die **Generalprobe** (Schritt 0 unten).
 5. **Deployen** (nur manuell, Skill `tonherd-web-deploy` — `git push` deployt **nicht**).
 6. **QStash-Schedule anlegen** — es gibt KEINEN Vercel-Cron für den Tick (Hobby-Crons laufen nur 1×/Tag; deshalb steht in `vercel.json` auch keiner). Genau wie beim Ticket-System (`tonherd-tickets/docs/RUNBOOK.md`, Token im Schlüsselbund `tonherd-tickets-qstash-token`):
    ```bash
