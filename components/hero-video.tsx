@@ -5,15 +5,22 @@ import Image from "next/image";
 import Link from "next/link";
 import { Volume2, VolumeX } from "lucide-react";
 import { getMessages, type Locale } from "@/lib/i18n";
+import { usePrefersReducedMotion } from "@/lib/hooks/use-media-query";
 
 export function HeroVideo({ locale }: { locale: Locale }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const mobileVideoRef = useRef<HTMLVideoElement>(null);
   const [isMuted, setIsMuted] = useState(true);
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const prefersReducedMotion = usePrefersReducedMotion();
   const [loading, setLoading] = useState(true);
   const [revealHero, setRevealHero] = useState(false);
   const t = getMessages(locale);
+
+  // Reduced Motion braucht keinen Loader — abgeleitet statt per Effect gesetzt
+  // (setState im Effect löste eine zweite Render-Kaskade aus, Lint-Regel
+  // react-hooks/set-state-in-effect).
+  const showLoader = loading && !prefersReducedMotion;
+  const heroVisible = revealHero || prefersReducedMotion;
 
   // Ladescreen beenden
   const dismissLoader = useCallback(() => {
@@ -22,15 +29,6 @@ export function HeroVideo({ locale }: { locale: Locale }) {
     // Kurze Verzögerung damit der Fade-Out des Loaders fertig ist
     setTimeout(() => setRevealHero(true), 100);
   }, [loading]);
-
-  // Reduced Motion
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setPrefersReducedMotion(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
 
   // Video-Ready oder Timeout → Loader schließen
   useEffect(() => {
@@ -72,14 +70,6 @@ export function HeroVideo({ locale }: { locale: Locale }) {
     };
   }, [dismissLoader]);
 
-  // Reduced Motion → kein Loader nötig
-  useEffect(() => {
-    if (prefersReducedMotion) {
-      setLoading(false);
-      setRevealHero(true);
-    }
-  }, [prefersReducedMotion]);
-
   const toggleMute = () => {
     const newMuted = !isMuted;
     if (videoRef.current) videoRef.current.muted = newMuted;
@@ -92,7 +82,7 @@ export function HeroVideo({ locale }: { locale: Locale }) {
       {/* === LADESCREEN === */}
       <div
         className={`fixed inset-0 z-[100] bg-bg-base flex flex-col items-center justify-center transition-opacity duration-700 ${
-          loading ? "opacity-100" : "opacity-0 pointer-events-none"
+          showLoader ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
         {/* Terracotta Kreis — füllt sich */}
@@ -116,7 +106,7 @@ export function HeroVideo({ locale }: { locale: Locale }) {
             loop
             poster="/video-poster.jpg"
             className={`object-cover absolute inset-0 w-full h-full hidden md:block transition-opacity duration-1000 ${
-              revealHero ? "opacity-100" : "opacity-0"
+              heroVisible ? "opacity-100" : "opacity-0"
             }`}
           >
             <source src="/video.mp4" type="video/mp4" />
@@ -133,7 +123,7 @@ export function HeroVideo({ locale }: { locale: Locale }) {
             loop
             poster="/video-poster.jpg"
             className={`object-cover absolute inset-0 w-full h-full block md:hidden transition-opacity duration-1000 ${
-              revealHero ? "opacity-100" : "opacity-0"
+              heroVisible ? "opacity-100" : "opacity-0"
             }`}
           >
             <source src="/video-mobile.mp4" type="video/mp4" />
@@ -157,7 +147,7 @@ export function HeroVideo({ locale }: { locale: Locale }) {
         {/* Content-Layer — faded nach Loader ein */}
         <div
           className={`absolute inset-0 z-10 flex flex-col items-center justify-center transition-all duration-1000 delay-200 ${
-            revealHero
+            heroVisible
               ? "opacity-100 translate-y-0"
               : "opacity-0 translate-y-3"
           }`}
@@ -197,7 +187,7 @@ export function HeroVideo({ locale }: { locale: Locale }) {
         {/* Bottom Bar */}
         <div
           className={`absolute bottom-6 left-6 right-6 z-10 flex items-end justify-between transition-opacity duration-1000 delay-500 ${
-            revealHero ? "opacity-100" : "opacity-0"
+            heroVisible ? "opacity-100" : "opacity-0"
           }`}
         >
           <span className="text-sand-38 text-[9px] tracking-[2px]">

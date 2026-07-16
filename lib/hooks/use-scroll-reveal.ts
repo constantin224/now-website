@@ -1,6 +1,6 @@
 "use client";
 import { useRef } from "react";
-import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap";
+import { gsap, useGSAP } from "@/lib/gsap";
 
 interface ScrollRevealOptions {
   /** Vertikaler Offset in Pixel (Standard: 30) */

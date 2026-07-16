@@ -1,5 +1,25 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useSyncExternalStore } from "react";
+
+// useSyncExternalStore statt useState+useEffect: matchMedia IST ein externer
+// Store. So gibt es kein setState-im-Effect (Extra-Render nach der Hydration
+// entfällt), und die Subscribe-Funktionen sind modulweit stabil — sonst würde
+// React bei jedem Render neu abonnieren.
+
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+const DESKTOP = "(min-width: 768px)";
+
+function subscribeTo(query: string) {
+  return (onChange: () => void) => {
+    const mql = window.matchMedia(query);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  };
+}
+
+const subscribeReducedMotion = subscribeTo(REDUCED_MOTION);
+const subscribeDesktop = subscribeTo(DESKTOP);
+const serverSnapshot = () => false; // SSR: konservativ false (kein Desktop, keine Reduktion)
 
 /**
  * Prueft ob der User prefers-reduced-motion aktiviert hat.
@@ -7,18 +27,11 @@ import { useState, useEffect } from "react";
  * SSR-safe: gibt false zurueck auf dem Server.
  */
 export function usePrefersReducedMotion(): boolean {
-  const [prefersReduced, setPrefersReduced] = useState(false);
-
-  useEffect(() => {
-    const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setPrefersReduced(mql.matches);
-
-    const handler = (e: MediaQueryListEvent) => setPrefersReduced(e.matches);
-    mql.addEventListener("change", handler);
-    return () => mql.removeEventListener("change", handler);
-  }, []);
-
-  return prefersReduced;
+  return useSyncExternalStore(
+    subscribeReducedMotion,
+    () => window.matchMedia(REDUCED_MOTION).matches,
+    serverSnapshot
+  );
 }
 
 /**
@@ -26,22 +39,9 @@ export function usePrefersReducedMotion(): boolean {
  * SSR-safe: gibt false zurueck auf dem Server.
  */
 export function useIsDesktop(): boolean {
-  const [isDesktop, setIsDesktop] = useState(false);
-
-  useEffect(() => {
-    const check = () => {
-      setIsDesktop(
-        window.matchMedia("(min-width: 768px)").matches
-        && !("ontouchstart" in window)
-      );
-    };
-    check();
-
-    const mql = window.matchMedia("(min-width: 768px)");
-    const handler = () => check();
-    mql.addEventListener("change", handler);
-    return () => mql.removeEventListener("change", handler);
-  }, []);
-
-  return isDesktop;
+  return useSyncExternalStore(
+    subscribeDesktop,
+    () => window.matchMedia(DESKTOP).matches && !("ontouchstart" in window),
+    serverSnapshot
+  );
 }
