@@ -228,16 +228,21 @@ Der Mock simuliert mit der echten Engine drei Wochen Verlauf. **Er kann nichts k
 
 **Blockiert, bis die Evey-Ablösung steht.** Dann in dieser Reihenfolge:
 
-0. **Generalprobe gegen das ECHTE Shopify** — Script liegt fertig: `_scratch/boerse-generalprobe.ts`
-   (Workspace-Root). Legt ein Wegwerf-DRAFT-Produkt an, fährt den echten
-   readTicker/writeTicker-Zyklus (Token, Metafield-Anlage, parseState-Roundtrip, Preis-Write,
-   **CAS-Konflikt mit veraltetem compareDigest**, null-Digest-Grenzfall) und löscht es wieder.
-   Alle 119 Tests laufen gegen einen gefälschten Shopify — DIESE Naht war nie real erprobt.
+0. **Generalprobe gegen das ECHTE Shopify** — ✅ **BESTANDEN (16.07.2026, Constantin).**
+   Script: `scripts/boerse-generalprobe.ts` — legt ein Wegwerf-DRAFT-Produkt an, fährt den echten
+   readTicker/writeTicker-Zyklus und löscht es wieder. Real bestätigt:
+   Token-Flow · Metafield-Anlage (`compareDigest: null`) · parseState-Roundtrip über Shopifys
+   echte JSON-Rückgabe · Preis-Write + Update (22,00 → 22,40 €) · **CAS: veralteter
+   `compareDigest` → `STALE_OBJECT`, Zustand unberührt** (die Kern-Annahme des Systems) ·
+   **Bonus: `compareDigest: null` bei existierendem Metafield → ebenfalls Conflict** — der
+   Start-Pfad ist damit sogar gegen das Race "Webhook legt das Metafield zwischen Lesen und
+   Start-Write an" geschützt (war bisher nur eine Annahme).
+   Vor dem Go-Live gern noch einmal laufen lassen (Credentials ändern sich evtl.):
    ```bash
    cd ~/claude-projects/now-website && \
    SHOPIFY_ADMIN_CLIENT_ID=aec9c6c4f780fd9d0a082bd97e501392 \
    SHOPIFY_ADMIN_CLIENT_SECRET=$(security find-generic-password -a shopify -s tonherd-shopify-client-secret -w) \
-   npx -y tsx ../_scratch/boerse-generalprobe.ts
+   npx -y tsx scripts/boerse-generalprobe.ts
    ```
 1. **Evey-Attendee-CSV exportieren.** Nach dem Entfernen der App sind die Daten weg.
 2. **Ticket-System scharfschalten** (`/api/arm`). ☠️ Vorher **nicht** — der Cutoff würde das Produkt bei Türöffnung depublizieren und **Eveys Verkauf töten**.
