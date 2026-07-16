@@ -87,7 +87,7 @@ Das Ticket-System hat seine Webhooks **gesperrt** (`scripts/webhooks-setup.ts` b
 
 **Der Webhook der Börse lief in dieselbe Falle.** Er macht mehrere Shopify-Roundtrips hintereinander. Deshalb:
 
-- Der **Preis-Abgleich** (ein zusätzlicher Roundtrip) ist im Webhook-Pfad **abgeschaltet** (`writeTicker(..., mitAbgleich = false)`). Der stündliche Cron macht ihn.
+- Der **Preis-Abgleich** (ein zusätzlicher Roundtrip) ist im Webhook-Pfad **abgeschaltet** (`writeTicker(..., mitAbgleich = false)`). Der nächste Cron-Lauf (alle 5 Minuten) macht ihn.
 - **Im Ticket-Modus bucht der Webhook seit Runde 4 gar keine Verkäufe mehr** (kein Schreibvorgang, sofortige Antwort). Seine Bestands-Mathe konnte mehr als die bestätigte Bestellmenge übernehmen, und Cron + Webhook zählten dieselbe Bestellung vorübergehend doppelt. Der Ledger-Cron des Ticket-Systems (alle 5 min) macht den Preissprung nur unwesentlich später. Einzige verbleibende Webhook-Aufgabe im Ticket-Modus: **Testbestellungen neutralisieren** (`ignoredTickets`).
 - Im Bestands-Notpfad bucht er weiterhin (dort ist er die einzige dedup-geschützte Quelle).
 

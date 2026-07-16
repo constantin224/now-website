@@ -103,6 +103,15 @@ export async function GET(request: NextRequest) {
         console.warn("[ticker/tick] Zustand war veraltet — lese neu");
         continue;
       }
+      // Dritter Konflikt in Folge: aufgeben und ehrlich benennen. (Vorher
+      // fiel dieser Fall in den generischen Fehlerpfad — die eigens
+      // vorgesehene Meldung nach der Schleife war unerreichbar.)
+      if (err instanceof TickerConflictError) {
+        return NextResponse.json(
+          { status: "error", message: "Zustand blieb nach 3 Versuchen umkämpft" },
+          { status: manuell ? 500 : 200 }
+        );
+      }
       // Der Bestand ergibt keinen Sinn (Reset? Admin-Korrektur? Ausverkauf?).
       // Aus dem Bestand allein ist das nicht zu unterscheiden — also NICHTS
       // schreiben. Der Preis bleibt stehen, kein Verkauf geht verloren, und
@@ -148,6 +157,9 @@ async function runTick(
   rebaselineRequested: boolean,
   reconcileSprung: number | null
 ) {
+  // Menschlicher Hebel? Dann ehrliche HTTP-Codes statt Scheduler-200
+  // (siehe Antwort-Politik am GET-Handler).
+  const manuell = startRequested || rebaselineRequested || reconcileSprung !== null;
   const now = new Date();
   const { state, currentPriceEuro, currentInventory, inventoryTracked, compareDigest } =
     await readTicker();
@@ -157,6 +169,17 @@ async function runTick(
   const ticketZahl = ticketQuelleKonfiguriert() ? await ticketVerkaufszahl() : null;
 
   if (!state && !startRequested) {
+    // Hebel ohne Zustand: dem Operator ehrlich sagen, dass es nichts zu
+    // hebeln gibt — nicht mit not_started/200 abspeisen.
+    if (rebaselineRequested || reconcileSprung !== null) {
+      return NextResponse.json(
+        {
+          status: "hebel_ohne_zustand",
+          hint: "Die Börse läuft noch nicht — es gibt keinen Zustand, auf den rebaseline/reconcile wirken könnte.",
+        },
+        { status: 400 }
+      );
+    }
     return NextResponse.json({
       status: "not_started",
       hint: "Börse läuft noch nicht. Start mit ?start=1 — bis dahin bleibt der Shop-Preis unangetastet.",
@@ -214,7 +237,6 @@ async function runTick(
     : Boolean(ticketZahl);
 
   if (state?.quelle === "tickets" && !ticketQuelleKonfiguriert()) {
-    const manuell = startRequested || rebaselineRequested || reconcileSprung !== null;
     return NextResponse.json(
       {
         status: "error",
@@ -232,12 +254,17 @@ async function runTick(
   // würde jeden Tick als Totalverkauf lesen. Das gilt beim Start UND im Betrieb.
   // Läuft die Börse auf dem Ticket-System, ist uns der Bestand egal.
   if (!inventoryTracked && !aktiveQuelleIstTickets) {
-    return NextResponse.json({
-      status: "paused",
-      reason:
-        "Bestandsverfolgung ist deaktiviert und die Börse läuft auf der Bestands-Quelle. " +
-        "Ohne eine verlässliche Verkaufszahl bleibt der Preis stehen.",
-    });
+    return NextResponse.json(
+      {
+        status: "paused",
+        reason:
+          "Bestandsverfolgung ist deaktiviert und die Börse läuft auf der Bestands-Quelle. " +
+          "Ohne eine verlässliche Verkaufszahl bleibt der Preis stehen.",
+      },
+      // Für den Scheduler ist das ein ruhiger Dauerzustand (200, die Ampel
+      // meldet ihn) — ein Mensch mit Hebel soll aber sehen, dass er wirkungslos war.
+      { status: manuell ? 503 : 200 }
+    );
   }
 
   // ---- Die zwei menschlichen Hebel für Bestands-Anomalien (409) ----

@@ -770,6 +770,25 @@ describe("Audit-Runde 4b — ?reconcile=<sprünge>: echte Sprünge bestätigen (
     expect(await r.json()).toMatchObject({ status: "hebel_konflikt" });
     expect(shop.stateWrites).toBe(0);
   });
+
+  it("Hebel ohne Zustand → 400 statt not_started/200", async () => {
+    shop.state = null;
+    const r = await getTick("?rebaseline=1");
+    expect(r.status).toBe(400);
+    expect(await r.json()).toMatchObject({ status: "hebel_ohne_zustand" });
+  });
+
+  it("?start=1 bei deaktivierter Bestandsverfolgung → 503 für den Menschen", async () => {
+    vi.stubEnv("TICKETS_BASE_URL", "");
+    vi.stubEnv("TICKETS_MONITOR_SECRET", "");
+    shop.state = null;
+    shop.tracked = false;
+    shop.inventory = 0;
+    const r = await getTick("?start=1");
+    expect(r.status).toBe(503);
+    expect(await r.json()).toMatchObject({ status: "paused" });
+    expect(shop.stateWrites).toBe(0);
+  });
 });
 
 describe("Betriebsampel /api/ticker/status (für den externen Wächter)", () => {
@@ -797,21 +816,46 @@ describe("Betriebsampel /api/ticker/status (für den externen Wächter)", () => 
   });
 
   it("gesunder Betrieb → 200 mit Kennzahlen", async () => {
+    shop.state = { ...shop.state!, lastTickAt: new Date().toISOString() };
     const r = await getStatus();
     expect(r.status).toBe(200);
     expect(await r.json()).toMatchObject({ status: "ok", quelle: "bestand", soldCount: 0 });
   });
 
-  it("Cron steht (kein Tick seit >3 h) → 503", async () => {
+  it("Cron steht (kein Tick seit >30 min) → 503", async () => {
     shop.state = {
       ...shop.state!,
-      lastTickAt: new Date(Date.now() - 4 * 3_600_000).toISOString(),
+      lastTickAt: new Date(Date.now() - 45 * 60_000).toISOString(),
     };
     const r = await getStatus();
     expect(r.status).toBe(503);
     const j = await r.json();
     expect(j.status).toBe("rot");
     expect(j.probleme.join()).toMatch(/Cron steht/);
+  });
+
+  it("dauerhafte Preis-Divergenz → 503 (Herzschlag allein genügt nicht)", async () => {
+    // Der Tick schreibt den Zustand (Herzschlag frisch), aber der Preis-Write
+    // scheitert dauerhaft — Kunden sähen für immer den falschen Preis.
+    shop.state = { ...shop.state!, lastTickAt: new Date().toISOString() };
+    shop.variantPrice = 19.9; // Kurs sagt 22
+    const r = await getStatus();
+    expect(r.status).toBe(503);
+    expect((await r.json()).probleme.join()).toMatch(/Preis-Divergenz/);
+  });
+
+  it("Ticket-Modus: Quelle konfiguriert, aber tot → 503 (Börse driftet sonst still)", async () => {
+    vi.stubEnv("TICKETS_BASE_URL", "https://tickets.test");
+    vi.stubEnv("TICKETS_MONITOR_SECRET", "mon-geheim");
+    tickets = { scharf: true, tot: true };
+    shop.state = {
+      ...shop.state!,
+      quelle: "tickets",
+      lastTickAt: new Date().toISOString(),
+    };
+    const r = await getStatus();
+    expect(r.status).toBe(503);
+    expect((await r.json()).probleme.join()).toMatch(/keine Zahl/);
   });
 
   it("wartende Bestands-Anomalie → 503 (und die Route schreibt dabei NICHTS)", async () => {

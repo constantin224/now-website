@@ -1,6 +1,6 @@
 # Ticket-Börse — Handoff
 
-**Stand: 2026-07-16** · alles auf `main` · **105/105 Tests grün** · Build + tsc sauber
+**Stand: 2026-07-16** · alles auf `main` · **119/119 Tests grün** · Build + tsc + Lint sauber
 **Die Börse LÄUFT NICHT.** Der Ticketpreis steht unverändert auf 22,00 €.
 *(Lint meldet 3 Fehler in `hero-video.tsx`/`use-media-query.ts` — Alt-Bestand, nichts mit der Börse zu tun.)*
 
@@ -29,7 +29,7 @@ Die Seite `/de/tickets` + `/en/tickets` zeigt den Kurs, den Chart und die Parodi
 | | |
 |---|---|
 | Code | `main` |
-| Tests | 105/105 (Engine + Routen gegen einen gefälschten Shopify-Server) |
+| Tests | 119/119 (Engine + Routen gegen einen gefälschten Shopify-Server) · Naht real verifiziert: Generalprobe 16.07. BESTANDEN (siehe Go-Live Schritt 0) |
 | In Shopify | **kein** `ticker.state`-Metafield, Preis unverändert **22,00 €** |
 | Läuft | **nein** — und auch nach einem Deploy passiert nichts, bis jemand `?start=1` auslöst **und** `TICKER_ENABLED=1` gesetzt ist |
 | Wartet auf | die Evey-Ablösung durch das eigene Ticket-System (`project_tonherd_tickets`) |
@@ -125,7 +125,7 @@ Außerdem: Uhr-Rücksprung driftete doppelt; `driftMultiplier` konnte unter sein
 18. **Eine absurde Ticket-Zahl konnte einen unlesbaren Zustand schreiben.** `gueltigeTickets: 10001` (oder `1e20`) passierte den `isInteger`-Check, wurde als `soldCount` geschrieben — und `parseState` lehnte den **selbst geschriebenen** Zustand beim nächsten Lesen ab (Grenze 10.000): Börse eingefroren bis zur Metafield-Handreparatur. → `isSafeInteger` + Obergrenze `MAX_SOLD_ABS` (geteilt zwischen Lesen und Schreiben); zusätzlich hält `applyInventory` an, bevor es einen nicht-repräsentierbaren `totalSold` schreibt.
 19. **Aufstockung wurde als Massen-Storno verbucht.** Die Klemme prüfte nur die Verkaufs-Richtung: +50 Bestand bei ≥50 Verkäufen = 50 „Refunds", Kurssturz — der Code-Kommentar behauptete das Gegenteil. → Klemme gilt jetzt in **beide** Richtungen (`|newSales| > erlaubt`); kleine Bewegungen nach oben bleiben Stornos (von einem Storno mit Rückbuchung nicht unterscheidbar).
 20. **Unlesbares `doorsUtc` schaltete den Türöffnungs-Stopp still ab.** `now >= NaN` ist immer `false` — und weil der Wert nicht `null` war, griff auch der `gigDateIso`-Fallback nicht. `scharf: "false"` (String) galt als scharf. → Antwort wird **strikt** validiert; Müll macht die ganze Antwort unbrauchbar (= nur-drift).
-21. **Der Webhook unterlief im Ticket-Modus die kanonische Quelle.** Er buchte weiter über die Bestands-Mathe: konnte mehr als die bestätigte Bestellmenge übernehmen, und Cron + Webhook zählten dieselbe Bestellung vorübergehend doppelt (Fake-Refund-Zacken im Chart). → Im Ticket-Modus bucht der Webhook **keine Verkäufe** mehr; Testbestellungen werden weiterhin neutralisiert — in **beiden** Modi, denn das Ticket-System zählt sie im Berechtigungs-Set mit. ⚠️ **Bewusster Trade-off:** Der Preissprung kommt damit erst mit dem nächsten **Börsen-Cron = stündlich** — ein Kauf um 12:01 hebt den Kurs schlimmstenfalls erst um 13:00. Für die Parodie egal; wer es schneller will: Cron in `vercel.json` auf `*/5`.
+21. **Der Webhook unterlief im Ticket-Modus die kanonische Quelle.** Er buchte weiter über die Bestands-Mathe: konnte mehr als die bestätigte Bestellmenge übernehmen, und Cron + Webhook zählten dieselbe Bestellung vorübergehend doppelt (Fake-Refund-Zacken im Chart). → Im Ticket-Modus bucht der Webhook **keine Verkäufe** mehr; Testbestellungen werden weiterhin neutralisiert — in **beiden** Modi, denn das Ticket-System zählt sie im Berechtigungs-Set mit. ⚠️ **Bewusster Trade-off:** Der Preissprung kommt damit erst mit dem nächsten **Börsen-Cron (QStash, alle 5 Minuten)** — schlimmstenfalls ~10 Minuten nach dem Kauf (Ledger-Cron 5 min + Börsen-Tick 5 min). Für die Parodie egal.
 22. **`getAccessToken` war der einzige Fetch ohne Timeout.** Ein hängender OAuth-Endpunkt → Plattform-Timeout ohne Logzeile, beim Webhook Retry-/Abo-Lösch-Risiko. → `AbortSignal.timeout` + Antwort-Validierung vor dem Cachen.
 23. **Ein `lastTickAt` in der Zukunft deaktivierte den Drift für immer.** `parseState` akzeptierte jedes gültige Datum; `applyDrift` las die negative Zeit dauerhaft als Uhr-Rücksprung. → `parseState(raw, now)` weist Anker >24 h in der Zukunft ab.
 
@@ -169,7 +169,7 @@ Im Bestands-Notpfad bewusst geblieben (Restrisiko): Zählt der Cron einen Verkau
 
 Ehrlichkeit statt Sicherheitsversprechen — das hier ist **nicht** gelöst, sondern abgewogen:
 
-1. **Der Preis hat kein Compare-and-Swap.** Shopify bietet keins. Zwei Schreiber im selben Millisekunden-Fenster können theoretisch einen veralteten Preis hinterlassen. Der Abgleich nach dem Schreiben macht das Fenster sehr klein, der stündliche Cron zieht jede Abweichung nach. Maximaler Schaden: wenige Cent, unter einer Stunde. Die saubere Lösung (ein serialisierter Schreiber mit dauerhafter Queue) wäre Ticketmaster-Architektur für 250 Tickets.
+1. **Der Preis hat kein Compare-and-Swap.** Shopify bietet keins. Zwei Schreiber im selben Millisekunden-Fenster können theoretisch einen veralteten Preis hinterlassen. Der Abgleich nach dem Schreiben macht das Fenster sehr klein, der 5-Minuten-Cron zieht jede Abweichung nach. Maximaler Schaden: wenige Cent, wenige Minuten. Die saubere Lösung (ein serialisierter Schreiber mit dauerhafter Queue) wäre Ticketmaster-Architektur für 250 Tickets.
 2. **Ein echter Ausverkauf über 40 Tickets ohne einen einzigen Webhook** würde ebenfalls anhalten (409) und müsste von Hand aufgelöst werden. Die Alternative (raten) hat in beiden Richtungen Schaden angerichtet.
 3. ~~Kein Monitoring.~~ **Erledigt (16.07.):** Betriebsampel `/api/ticker/status` + Anschluss an den bestehenden Apps-Script-Wächter des Ticket-Systems (mailt bei Zustandswechsel an system@tonherd.com). Aktivierung = Go-Live-Schritt (Env `MONITOR_SECRET` + Script-Property, siehe unten).
 4. **Bewusst NICHT gebaut:** durable Queue, einzelner Writer-Prozess, Order-Ledger, Umbau auf `orders/paid`.

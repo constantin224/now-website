@@ -18,7 +18,9 @@ export function HeroVideo({ locale }: { locale: Locale }) {
 
   // Reduced Motion braucht keinen Loader — abgeleitet statt per Effect gesetzt
   // (setState im Effect löste eine zweite Render-Kaskade aus, Lint-Regel
-  // react-hooks/set-state-in-effect).
+  // react-hooks/set-state-in-effect). Bewusst OHNE Latch: Wer Reduced Motion
+  // innerhalb der 4,5-s-Ladephase ein- und wieder ausschaltet, sieht den Loader
+  // kurz erneut — akzeptierter Randfall, der Timeout räumt ihn ohnehin ab.
   const showLoader = loading && !prefersReducedMotion;
   const heroVisible = revealHero || prefersReducedMotion;
 

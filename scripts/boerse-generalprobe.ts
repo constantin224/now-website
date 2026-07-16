@@ -24,7 +24,6 @@
 import { TICKER_CONFIG } from "../lib/ticker/config";
 import {
   initState,
-  parseState,
   priceOf,
   shopPrice,
   type TickerState,
@@ -81,36 +80,41 @@ async function main() {
   if (process.env.TICKER_MOCK === "1") throw new Error("TICKER_MOCK ist gesetzt — abbrechen");
 
   // ---- Testprodukt anlegen (DRAFT — taucht nie im Shop auf) ----
-  const created = await adminRaw<{
-    productCreate: {
-      product: { id: string; variants: { nodes: { id: string; price: string }[] } } | null;
-      userErrors: { message: string }[];
-    };
-  }>(
-    `mutation Probe($product: ProductCreateInput!) {
-      productCreate(product: $product) {
-        product { id variants(first: 1) { nodes { id price } } }
-        userErrors { message }
-      }
-    }`,
-    { product: { title: "ZZZ Ticker-Generalprobe — bitte löschen", status: "DRAFT" } }
-  );
-  if (created.productCreate.userErrors.length || !created.productCreate.product) {
-    throw new Error(`productCreate: ${JSON.stringify(created.productCreate.userErrors)}`);
-  }
-  const productGid = created.productCreate.product.id;
-  const variantGid = created.productCreate.product.variants.nodes[0].id;
-  if (productGid.includes(ECHTES_GIG_PRODUKT) || variantGid.includes(ECHTES_GIG_PRODUKT)) {
-    throw new Error("GUARD: echtes Gig-Produkt — niemals!");
-  }
-  console.log(`Testprodukt angelegt: ${productGid} (DRAFT)`);
-
-  // TICKER_CONFIG zur Laufzeit auf das Testprodukt biegen — damit laufen
-  // readTicker/writeTicker EXAKT im Produktions-Codepfad, nur gegen das Wegwerf-Ziel.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Object.assign(TICKER_CONFIG as any, { productGid, variantGid });
+  // productGid VOR dem try deklariert: Auch wenn zwischen Anlage und dem
+  // inneren Ablauf etwas wirft (Guard, fehlende Variante, Config-Umbiegen),
+  // greift das finally und räumt das bereits angelegte Produkt weg.
+  let productGid: string | null = null;
 
   try {
+    const created = await adminRaw<{
+      productCreate: {
+        product: { id: string; variants: { nodes: { id: string; price: string }[] } } | null;
+        userErrors: { message: string }[];
+      };
+    }>(
+      `mutation Probe($product: ProductCreateInput!) {
+        productCreate(product: $product) {
+          product { id variants(first: 1) { nodes { id price } } }
+          userErrors { message }
+        }
+      }`,
+      { product: { title: "ZZZ Ticker-Generalprobe — bitte löschen", status: "DRAFT" } }
+    );
+    if (created.productCreate.userErrors.length || !created.productCreate.product) {
+      throw new Error(`productCreate: ${JSON.stringify(created.productCreate.userErrors)}`);
+    }
+    productGid = created.productCreate.product.id;
+    const variantGid = created.productCreate.product.variants.nodes[0]?.id;
+    if (!variantGid) throw new Error("Testprodukt hat keine Default-Variante");
+    if (productGid.includes(ECHTES_GIG_PRODUKT) || variantGid.includes(ECHTES_GIG_PRODUKT)) {
+      throw new Error("GUARD: echtes Gig-Produkt — niemals!");
+    }
+    console.log(`Testprodukt angelegt: ${productGid} (DRAFT)`);
+
+    // TICKER_CONFIG zur Laufzeit auf das Testprodukt biegen — damit laufen
+    // readTicker/writeTicker EXAKT im Produktions-Codepfad, nur gegen das Wegwerf-Ziel.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    Object.assign(TICKER_CONFIG as any, { productGid, variantGid });
     // ---- 1+2: Erst-Lesen + Metafield-Anlage über den echten Pfad ----
     const leer = await readTicker();
     if (leer.state !== null) fail("Erst-Lesen", "state sollte null sein");
@@ -172,18 +176,20 @@ async function main() {
     console.log(`ℹ️  compareDigest=null bei existierendem Metafield → ${nullVerhalten}`);
     ergebnisse.push(`ℹ️ null-Digest-Verhalten: ${nullVerhalten}`);
   } finally {
-    // ---- Aufräumen: Testprodukt löschen ----
-    const del = await adminRaw<{ productDelete: { deletedProductId: string | null; userErrors: { message: string }[] } }>(
-      `mutation Weg($input: ProductDeleteInput!) {
-        productDelete(input: $input) { deletedProductId userErrors { message } }
-      }`,
-      { input: { id: productGid } }
-    );
-    console.log(
-      del.productDelete.deletedProductId
-        ? `🧹 Testprodukt gelöscht (${del.productDelete.deletedProductId})`
-        : `⚠️ Löschen fehlgeschlagen: ${JSON.stringify(del.productDelete.userErrors)} — von Hand löschen: ${productGid}`
-    );
+    // ---- Aufräumen: Testprodukt löschen (nur wenn es angelegt wurde) ----
+    if (productGid) {
+      const del = await adminRaw<{ productDelete: { deletedProductId: string | null; userErrors: { message: string }[] } }>(
+        `mutation Weg($input: ProductDeleteInput!) {
+          productDelete(input: $input) { deletedProductId userErrors { message } }
+        }`,
+        { input: { id: productGid } }
+      );
+      console.log(
+        del.productDelete.deletedProductId
+          ? `🧹 Testprodukt gelöscht (${del.productDelete.deletedProductId})`
+          : `⚠️ Löschen fehlgeschlagen: ${JSON.stringify(del.productDelete.userErrors)} — von Hand löschen: ${productGid}`
+      );
+    }
   }
 
   console.log("\n=== GENERALPROBE ===");
