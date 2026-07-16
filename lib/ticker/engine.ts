@@ -2,6 +2,31 @@ import { TICKER_CONFIG as C } from "./config";
 
 export type TickerEvent = "init" | "sale" | "drift" | "refund" | "rebaseline";
 
+/**
+ * Woher die Verkaufszahl dieser Börse stammt — beim Start EINGEFROREN.
+ *
+ * "tickets"  = Bestell-Ledger des Ticket-Systems (tonherd-tickets)
+ * "bestand"  = Shopifys inventoryQuantity (Notpfad, mit allen Klemmen)
+ *
+ * Die Quelle steht im Zustand, nicht in den Env-Variablen: Ein nachträglich
+ * gesetztes (oder entferntes) TICKETS_BASE_URL darf die Wahrheitsquelle NICHT
+ * still wechseln. Beim Wechsel bestand→tickets würden alle Alt-Tickets als
+ * frische Verkäufe gelesen (Kurs an den Deckel); beim Wechsel tickets→bestand
+ * übernähme ein womöglich längst divergenter Bestand (Storno ohne Rückbuchung
+ * senkt ihn nie). Wechsel nur explizit: Börse neu starten.
+ */
+export type VerkaufsQuelle = "tickets" | "bestand";
+
+/**
+ * Obergrenze für |soldCount| bzw. |totalSold| — geteilt zwischen parseState
+ * (liest) und applyInventory (schreibt). Wären die beiden Grenzen verschieden,
+ * könnte die Engine einen Zustand erzeugen, den ihr eigenes parseState beim
+ * nächsten Lesen ablehnt — die Börse fröre an ihrer eigenen Prüfung ein.
+ * (1,01^n läuft ab n ≈ 71.333 zu Infinity über; 10.000 liegt sicher darunter
+ * und ist für einen Klub mit 250 Plätzen absurd hoch.)
+ */
+export const MAX_SOLD_ABS = 10_000;
+
 export interface HistoryPoint {
   t: string; // ISO-Zeitstempel
   price: number; // interner Kurs (gerundet auf 4 Stellen)
@@ -30,7 +55,17 @@ export interface TickerState {
    * sofort hochreißen — bestraft würde also, wer FRÜH gekauft hat. Genau verkehrt herum.
    */
   startTickets: number;
-  soldCount: number; // verkaufte Tickets seit Börsenstart
+  /** Woher die Verkaufszahl stammt — beim Start eingefroren, nie still gewechselt. */
+  quelle: VerkaufsQuelle;
+  /**
+   * Verkaufte Tickets seit Börsenstart. DARF NEGATIV WERDEN: Storniert ein
+   * Alt-Käufer (Ticket von VOR dem Börsenstart), fällt die gültige Ticketzahl
+   * unter die Baseline — der Kurs sinkt dann unter den Startpreis. Das ist
+   * gewollt (weniger verkaufte Tickets = niedrigerer Kurs) und symmetrisch:
+   * Der nächste Verkauf hebt ihn exakt wieder an. Früher warf dieser Fall eine
+   * Anomalie und fror die Börse dauerhaft ein (409 bei jedem Cron-Lauf).
+   */
+  soldCount: number;
   ignoredTickets: number; // Tickets aus Testbestellungen — bewegen den Kurs nicht
   driftMultiplier: number; // kumulierter Flaute-Faktor (startet bei 1)
   lastSaleAt: string; // ISO — nur Information
@@ -73,6 +108,12 @@ const MIN_DRIFT = 1e-6;
 
 const clamp = (p: number) => Math.min(C.capEuro, Math.max(C.floorEuro, p));
 
+function parseQuelle(v: unknown): VerkaufsQuelle {
+  if (v === undefined) return "bestand"; // Alt-Zustand von vor Runde 4
+  if (v === "tickets" || v === "bestand") return v;
+  throw new Error(`Börsen-Zustand: 'quelle' ist ungültig (${String(v)})`);
+}
+
 // History-Preise auf 4 Nachkommastellen kürzen. Ungerundet schreibt JSON
 // "22.220000000000002" — 18 Zeichen statt 7. Über hunderte Punkte entscheidet
 // das darüber, ob der Zustand ins Metafield passt.
@@ -111,7 +152,9 @@ export function initState(
   currentInventory: number,
   now: Date,
   /** Bereits verkaufte Tickets beim Start (aus dem Ticket-System). 0 im Bestands-Notpfad. */
-  startTickets = 0
+  startTickets = 0,
+  /** Wahrheitsquelle dieser Börse — wird eingefroren, nie still gewechselt. */
+  quelle: VerkaufsQuelle = "bestand"
 ): TickerState {
   const t = now.toISOString();
   const price = clamp(startPriceEuro);
@@ -119,6 +162,7 @@ export function initState(
     startPrice: price,
     startInventory: currentInventory,
     startTickets,
+    quelle,
     soldCount: 0,
     ignoredTickets: 0,
     driftMultiplier: 1,
@@ -139,7 +183,16 @@ export function initState(
  * Ausnahme, kein Schreibvorgang. Die Börse steht dann still, statt Unsinn zu
  * verkaufen.
  */
-export function parseState(raw: string): TickerState {
+export function parseState(
+  raw: string,
+  /**
+   * Wenn übergeben, wird `lastTickAt` gegen die Gegenwart geprüft (mit 24 h
+   * Toleranz für Uhr-Schieflagen). Ein von Hand verbogener Anker in der fernen
+   * Zukunft (Tippfehler "2626") würde sonst still JEDEN Drift deaktivieren —
+   * applyDrift läse dauerhaft eine rückwärts laufende Uhr.
+   */
+  now?: Date
+): TickerState {
   let o: unknown;
   try {
     o = JSON.parse(raw);
@@ -202,24 +255,38 @@ export function parseState(raw: string): TickerState {
     return { t: h.t, price: h.price, event: h.event as TickerEvent, ...(qty ? { qty } : {}) };
   });
 
+  const lastTickAt = iso("lastTickAt");
+  // Anker in der fernen Zukunft = verbogener Zustand, kein Uhr-Randfall.
+  // 24 h Toleranz deckt jede reale Uhr-Schieflage (NTP, Zeitzonen-Verwirrung).
+  if (now && new Date(lastTickAt).getTime() > now.getTime() + 24 * 3_600_000) {
+    throw new Error(
+      `Börsen-Zustand: 'lastTickAt' liegt in der Zukunft (${lastTickAt}) — der Drift wäre dauerhaft aus`
+    );
+  }
+
   return {
     startPrice: num("startPrice", 0.01, 10_000),
     // Bestände und Verkaufszahlen sind ganze Zahlen. Bruchteile sind entweder
     // ein Fehler oder ein Manipulationsversuch.
     startInventory: num("startInventory", -1_000_000, 1_000_000, true),
-    // Obergrenze: `1,01^n` läuft ab n ≈ 71.333 zu Infinity über. 10.000 liegt
-    // sicher darunter und ist für einen Klub mit 250 Plätzen immer noch absurd
-    // hoch — die Engine selbst kann diesen Wert nie erzeugen.
-    soldCount: num("soldCount", 0, 10_000, true),
+    // Untergrenze negativ: Alt-Storno unter die Baseline ist ein legitimer
+    // Zustand (siehe TickerState.soldCount). Obergrenze siehe MAX_SOLD_ABS.
+    soldCount: num("soldCount", -MAX_SOLD_ABS, MAX_SOLD_ABS, true),
     startTickets:
-      s.startTickets === undefined ? 0 : num("startTickets", 0, 10_000, true),
+      s.startTickets === undefined ? 0 : num("startTickets", 0, MAX_SOLD_ABS, true),
+    // Fehlendes Feld = Zustand von VOR Runde 4 — die Börse ist bis dahin nie
+    // gestartet worden, ein solcher Zustand kann also nur bestandsbasiert sein.
+    // Ein VORHANDENES, aber ungültiges Feld (Tippfehler im Admin: "ticket",
+    // null, …) wird dagegen ABGEWIESEN: Still auf "bestand" zu fallen wäre
+    // exakt der stille Quellenwechsel, den das Feld verhindern soll.
+    quelle: parseQuelle(s.quelle),
     ignoredTickets:
-      s.ignoredTickets === undefined ? 0 : num("ignoredTickets", 0, 10_000, true),
+      s.ignoredTickets === undefined ? 0 : num("ignoredTickets", 0, MAX_SOLD_ABS, true),
     // Der Faktor kann nur fallen (Flaute), nie über 1 steigen. Untergrenze =
     // MIN_DRIFT, damit der eigene Drift den Zustand nicht ungültig macht.
     driftMultiplier: num("driftMultiplier", MIN_DRIFT, 1),
     lastSaleAt: iso("lastSaleAt"),
-    lastTickAt: iso("lastTickAt"),
+    lastTickAt,
     // Bestell-IDs: nur Ziffernfolgen vernünftiger Länge, Anzahl begrenzt. Sonst
     // könnte ein manipuliertes Metafield den Zustand über das Shopify-Limit
     // treiben und die Börse einfrieren.
@@ -399,16 +466,28 @@ function applyInventory(
   if (newSales === 0) return state;
 
   // ---- Unplausible Bestands-Sprünge: NICHT als Verkäufe werten ----
-  // Bleibt ein Sturz auch nach der zeitskalierten Grenze noch absurd, stammt er
-  // nicht von Käufen, sondern von einer Admin-Korrektur, einem Evey-Sync oder
-  // deaktiviertem Bestands-Tracking (liefert 0!). Ebenso jede Aufstockung. In
-  // beiden Fällen wandert die Baseline mit: soldCount und Preis bleiben stehen.
+  // Die Klemme gilt in BEIDE Richtungen. Ein absurder Sturz stammt nicht von
+  // Käufen, sondern von einer Admin-Korrektur, einem Evey-Sync oder
+  // deaktiviertem Bestands-Tracking (liefert 0!) — und eine absurde
+  // AUFSTOCKUNG ist keine Massen-Rückbuchung, sondern ein nachgelegtes
+  // Kontingent. (Früher prüfte der Code nur die Verkaufs-Richtung: +50 Bestand
+  // bei 60 Verkäufen wurde als 50 Stornos verbucht und stürzte den Kurs.)
+  // Kleine Bewegungen nach oben bleiben erlaubt — ein Storno MIT Rückbuchung
+  // sieht genau so aus, und die beiden sind aus dem Bestand nicht zu
+  // unterscheiden.
+  //
   // Die Grenze ist das Großzügigere aus: was die verstrichene Zeit hergibt, und
-  // was ein signierter Webhook ausdrücklich bestätigt hat. Eine 6er-Bestellung
-  // zählt damit voll — ein Bestandssturz von 250 auf 0 aber NICHT, bloß weil
+  // was die vertrauenswürdige Quelle ausdrücklich bestätigt hat (signierter
+  // Webhook bzw. Bestell-Ledger des Ticket-Systems). Eine 6er-Bestellung zählt
+  // damit voll — ein Bestandssturz von 250 auf 0 aber NICHT, bloß weil
   // zufällig gleichzeitig eine Bestellung eintraf.
+  //
+  // Die MAX_SOLD_ABS-Schranke ist die Repräsentierbarkeits-Grenze: Was darüber
+  // liegt, würde parseState beim NÄCHSTEN Lesen ablehnen — die Börse schriebe
+  // einen Zustand, den sie selbst nicht mehr lesen kann, und fröre ein.
   const erlaubt = Math.max(erlaubteVerkaeufe(stundenSeitTick), trustedSales);
-  const implausible = newSales > erlaubt || totalSold < 0;
+  const implausible =
+    Math.abs(newSales) > erlaubt || Math.abs(totalSold) > MAX_SOLD_ABS;
 
   if (implausible) {
     // FRÜHER wurde hier still die Baseline nachgezogen. Das war in beide

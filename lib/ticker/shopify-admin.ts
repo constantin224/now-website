@@ -39,14 +39,28 @@ async function getAccessToken(): Promise<string> {
       client_id: process.env.SHOPIFY_ADMIN_CLIENT_ID,
       client_secret: process.env.SHOPIFY_ADMIN_CLIENT_SECRET,
     }),
+    // Derselbe Timeout wie bei den GraphQL-Calls — das hier war der EINZIGE
+    // Fetch ohne. Ein hängender Token-Endpunkt hätte die Route ins Plattform-
+    // Timeout laufen lassen (keine Logzeile) und beim Webhook Shopifys
+    // Retry-/Abo-Lösch-Mechanik getriggert.
+    signal: AbortSignal.timeout(SHOPIFY_TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`Shopify-Token fehlgeschlagen: ${res.status}`);
   const json = (await res.json()) as {
-    access_token: string;
-    expires_in?: number;
+    access_token?: unknown;
+    expires_in?: unknown;
   };
+  // Nicht ungeprüft cachen: Ein leerer/fehlender Token würde sonst 24 h lang
+  // jeden Request mit 401 quittieren, ohne dass der Cache je geleert wird.
+  if (typeof json.access_token !== "string" || !json.access_token) {
+    throw new Error("Shopify-Token-Antwort ohne access_token");
+  }
+  const expiresIn =
+    typeof json.expires_in === "number" && json.expires_in > 300
+      ? json.expires_in
+      : null;
   // Ablauf aus der Antwort übernehmen (mit 5 min Sicherheitsabzug)
-  const ttlMs = (json.expires_in ? json.expires_in - 300 : 23 * 3600) * 1000;
+  const ttlMs = (expiresIn ? expiresIn - 300 : 23 * 3600) * 1000;
   cachedToken = { token: json.access_token, expiresAt: Date.now() + ttlMs };
   return json.access_token;
 }
@@ -129,8 +143,9 @@ export async function readTicker(): Promise<TickerRead> {
   const mf = data.product?.metafield ?? null;
   return {
     // parseState statt JSON.parse: Ein von Hand im Admin verbogener Zustand
-    // darf nicht durch die Preis-Mathematik propagieren.
-    state: mf ? parseState(mf.value) : null,
+    // darf nicht durch die Preis-Mathematik propagieren. Mit `now`, damit auch
+    // ein Drift-Anker in der fernen Zukunft abgewiesen wird (Drift wäre still aus).
+    state: mf ? parseState(mf.value, new Date()) : null,
     currentPriceEuro: parseFloat(data.productVariant.price),
     currentInventory: data.productVariant.inventoryQuantity,
     inventoryTracked: data.productVariant.inventoryItem?.tracked ?? false,

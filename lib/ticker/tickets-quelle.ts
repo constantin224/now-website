@@ -1,4 +1,5 @@
 import { TICKER_CONFIG as C } from "./config";
+import { MAX_SOLD_ABS } from "./engine";
 
 /**
  * Die Verkaufszahl aus dem Ticket-System (Repo `tonherd-tickets`) holen.
@@ -49,20 +50,50 @@ export async function ticketVerkaufszahl(): Promise<TicketZahl | null> {
       return null;
     }
     const j = (await res.json()) as {
-      scharf?: boolean;
-      gueltigeTickets?: number;
-      doorsUtc?: string | null;
+      scharf?: unknown;
+      gueltigeTickets?: unknown;
+      doorsUtc?: unknown;
     };
-    // Nicht scharfgeschaltet → es GIBT dort keine Wahrheit. Nicht raten.
-    if (!j.scharf) return null;
-    if (!Number.isInteger(j.gueltigeTickets) || (j.gueltigeTickets as number) < 0) {
+    // Die Antwort wird STRIKT geprüft — eine halb brauchbare Antwort ist
+    // gefährlicher als gar keine (der Aufrufer driftet dann nur, das ist sicher):
+    //
+    // scharf: exakt `true`. Ein "false" als STRING wäre truthy und ließe ein
+    // nicht scharfes Event als Wahrheitsquelle durchgehen.
+    if (j.scharf !== true) return null;
+    // gueltigeTickets: sichere ganze Zahl in den Grenzen, die auch parseState
+    // akzeptiert. 10001 (oder 1e20) würde sonst als soldCount geschrieben —
+    // und parseState lehnte den selbst geschriebenen Zustand beim nächsten
+    // Lesen ab: Börse eingefroren bis zur Metafield-Handreparatur.
+    if (
+      !Number.isSafeInteger(j.gueltigeTickets) ||
+      (j.gueltigeTickets as number) < 0 ||
+      (j.gueltigeTickets as number) > MAX_SOLD_ABS
+    ) {
       console.warn("[ticker] Ticket-System lieferte keine brauchbare Zahl");
       return null;
     }
-    return {
-      gueltigeTickets: j.gueltigeTickets as number,
-      doorsUtc: j.doorsUtc ?? null,
-    };
+    // doorsUtc: null oder ein Zeitpunkt in RFC-3339 MIT explizitem Z/Offset.
+    // Ein kaputter String ergäbe beim Türöffnungs-Check `now >= NaN` = immer
+    // false — der Stopp wäre STILL aus, und weil der Wert nicht null ist,
+    // griffe auch der Config-Fallback nicht. Ein Zeitpunkt OHNE Zeitzone würde
+    // in der Server-Zeitzone interpretiert — der Abschaltmoment hinge dann von
+    // der Deploy-Umgebung ab. Wer hier Müll liefert, dessen ganzer Antwort
+    // trauen wir nicht.
+    const RFC3339 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
+    let doorsUtc: string | null = null;
+    if (j.doorsUtc !== null && j.doorsUtc !== undefined) {
+      if (
+        typeof j.doorsUtc !== "string" ||
+        j.doorsUtc.length > 40 ||
+        !RFC3339.test(j.doorsUtc) ||
+        Number.isNaN(new Date(j.doorsUtc).getTime())
+      ) {
+        console.warn("[ticker] Ticket-System lieferte ein unlesbares doorsUtc");
+        return null;
+      }
+      doorsUtc = j.doorsUtc;
+    }
+    return { gueltigeTickets: j.gueltigeTickets as number, doorsUtc };
   } catch (err) {
     console.warn("[ticker] Ticket-System nicht erreichbar:", (err as Error).message);
     return null;

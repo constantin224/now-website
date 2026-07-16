@@ -1,7 +1,8 @@
 # Ticket-Börse — Handoff
 
-**Stand: 2026-07-15** · alles auf `main` · **84/84 Tests grün** · Build + tsc + Lint sauber
+**Stand: 2026-07-16** · alles auf `main` · **105/105 Tests grün** · Build + tsc sauber
 **Die Börse LÄUFT NICHT.** Der Ticketpreis steht unverändert auf 22,00 €.
+*(Lint meldet 3 Fehler in `hero-video.tsx`/`use-media-query.ts` — Alt-Bestand, nichts mit der Börse zu tun.)*
 
 > ## Für den nächsten Chat: DAS HIER ZUERST
 >
@@ -27,8 +28,8 @@ Die Seite `/de/tickets` + `/en/tickets` zeigt den Kurs, den Chart und die Parodi
 
 | | |
 |---|---|
-| Code | `main`, letzter Commit `e74c9b2` |
-| Tests | 84/84 (Engine + Routen gegen einen gefälschten Shopify-Server) |
+| Code | `main` |
+| Tests | 105/105 (Engine + Routen gegen einen gefälschten Shopify-Server) |
 | In Shopify | **kein** `ticker.state`-Metafield, Preis unverändert **22,00 €** |
 | Läuft | **nein** — und auch nach einem Deploy passiert nichts, bis jemand `?start=1` auslöst **und** `TICKER_ENABLED=1` gesetzt ist |
 | Wartet auf | die Evey-Ablösung durch das eigene Ticket-System (`project_tonherd_tickets`) |
@@ -114,6 +115,29 @@ Drei Audit-Runden (Codex `gpt-5.6-sol` + `gpt-5.5`, adversarial). **In Runde 3 s
 
 Außerdem: Uhr-Rücksprung driftete doppelt; `driftMultiplier` konnte unter seine eigene Validierungsgrenze fallen und die Börse **einfrieren** (`MIN_DRIFT`); der Byte-Guard maß nur die History statt des ganzen Zustands (`prepareForWrite`); Verkäufe am Deckel erzeugten keinen History-Punkt (Seite meldete „heute 0 verkauft"); der Hero klemmte den Live-Preis an den Deckel und versprach damit einen Preis, den der Checkout nicht hält.
 
+### Runde 4 — die Kopplungs-Schicht (16.07., Fable + Codex-Gegencheck)
+
+*Alle neun Befunde saßen in der Ticket-System-Kopplung vom 14./15.07. — also in Code, der NACH Runde 3 entstand. Der Engine-Kern hielt. Zum dritten Mal dasselbe Muster: Neuer Code an der Außennaht braucht eine eigene Audit-Runde.*
+
+15. **Ein Alt-Ticket-Storno fror die Börse dauerhaft ein.** Im Ticket-Modus ist `totalSold = gueltigeTickets − startTickets − ignoredTickets` — von `startInventory` **algebraisch unabhängig**. Stornierte ein Evey-Alt-Käufer, bevor genug Neuverkäufe da waren, wurde `totalSold` negativ → Anomalie → Dauer-409, nicht einmal der Drift wurde geschrieben. Und `?rebaseline=1` (zieht nur `startInventory` nach) konnte es **nie** auflösen. → `soldCount` darf jetzt **negativ** werden: Ein Storno unter die Baseline senkt den Kurs unter den Startpreis — gewollt und symmetrisch (der nächste Verkauf hebt ihn exakt zurück). Rebaseline gibt es nur noch im Bestands-Modus (`400` im Ticket-Modus).
+16. **`?start=1` bei schweigendem Ticket-System setzte eine falsche, irreversible Baseline.** `startTickets` wurde als 0 eingefroren; kam das System später online, zählten ALLE Alt-Tickets als frische Verkäufe (`trustedSales` ließ es durch) — Kurs an den Deckel, bestraft wäre, wer früh gekauft hat. Ein Timeout im Start-Moment genügte. → **Start-Gate**: konfiguriert + keine Antwort = `503 start_verweigert`.
+17. **Ein Env-Wechsel kaperte die Wahrheitsquelle still.** `TICKETS_BASE_URL` nachträglich setzen → Bestands-Zustand las plötzlich das Ticket-Ledger (Alt-Tickets = frische Verkäufe); Envs entfernen → Ticket-Zustand fiel still auf den womöglich divergenten Bestand. → Die Quelle steht jetzt **im Zustand** (`quelle: "tickets" | "bestand"`, beim Start eingefroren). Bestands-Zustand + konfigurierte Envs → Hinweis, kein Wechsel. Ticket-Zustand + fehlende Envs → lauter `500`. Wechsel nur explizit: Börse neu aufsetzen.
+18. **Eine absurde Ticket-Zahl konnte einen unlesbaren Zustand schreiben.** `gueltigeTickets: 10001` (oder `1e20`) passierte den `isInteger`-Check, wurde als `soldCount` geschrieben — und `parseState` lehnte den **selbst geschriebenen** Zustand beim nächsten Lesen ab (Grenze 10.000): Börse eingefroren bis zur Metafield-Handreparatur. → `isSafeInteger` + Obergrenze `MAX_SOLD_ABS` (geteilt zwischen Lesen und Schreiben); zusätzlich hält `applyInventory` an, bevor es einen nicht-repräsentierbaren `totalSold` schreibt.
+19. **Aufstockung wurde als Massen-Storno verbucht.** Die Klemme prüfte nur die Verkaufs-Richtung: +50 Bestand bei ≥50 Verkäufen = 50 „Refunds", Kurssturz — der Code-Kommentar behauptete das Gegenteil. → Klemme gilt jetzt in **beide** Richtungen (`|newSales| > erlaubt`); kleine Bewegungen nach oben bleiben Stornos (von einem Storno mit Rückbuchung nicht unterscheidbar).
+20. **Unlesbares `doorsUtc` schaltete den Türöffnungs-Stopp still ab.** `now >= NaN` ist immer `false` — und weil der Wert nicht `null` war, griff auch der `gigDateIso`-Fallback nicht. `scharf: "false"` (String) galt als scharf. → Antwort wird **strikt** validiert; Müll macht die ganze Antwort unbrauchbar (= nur-drift).
+21. **Der Webhook unterlief im Ticket-Modus die kanonische Quelle.** Er buchte weiter über die Bestands-Mathe: konnte mehr als die bestätigte Bestellmenge übernehmen, und Cron + Webhook zählten dieselbe Bestellung vorübergehend doppelt (Fake-Refund-Zacken im Chart). → Im Ticket-Modus bucht der Webhook **keine Verkäufe** mehr; Testbestellungen werden weiterhin neutralisiert — in **beiden** Modi, denn das Ticket-System zählt sie im Berechtigungs-Set mit. ⚠️ **Bewusster Trade-off:** Der Preissprung kommt damit erst mit dem nächsten **Börsen-Cron = stündlich** — ein Kauf um 12:01 hebt den Kurs schlimmstenfalls erst um 13:00. Für die Parodie egal; wer es schneller will: Cron in `vercel.json` auf `*/5`.
+22. **`getAccessToken` war der einzige Fetch ohne Timeout.** Ein hängender OAuth-Endpunkt → Plattform-Timeout ohne Logzeile, beim Webhook Retry-/Abo-Lösch-Risiko. → `AbortSignal.timeout` + Antwort-Validierung vor dem Cachen.
+23. **Ein `lastTickAt` in der Zukunft deaktivierte den Drift für immer.** `parseState` akzeptierte jedes gültige Datum; `applyDrift` las die negative Zeit dauerhaft als Uhr-Rücksprung. → `parseState(raw, now)` weist Anker >24 h in der Zukunft ab.
+
+Im Bestands-Notpfad bewusst geblieben (Restrisiko): Zählt der Cron einen Verkauf, bevor dessen verspäteter Webhook eintrifft, wird die Bestellung vorübergehend doppelt gezählt — der nächste Cron korrigiert binnen einer Stunde. Im Ticket-Modus (Normalfall) existiert der Pfad nicht mehr.
+
+**Runde 4b — der Gegencheck AUF die Fixes** (Projektgesetz seit Runde 3) fand vier weitere Punkte, drei davon sofort gefixt:
+
+- **Ungültiges `quelle`-Feld** (Admin-Tippfehler "ticket") wurde still als "bestand" gelesen — derselbe stille Quellenwechsel, den das Feld verhindern soll. → vorhandenes, aber ungültiges Feld wird jetzt **abgewiesen**; nur ein FEHLENDES Feld fällt auf "bestand" (korrekt: die Börse ist vor Runde 4 nie gestartet, Alt-Zustände können nur bestandsbasiert sein).
+- **Echte Massen-Stornos im Bestands-Modus hatten keinen korrekten Auflösungsweg:** Die (neue) symmetrische Klemme hält einen Refund-Batch >8/h korrekt an — aber `?rebaseline=1` hätte die echten Stornos lautlos aus Kurs und Statistik gelöscht. → **Zweiter Hebel `?reconcile=<sprünge>`**: „der Sprung war echt" — er wird über den normalen tick()-Pfad übernommen und bewegt den Kurs. Bestätigt wird der **konkrete Wert aus der 409-Meldung** (z. B. `?reconcile=-10`), kein bloßes Ja: Hat sich der Bestand zwischen Sehen und Bestätigen weiterbewegt, hält der Hebel erneut an, statt ungefragt den neuen Sprung zu schlucken *(Befund aus dem Gegencheck auf den Gegencheck — Runde 4c, wenn man so will)*. Rebaseline und Reconcile schließen einander aus. Der 409-Hinweis erklärt beide Hebel.
+- **`doorsUtc` ohne Zeitzone** wäre in der Server-Zeitzone interpretiert worden (Abschaltmoment umgebungsabhängig). → RFC-3339 mit explizitem Z/Offset erzwungen.
+- 🔴 **OFFEN (gehört ins Ticket-System, nicht hierher):** Wird eine **neutralisierte Testbestellung später storniert**, fällt sie aus dem Ledger, aber `ignoredTickets` bleibt erhöht → der Kurs wäre **dauerhaft** um die Testmenge zu niedrig. Richtiger Fix: Der `/api/verkaufszahl`-Endpunkt (`tonherd-tickets`, Branch `feat/verkaufszahl-endpunkt`, ungemergt) soll **Testbestellungen gar nicht erst mitzählen** — dann braucht der Ticket-Modus `ignoredTickets` überhaupt nicht mehr. Bis dahin: Generalprobe nur mit Not-Aus oder Testprodukt (stand ohnehin schon in der Kopplungs-Doku).
+
 ---
 
 ## Schutzschichten
@@ -122,8 +146,11 @@ Außerdem: Uhr-Rücksprung driftete doppelt; `driftMultiplier` konnte unter sein
 |---|---|
 | `TICKER_ENABLED` | **Not-Aus.** Ohne `"1"` tun beide Routen gar nichts. Umlegbar in Vercel **ohne Deploy**. |
 | `?start=1` | Die Börse startet nur auf ausdrücklichen Wunsch. Sonst: `not_started`, Shop-Preis unangetastet. |
-| **Anomalie → 409, kein Schreibvorgang** | Unerklärliche Bestands-Sprünge werden nicht geraten. Auflösung nur per `?rebaseline=1`. |
-| Verkaufsgrenze: zeitskaliert **+ absolute Decke** | normale Verkaufs-Staus zählen voll; ein Reset geht nie als Ausverkauf durch |
+| **Start-Gate** | Ticket-System konfiguriert, aber keine Antwort → `503 start_verweigert` (sonst würde eine falsche Alt-Ticket-Baseline eingefroren). |
+| **Quelle im Zustand eingefroren** | `quelle: "tickets" \| "bestand"` — Env-Änderungen wechseln die Wahrheitsquelle NIE still. Wechsel = Börse neu aufsetzen. |
+| **Anomalie → 409, kein Schreibvorgang** | Unerklärliche Bestands-Sprünge werden nicht geraten (nur Bestands-Modus). Auflösung durch einen Menschen: `?rebaseline=1` („war eine Korrektur" — Baseline zieht nach, Kurs bleibt) oder `?reconcile=<sprünge>` („war echt" — GENAU der gemeldete Wert; der Sprung bewegt den Kurs, bei zwischenzeitlich bewegtem Bestand erneut 409). |
+| Verkaufsgrenze: zeitskaliert **+ absolute Decke**, in **beide Richtungen** | normale Verkaufs-Staus zählen voll; weder ein Reset (Ausverkauf) noch eine Aufstockung (Massen-Storno) geht als echt durch |
+| Strikte Ticket-Antwort-Validierung | `scharf === true`, `gueltigeTickets` sichere ganze Zahl ≤ 10.000, `doorsUtc` null oder echtes Datum — sonst gilt die ganze Antwort als unbrauchbar (nur-drift) |
 | Bestell-Dedup (`recentOrders`, 300) | dieselbe Bestellung zählt nie zweimal |
 | Compare-and-Swap + Preis-Abgleich | gleichzeitige Schreiber überschreiben einander nicht |
 | `parseState` | verbogenes Metafield-JSON wird abgewiesen, statt als `NaN`-Preis in den Shop zu laufen |
@@ -226,6 +253,7 @@ Den Preis allein zurückzustellen **reicht nicht** — der nächste Tick übersc
 | | |
 |---|---|
 | 🔴 **Go-Live** | wartet auf die Evey-Ablösung (siehe oben) |
+| 🔴 **Testbestellungen im Ledger** | `/api/verkaufszahl` (`tonherd-tickets`) soll Testbestellungen ausschließen — sonst verzerrt eine später stornierte Testbestellung den Kurs dauerhaft (Runde 4b). Danach kann `ignoredTickets` im Ticket-Modus entfallen. |
 | 🟡 **Endpunkt mergen** | `tonherd-tickets`, Branch `feat/verkaufszahl-endpunkt` (2 Commits) — noch nicht gemergt |
 | 🟡 **Umsatz-Report** | `tonherd-tickets/scripts/report.ts` rechnet `verkauft × aktueller Variantenpreis` → mit dynamischem Preis **sinnlos**. Bewusst nicht gefixt: Der Query ist auf Shopify-Kostenpunkte budgetiert, das gehört gemessen. |
 | 🟢 **`read_all_orders`** | **erledigt** — gewährt über die gemeinsame App „Claude Code Admin". Die 60-Tage-Blende ist weg. |

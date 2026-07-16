@@ -151,7 +151,9 @@ export default async function TicketsPage({
     [t.allTimeHigh, euro(ath)],
     [t.allTimeLow, euro(atl)],
     [t.stats.available, `${currentInventory} ${t.stats.availableUnit}`],
-    [t.stats.sold, String(state.soldCount)],
+    // soldCount kann negativ sein (Alt-Storno unter die Baseline, siehe Engine) —
+    // "-1 verkauft" wäre für Besucher nur verwirrend, also bei 0 klemmen.
+    [t.stats.sold, String(Math.max(0, state.soldCount))],
   ];
 
   return (

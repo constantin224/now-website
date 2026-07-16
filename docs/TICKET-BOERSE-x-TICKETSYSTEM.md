@@ -53,6 +53,12 @@ Notpfad zurück. Ohne Slash am Ende (der Code hängt `/api/verkaufszahl` an).
 
 **Ohne diese Variablen läuft die Börse im alten Bestands-Modus** (mit allen Klemmen und der Anomalie-Erkennung). Das ist der Notpfad, kein Dauerzustand.
 
+**Die Quelle wird beim Börsenstart im Zustand EINGEFROREN** (`quelle: "tickets" | "bestand"`, seit Audit-Runde 4). Env-Änderungen wechseln sie nie still: Ein Bestands-Zustand bleibt beim Bestand (Hinweis in der Cron-Antwort), ein Ticket-Zustand ohne Envs schlägt laut mit `500` fehl. Wechsel nur explizit — Börse neu aufsetzen. Und `?start=1` wird **verweigert** (`503`), wenn die Envs gesetzt sind, das System aber gerade keine Zahl liefert — sonst würde `startTickets = 0` eingefroren und die Alt-Tickets zählten später als frische Verkäufe.
+
+**Die Antwort wird strikt validiert:** `scharf === true`, `gueltigeTickets` als sichere ganze Zahl ≤ 10.000, `doorsUtc` null oder echtes Datum. Wer hier Müll liefert, dessen ganze Antwort gilt als unbrauchbar → nur-drift. (Vorher: ein kaputtes `doorsUtc` schaltete den Türöffnungs-Stopp still ab, und `gueltigeTickets: 1e20` hätte einen Zustand geschrieben, den `parseState` selbst nicht mehr liest.)
+
+**Stornos unter die Alt-Ticket-Baseline sind ein Normalfall:** Storniert ein Evey-Alt-Käufer, fällt `soldCount` unter 0 und der Kurs unter den Startpreis — gewollt, symmetrisch, kein Fehler. (Vorher: Dauer-409, Börse eingefroren, `?rebaseline=1` wirkungslos.)
+
 ### Die drei Zustände
 
 | Lage | Was die Börse tut | `quelle` in der Antwort |
@@ -82,7 +88,8 @@ Das Ticket-System hat seine Webhooks **gesperrt** (`scripts/webhooks-setup.ts` b
 **Der Webhook der Börse lief in dieselbe Falle.** Er macht mehrere Shopify-Roundtrips hintereinander. Deshalb:
 
 - Der **Preis-Abgleich** (ein zusätzlicher Roundtrip) ist im Webhook-Pfad **abgeschaltet** (`writeTicker(..., mitAbgleich = false)`). Der stündliche Cron macht ihn.
-- Bleibt der Webhook trotzdem zu langsam, ist er entbehrlich: Er beschleunigt nur den Preissprung. Die Zahl kommt ohnehin vom Ticket-System, dessen Cron alle 5 Minuten läuft.
+- **Im Ticket-Modus bucht der Webhook seit Runde 4 gar keine Verkäufe mehr** (kein Schreibvorgang, sofortige Antwort). Seine Bestands-Mathe konnte mehr als die bestätigte Bestellmenge übernehmen, und Cron + Webhook zählten dieselbe Bestellung vorübergehend doppelt. Der Ledger-Cron des Ticket-Systems (alle 5 min) macht den Preissprung nur unwesentlich später. Einzige verbleibende Webhook-Aufgabe im Ticket-Modus: **Testbestellungen neutralisieren** (`ignoredTickets`).
+- Im Bestands-Notpfad bucht er weiterhin (dort ist er die einzige dedup-geschützte Quelle).
 
 **Wenn du je den Börsen-Webhook registrierst:** vorher die Laufzeit messen. Über ~3 s → auf „vormerken und sofort 200 antworten" umbauen, so wie es für das Ticket-System geplant ist.
 
@@ -128,3 +135,5 @@ Beide Systeme benutzen dieselbe App **„Claude Code Admin"** (`aec9c6c4f780fd9d
 Eine Shopify-Testbestellung ist für beide Systeme eine normale, bezahlte Bestellung: Sie senkt den Bestand **und** landet im Berechtigungs-Set. Die Börse rechnet sie über `ignoredTickets` heraus (der Webhook erkennt `test: true`).
 
 **Vorsicht:** Kommt eine Testbestellung *ohne* Webhook durch (Webhook nicht registriert), sieht die Börse sie nur über die Ticket-Zahl — und zählt sie als Verkauf. Für die Generalprobe deshalb entweder den Not-Aus setzen (`TICKER_ENABLED=0`) oder das separate Testprodukt benutzen, wie es das Ticket-System ohnehin tut.
+
+**Und die Lifecycle-Falle (Runde 4b, 🔴 offen):** Wird eine neutralisierte Testbestellung später **storniert**, verschwindet sie aus dem Ledger — `ignoredTickets` in der Börse bleibt aber erhöht. Der Kurs wäre dann **dauerhaft** um die Testmenge zu niedrig; es gibt kein Gegenereignis (nur `orders/create`). Der richtige Fix liegt im Ticket-System: `/api/verkaufszahl` (Branch `feat/verkaufszahl-endpunkt`) soll Testbestellungen **gar nicht erst mitzählen** — danach braucht der Ticket-Modus `ignoredTickets` nicht mehr. Bis dahin gilt die Generalproben-Regel oben umso mehr.

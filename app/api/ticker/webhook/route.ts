@@ -133,9 +133,6 @@ async function handleOrder(orderId: string, tickets: number, isTest: boolean) {
   if (!state) {
     return NextResponse.json({ ok: true, note: "Börse noch nicht gestartet" });
   }
-  if (!inventoryTracked) {
-    return NextResponse.json({ ok: true, note: "Bestandsverfolgung aus — Börse pausiert" });
-  }
 
   // Shopify stellt Webhooks MINDESTENS einmal zu — dieselbe Bestellung kommt
   // im Normalbetrieb mehrfach an. Ohne diese Sperre zählte sie erneut, solange
@@ -149,10 +146,12 @@ async function handleOrder(orderId: string, tickets: number, isTest: boolean) {
   }
 
   // ---- Testbestellung ----
-  // Sie darf den Kurs nicht bewegen — aber sie SENKT den Bestand wie jede echte
-  // Bestellung. Sie einfach zu ignorieren genügte deshalb nicht: Der nächste Cron
-  // hätte den Bestandsrückgang gesehen und sie doch als Verkauf gezählt.
-  // Stattdessen werden ihre Tickets dauerhaft aus der Rechnung genommen.
+  // Sie darf den Kurs nicht bewegen — aber sie zählt in BEIDEN Quellen mit:
+  // Sie senkt den Bestand wie jede echte Bestellung, UND das Ticket-System
+  // führt sie im Berechtigungs-Set (eine Testbestellung ist dort eine normale,
+  // bezahlte Bestellung). Deshalb wird sie in beiden Modi neutralisiert —
+  // `ignoredTickets` wird in beiden Rechnungen abgezogen. Und zwar VOR dem
+  // Tracking-Check: Die Neutralisierung braucht den Bestand nicht.
   if (isTest) {
     const neutralisiert = ignoreTestTickets(state, orderId, tickets);
     // mitAbgleich=false: Shopify erwartet die Webhook-Antwort in ~5 s, sonst löscht
@@ -167,8 +166,35 @@ async function handleOrder(orderId: string, tickets: number, isTest: boolean) {
       ok: true,
       ignoriert: "Testbestellung",
       tickets,
-      hinweis: "Bestands-Effekt neutralisiert — der Kurs bleibt unberührt",
+      hinweis: "Effekt neutralisiert — der Kurs bleibt unberührt",
     });
+  }
+
+  // ---- Ticket-Modus: der Webhook bucht KEINE Verkäufe mehr ----
+  // Die Verkaufszahl kommt aus dem Bestell-Ledger des Ticket-Systems. Würde der
+  // Webhook hier zusätzlich über den Bestand buchen, entstünden genau die
+  // Fehler, die die Kopplung beseitigen sollte: Er kann mehr als die bestätigte
+  // Bestellmenge übernehmen (wenn der Bestand aus anderen Gründen gefallen
+  // ist), und Cron und Webhook zählten dieselbe Bestellung vorübergehend
+  // doppelt. Der Webhook beschleunigte nur den Preissprung — darauf verzichten
+  // wir; kein Schreibvorgang, idempotent.
+  //
+  // BEWUSSTER TRADE-OFF: Der Preissprung kommt erst mit dem nächsten
+  // BÖRSEN-Cron — der läuft STÜNDLICH (vercel.json), nicht alle 5 Minuten (das
+  // ist die Kadenz des Ticket-System-Crons, der nur dessen Ledger pflegt). Ein
+  // Kauf um 12:01 hebt den Kurs also schlimmstenfalls erst um 13:00. Für die
+  // Parodie ist das egal; wer es schneller will, stellt den Börsen-Cron in
+  // vercel.json auf */5 (Shopify-Last: +1 Read-Query alle 5 min, unkritisch).
+  if (state.quelle === "tickets") {
+    return NextResponse.json({
+      ok: true,
+      note: "Ticket-System ist die Quelle — der nächste Cron zieht den Verkauf nach",
+      tickets,
+    });
+  }
+
+  if (!inventoryTracked) {
+    return NextResponse.json({ ok: true, note: "Bestandsverfolgung aus — Börse pausiert" });
   }
 
   // Der Bestand ist die Wahrheit, sobald Shopify ihn fortgeschrieben hat.

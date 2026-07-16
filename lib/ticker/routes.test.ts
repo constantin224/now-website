@@ -469,7 +469,7 @@ describe("Verkaufszahl aus dem Ticket-System statt aus dem Bestand", () => {
     tickets = { scharf: true, gueltigeTickets: 0, doorsUtc: "2026-10-17T17:00:00Z" };
   });
 
-  it("beim Start werden die Alt-Tickets als Baseline eingefroren", async () => {
+  it("beim Start werden Alt-Tickets als Baseline UND die Quelle eingefroren", async () => {
     // 24 Tickets aus der Evey-Zeit. Ohne Baseline läse die Börse sie als frische
     // Verkäufe und risse den Kurs sofort hoch — bestraft würde, wer FRÜH gekauft hat.
     shop.state = null;
@@ -478,12 +478,13 @@ describe("Verkaufszahl aus dem Ticket-System statt aus dem Bestand", () => {
     const r = await getTick("?start=1");
     expect(await r.json()).toMatchObject({ status: "started", quelle: "ticket-system" });
     expect(shop.state!.startTickets).toBe(24);
+    expect(shop.state!.quelle).toBe("tickets");
     expect(shop.state!.soldCount).toBe(0);
     expect(shop.variantPrice).toBe(22); // Startpreis, kein Sprung
   });
 
   it("neue Verkäufe zählen ab der Baseline", async () => {
-    shop.state = { ...shop.state!, startTickets: 24 };
+    shop.state = { ...shop.state!, quelle: "tickets", startTickets: 24 };
     tickets.gueltigeTickets = 27; // drei neue
 
     await getTick();
@@ -494,7 +495,7 @@ describe("Verkaufszahl aus dem Ticket-System statt aus dem Bestand", () => {
   it("ein Storno senkt den Kurs — auch OHNE Rückbuchung ins Lager", async () => {
     // Das kann die Bestands-Quelle prinzipiell nicht: Ohne Restock bliebe das
     // Ticket dort für immer als verkauft gezählt. Das Ticket-System weiß es besser.
-    shop.state = { ...shop.state!, startTickets: 0, soldCount: 5 };
+    shop.state = { ...shop.state!, quelle: "tickets", startTickets: 0, soldCount: 5 };
     shop.inventory = 250; // Bestand rührt sich NICHT
     tickets.gueltigeTickets = 4; // einer hat storniert
 
@@ -506,7 +507,7 @@ describe("Verkaufszahl aus dem Ticket-System statt aus dem Bestand", () => {
   it("der Cutoff (Bestand → 0 bei Türöffnung) löst KEINEN Ausverkauf aus", async () => {
     // Das Ticket-System nullt bei Türöffnung den Bestand. Früher hätte die Börse
     // das als 250 Verkäufe gelesen — Kurs am Deckel, beim eigenen Konzert.
-    shop.state = { ...shop.state!, startTickets: 0, soldCount: 10 };
+    shop.state = { ...shop.state!, quelle: "tickets", startTickets: 0, soldCount: 10 };
     shop.inventory = 0; // Cutoff hat zugeschlagen
     tickets.gueltigeTickets = 10; // in Wahrheit: unverändert 10 Tickets
 
@@ -520,7 +521,7 @@ describe("Verkaufszahl aus dem Ticket-System statt aus dem Bestand", () => {
   it("schweigt das Ticket-System, wird NUR gedriftet — kein Rückfall auf den Bestand", async () => {
     // Beide Quellen können auseinanderliegen. Ein stiller Quellenwechsel erzeugte
     // einen Preissprung aus dem Nichts.
-    shop.state = { ...shop.state!, startTickets: 0, soldCount: 5 };
+    shop.state = { ...shop.state!, quelle: "tickets", startTickets: 0, soldCount: 5 };
     shop.inventory = 200; // Bestand behauptet 50 Verkäufe
     tickets.scharf = false; // Ticket-System hat (noch) keine Wahrheit
 
@@ -547,5 +548,213 @@ describe("Kaputter Zustand im Metafield", () => {
     expect(await r.json()).toMatchObject({ status: "error" });
     expect(shop.priceWrites).toBe(0); // kein "NaN" in den Shop
     expect(shop.variantPrice).toBe(22);
+  });
+
+  it("ein Drift-Anker in der fernen Zukunft wird abgewiesen (Drift wäre still aus)", async () => {
+    shop.state = { ...shop.state!, lastTickAt: "2126-01-01T00:00:00.000Z" };
+    const r = await getTick();
+    expect(r.status).toBe(500);
+    expect(await r.json()).toMatchObject({ status: "error" });
+    expect(shop.stateWrites).toBe(0);
+  });
+});
+
+describe("Audit-Runde 4 — die Naht zur Ticket-Quelle", () => {
+  // Runde 4 fand alle Fehler in der Kopplungs-Schicht (14./15.07.), die NACH
+  // den ersten drei Audit-Runden entstand. Diese Tests sind das Netz darunter.
+
+  beforeEach(() => {
+    vi.stubEnv("TICKETS_BASE_URL", "https://tickets.test");
+    vi.stubEnv("TICKETS_MONITOR_SECRET", "mon-geheim");
+    tickets = { scharf: true, gueltigeTickets: 0, doorsUtc: "2026-10-17T17:00:00Z" };
+  });
+
+  it("?start=1 wird VERWEIGERT, wenn das Ticket-System konfiguriert ist, aber schweigt", async () => {
+    // Sonst würde startTickets=0 eingefroren — und sobald das System antwortet,
+    // zählten alle Alt-Tickets als frische Verkäufe (Kurs an den Deckel).
+    shop.state = null;
+    tickets = { scharf: true, tot: true };
+
+    const r = await getTick("?start=1");
+    expect(r.status).toBe(503);
+    expect(await r.json()).toMatchObject({ status: "start_verweigert" });
+    expect(shop.state).toBeNull();
+    expect(shop.stateWrites).toBe(0);
+  });
+
+  it("?start=1 wird auch verweigert, wenn das Event nicht scharf ist", async () => {
+    shop.state = null;
+    tickets = { scharf: false };
+    const r = await getTick("?start=1");
+    expect(r.status).toBe(503);
+    expect(shop.state).toBeNull();
+  });
+
+  it("Storno eines ALT-Tickets senkt den Kurs, statt die Börse einzufrieren", async () => {
+    // Früher: totalSold=-1 → InventoryAnomalyError → Dauer-409 bei jedem Cron,
+    // und ?rebaseline=1 (zieht nur startInventory) konnte es nie auflösen.
+    shop.state = { ...shop.state!, quelle: "tickets", startTickets: 50 };
+    tickets.gueltigeTickets = 49; // ein Alt-Käufer hat storniert
+
+    const r = await getTick();
+    expect(r.status).toBe(200);
+    expect(shop.state!.soldCount).toBe(-1);
+    expect(shop.state!.history.at(-1)).toMatchObject({ event: "refund", qty: 1 });
+    expect(shop.variantPrice).toBeLessThan(22);
+
+    // und der nächste Verkauf hebt den Kurs exakt zurück — keine Ratsche
+    tickets.gueltigeTickets = 50;
+    await getTick();
+    expect(shop.state!.soldCount).toBe(0);
+  });
+
+  it("ein nachträglich konfiguriertes Ticket-System kapert einen Bestands-Zustand NICHT", async () => {
+    // shop.state stammt aus dem beforeEach → quelle "bestand". Die Envs zeigen
+    // jetzt auf ein Ticket-System, das 50 Alt-Tickets kennt. Ein stiller Wechsel
+    // würde sie alle als frische Verkäufe zählen.
+    tickets.gueltigeTickets = 50;
+
+    const r = await getTick();
+    const json = await r.json();
+    expect(json.quelle).toBe("bestand");
+    expect(json.hinweis).toMatch(/nur explizit/);
+    expect(shop.state!.soldCount).toBe(0); // NICHT 50
+    expect(shop.variantPrice).toBeLessThanOrEqual(22);
+  });
+
+  it("Ticket-Zustand + entfernte Envs → lauter Fehler, KEIN stiller Wechsel auf den Bestand", async () => {
+    shop.state = { ...shop.state!, quelle: "tickets", startTickets: 10, soldCount: 5 };
+    shop.inventory = 200; // der Bestand ist längst divergent
+    vi.stubEnv("TICKETS_BASE_URL", "");
+    vi.stubEnv("TICKETS_MONITOR_SECRET", "");
+
+    const r = await getTick();
+    expect(r.status).toBe(500);
+    expect(shop.state!.soldCount).toBe(5); // unangetastet
+    expect(shop.stateWrites).toBe(0);
+  });
+
+  it("der Webhook bucht im Ticket-Modus KEINE Verkäufe (der Cron zieht nach)", async () => {
+    // Sonst: Bestands-Mathe kann mehr als die Bestellmenge übernehmen, und
+    // Cron + Webhook zählen dieselbe Bestellung vorübergehend doppelt.
+    shop.state = { ...shop.state!, quelle: "tickets" };
+    shop.inventory = 245; // Bestand ist aus fremden Gründen gefallen
+
+    const r = await postWebhook(orderBody({ id: 41, tickets: 2 }));
+    expect(await r.json()).toMatchObject({ ok: true, tickets: 2 });
+    expect(shop.stateWrites).toBe(0); // kein Schreibvorgang
+    expect(shop.state!.soldCount).toBe(0);
+    expect(shop.variantPrice).toBe(22);
+  });
+
+  it("Testbestellungen werden auch im Ticket-Modus neutralisiert", async () => {
+    // Das Ticket-System zählt Testbestellungen im Berechtigungs-Set mit —
+    // ohne ignoredTickets würde der nächste Cron sie als Verkauf werten.
+    shop.state = { ...shop.state!, quelle: "tickets" };
+    await postWebhook(orderBody({ id: 42, tickets: 3, test: true }));
+    expect(shop.state!.ignoredTickets).toBe(3);
+
+    tickets.gueltigeTickets = 3; // die Testbestellung taucht im Ledger auf
+    await getTick();
+    expect(shop.state!.soldCount).toBe(0); // neutralisiert
+    expect(shop.variantPrice).toBe(22);
+  });
+
+  it("unlesbares doorsUtc macht die ganze Antwort unbrauchbar → nur-drift", async () => {
+    // Früher: now >= NaN ist immer false → der Türöffnungs-Stopp war STILL aus,
+    // und weil der Wert nicht null war, griff auch der Config-Fallback nicht.
+    shop.state = { ...shop.state!, quelle: "tickets" };
+    tickets = { scharf: true, gueltigeTickets: 60, doorsUtc: "kaputt" };
+
+    const r = await getTick();
+    expect((await r.json()).quelle).toMatch(/nur-drift/);
+    expect(shop.state!.soldCount).toBe(0); // die 60 wurden NICHT übernommen
+  });
+
+  it("eine absurde Ticket-Zahl wird abgewiesen → nur-drift statt eingefrorener Börse", async () => {
+    // 1e20 hätte als soldCount geschrieben werden können — und parseState hätte
+    // den selbst geschriebenen Zustand beim nächsten Lesen abgelehnt.
+    shop.state = { ...shop.state!, quelle: "tickets" };
+    tickets = { scharf: true, gueltigeTickets: 1e20 };
+
+    const r = await getTick();
+    expect((await r.json()).quelle).toMatch(/nur-drift/);
+    expect(shop.state!.soldCount).toBe(0);
+  });
+
+  it('scharf als String "false" gilt NICHT als scharf', async () => {
+    shop.state = { ...shop.state!, quelle: "tickets" };
+    tickets = { scharf: "false" as unknown as boolean, gueltigeTickets: 60 };
+
+    const r = await getTick();
+    expect((await r.json()).quelle).toMatch(/nur-drift/);
+    expect(shop.state!.soldCount).toBe(0);
+  });
+
+  it("?rebaseline=1 und ?reconcile=1 werden im Ticket-Modus abgewiesen", async () => {
+    shop.state = { ...shop.state!, quelle: "tickets" };
+    const r1 = await getTick("?rebaseline=1");
+    expect(r1.status).toBe(400);
+    expect(await r1.json()).toMatchObject({ status: "hebel_unnoetig" });
+    const r2 = await getTick("?reconcile=1");
+    expect(r2.status).toBe(400);
+    expect(shop.stateWrites).toBe(0);
+  });
+
+  it("doorsUtc ohne Zeitzone macht die Antwort unbrauchbar (Server-Zeitzonen-Falle)", async () => {
+    shop.state = { ...shop.state!, quelle: "tickets" };
+    tickets = { scharf: true, gueltigeTickets: 60, doorsUtc: "2026-10-17T19:00:00" };
+    const r = await getTick();
+    expect((await r.json()).quelle).toMatch(/nur-drift/);
+    expect(shop.state!.soldCount).toBe(0);
+  });
+});
+
+describe("Audit-Runde 4b — ?reconcile=<sprünge>: echte Sprünge bestätigen (Bestands-Modus)", () => {
+  it("ein Refund-Batch hält erst an — und ?reconcile=-10 übernimmt ihn in den Kurs", async () => {
+    // 10 Bestellungen storniert + zurückgebucht, in EINER Stunde. Die Klemme
+    // (8/h) hält korrekt an. ?rebaseline=1 wäre hier FALSCH — es löschte die
+    // Stornos lautlos aus Kurs und Statistik. ?reconcile bestätigt sie.
+    shop.state = { ...shop.state!, soldCount: 10 };
+    shop.inventory = 250; // alle 10 zurückgebucht → Sprung um −10
+
+    const anomalie = await getTick();
+    expect(anomalie.status).toBe(409); // erst mal: Stopp
+    expect((await anomalie.json()).spruenge).toBe(-10); // der zu bestätigende Wert
+
+    const r = await getTick("?reconcile=-10");
+    expect(await r.json()).toMatchObject({ status: "reconciled", soldCount: 0 });
+    expect(shop.state!.soldCount).toBe(0);
+    expect(shop.state!.history.at(-1)).toMatchObject({ event: "refund", qty: 10 });
+  });
+
+  it("auch ein bestätigter Massen-VERKAUF geht über ?reconcile", async () => {
+    shop.inventory = 200; // 50 auf einmal — normal ein 409
+    expect((await getTick()).status).toBe(409);
+
+    const r = await getTick("?reconcile=50");
+    expect(await r.json()).toMatchObject({ status: "reconciled", soldCount: 50 });
+    expect(shop.variantPrice).toBe(C.capEuro); // 50 Verkäufe → Deckel
+  });
+
+  it("bestätigt wird eine ZAHL, kein Zeitpunkt — bewegter Bestand → erneut 409", async () => {
+    // Zwischen Sehen (409 meldet −10) und Bestätigen hat sich der Bestand
+    // weiterbewegt. Der Hebel darf NICHT den neuen Sprung schlucken.
+    shop.state = { ...shop.state!, soldCount: 10 };
+    shop.inventory = 250;
+    expect((await getTick()).status).toBe(409); // meldet −10
+
+    shop.inventory = 210; // inzwischen: Sprung wäre +30
+    const r = await getTick("?reconcile=-10");
+    expect(r.status).toBe(409);
+    expect(await r.json()).toMatchObject({ status: "reconcile_abgelehnt", gefunden: 30 });
+    expect(shop.state!.soldCount).toBe(10); // nichts geschrieben
+  });
+
+  it("rebaseline und reconcile gleichzeitig → 400", async () => {
+    const r = await getTick("?rebaseline=1&reconcile=-10");
+    expect(r.status).toBe(400);
+    expect(await r.json()).toMatchObject({ status: "hebel_konflikt" });
+    expect(shop.stateWrites).toBe(0);
   });
 });

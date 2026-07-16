@@ -450,6 +450,102 @@ describe("parseState — kaputter Zustand darf NIE in den Shop", () => {
   });
 });
 
+describe("Audit-Runde 4 — Alt-Storno unter die Baseline (Ticket-Modus)", () => {
+  // Früher warf dieser Fall eine InventoryAnomalyError und fror die Börse
+  // dauerhaft ein (409 bei jedem Cron, rebaseline wirkungslos). Jetzt ist ein
+  // negativer soldCount ein legitimer Zustand: weniger gültige Tickets als beim
+  // Start = Kurs unter dem Startniveau.
+  it("senkt den Kurs, statt die Börse einzufrieren", () => {
+    const s0 = initState(22, INV, NOW, 50, "tickets");
+    // Ticket-System meldet 49 gültige Tickets (ein Alt-Käufer stornierte)
+    const bestand = INV - 49 + 50; // bestandAusTicketZahl
+    const s1 = tick(s0, bestand, at(1), { allowDrift: false, trustedSales: 1 });
+    expect(s1.soldCount).toBe(-1);
+    expect(priceOf(s1)).toBeCloseTo(22 / (1 + C.saleBumpPct), 10);
+    expect(s1.history.at(-1)).toMatchObject({ event: "refund", qty: 1 });
+  });
+
+  it("der nächste Verkauf hebt den Kurs exakt zurück — Symmetrie über die Baseline", () => {
+    const s0 = initState(22, INV, NOW, 50, "tickets");
+    const s1 = tick(s0, INV - 49 + 50, at(1), { allowDrift: false, trustedSales: 1 });
+    const s2 = tick(s1, INV - 50 + 50, at(2), { allowDrift: false, trustedSales: 1 });
+    expect(s2.soldCount).toBe(0);
+    expect(priceOf(s2)).toBeCloseTo(22, 10);
+  });
+});
+
+describe("Audit-Runde 4 — Aufstockung ist keine Massen-Rückbuchung", () => {
+  it("+50 Bestand bei 60 Verkäufen hält an, statt den Kurs zu stürzen", () => {
+    // Früher prüfte die Klemme nur die Verkaufs-Richtung: Dieser Sprung wurde
+    // als 50 Stornos verbucht — der Kurs stürzte, obwohl nur ein Kollege
+    // Tickets nachgelegt hatte.
+    const s = { ...initState(22, 250, NOW), soldCount: 60 };
+    expect(() => tick(s, 240, at(1))).toThrow(InventoryAnomalyError);
+  });
+
+  it("kleine Rückbuchungen über die Baseline hinaus zählen weiterhin als Storno", () => {
+    // Ein Storno MIT Rückbuchung sieht im Bestand genauso aus wie eine kleine
+    // Aufstockung — nicht unterscheidbar. Kleine Bewegungen bleiben Stornos.
+    const s0 = initState(22, 250, NOW);
+    const s1 = tick(s0, 252, at(1), { allowDrift: false });
+    expect(s1.soldCount).toBe(-2);
+    expect(s1.history.at(-1)).toMatchObject({ event: "refund", qty: 2 });
+  });
+});
+
+describe("Audit-Runde 4 — die Engine schreibt nur, was parseState wieder liest", () => {
+  it("ein totalSold jenseits der parseState-Grenze hält an (sonst fröre die Börse ein)", () => {
+    // Wäre die Schreibgrenze lockerer als die Lesegrenze, schriebe die Engine
+    // einen Zustand, den ihr eigenes parseState beim nächsten Tick ablehnt.
+    const s = { ...initState(22, 250, NOW), soldCount: 9_990 };
+    expect(() =>
+      tick(s, 250 - 10_010, at(1), { allowDrift: false, trustedSales: 20 })
+    ).toThrow(InventoryAnomalyError);
+  });
+});
+
+describe("Audit-Runde 4 — parseState", () => {
+  const gut = () => JSON.stringify(initState(22, INV, NOW));
+
+  it("negativer soldCount ist ein gültiger Zustand (Alt-Storno)", () => {
+    const s = JSON.parse(gut());
+    s.soldCount = -3;
+    expect(parseState(JSON.stringify(s)).soldCount).toBe(-3);
+  });
+
+  it("lastTickAt in der fernen Zukunft wird abgewiesen — der Drift wäre still aus", () => {
+    // applyDrift läse dauerhaft eine "rückwärts laufende Uhr" und driftete nie
+    // wieder. Ein Tippfehler (Jahr 2126) hätte die Börse lautlos eingefroren.
+    const s = JSON.parse(gut());
+    s.lastTickAt = "2126-01-01T00:00:00.000Z";
+    expect(() => parseState(JSON.stringify(s), NOW)).toThrow(/Zukunft/);
+    // ohne `now` (reine Struktur-Prüfung) bleibt das Verhalten wie bisher
+    expect(() => parseState(JSON.stringify(s))).not.toThrow();
+  });
+
+  it("Zustände ohne quelle-Feld gelten als bestandsbasiert (vor der Kopplung)", () => {
+    const s = JSON.parse(gut());
+    delete s.quelle;
+    expect(parseState(JSON.stringify(s)).quelle).toBe("bestand");
+  });
+
+  it("ein VORHANDENES, aber ungültiges quelle-Feld wird abgewiesen", () => {
+    // Ein Admin-Tippfehler ("ticket", null) darf NICHT still als "bestand"
+    // gelesen werden — das wäre genau der stille Quellenwechsel, den das Feld
+    // verhindern soll.
+    const s = JSON.parse(gut());
+    s.quelle = "ticket";
+    expect(() => parseState(JSON.stringify(s))).toThrow(/quelle/);
+    s.quelle = null;
+    expect(() => parseState(JSON.stringify(s))).toThrow(/quelle/);
+  });
+
+  it("die eingefrorene Ticket-Quelle bleibt erhalten", () => {
+    const s = JSON.parse(JSON.stringify(initState(22, INV, NOW, 24, "tickets")));
+    expect(parseState(JSON.stringify(s)).quelle).toBe("tickets");
+  });
+});
+
 describe("shopPrice", () => {
   it("rundet auf 10 Cent und klemmt an den Grenzen", () => {
     expect(shopPrice(21.9412)).toBe(21.9);
