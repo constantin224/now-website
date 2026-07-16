@@ -117,7 +117,7 @@ Der Handoff des Ticket-Systems kennt das Problem bereits für zwei Preisstufen (
 Beide Systeme benutzen dieselbe App **„Claude Code Admin"** (`aec9c6c4f780fd9d0a082bd97e501392`, Repo `tonherd-shopify`).
 
 - **`read_all_orders` ist gewährt** (App-Version `claude-code-admin-4`). Damit ist die 60-Tage-Blende weg — auch für die Börse. Der frühere offene Punkt in ihrem Handoff ist erledigt.
-- **Das Ratenlimit teilen sie sich** (Shopify drosselt pro App: 50 Kostenpunkte/Sekunde). Der Cron des Ticket-Systems läuft alle 5 Minuten, die Börse stündlich, am Eventabend kommen die Scans dazu. Bisher unkritisch — aber ein Grund mehr, warum die Börse am Eventtag schweigt (siehe 2).
+- **Das Ratenlimit teilen sie sich** (Shopify drosselt pro App: 50 Kostenpunkte/Sekunde). Beide Crons laufen alle 5 Minuten (jeweils QStash — Vercel-Hobby kann nur 1×/Tag), am Eventabend kommen die Scans dazu. Bisher unkritisch — aber ein Grund mehr, warum die Börse am Eventtag schweigt (siehe 2).
 
 ---
 

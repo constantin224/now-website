@@ -20,3 +20,19 @@ export function authorizeCron(request: NextRequest): boolean {
   const b = Buffer.from(expected);
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
+
+/**
+ * Nur-Lese-Token für die Betriebsampel (/api/ticker/status) — zeitkonstant,
+ * fail-closed. BEWUSST ein eigenes Secret, nicht CRON_SECRET: Der Wächter
+ * (Google Apps Script) soll nichts in der Hand haben, womit man Ticks auslösen
+ * oder Hebel (?rebaseline/?reconcile) ziehen könnte. Gleiches Muster wie
+ * MONITOR_SECRET im Ticket-System (lib/admin-auth.ts:statusAuthOk).
+ */
+export function authorizeMonitor(request: NextRequest): boolean {
+  const secret = process.env.MONITOR_SECRET;
+  if (!secret) return false;
+  const header = request.headers.get("x-monitor-secret") ?? "";
+  const a = Buffer.from(header);
+  const b = Buffer.from(secret);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}

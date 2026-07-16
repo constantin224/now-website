@@ -156,8 +156,9 @@ Im Bestands-Notpfad bewusst geblieben (Restrisiko): Zählt der Cron einen Verkau
 | `parseState` | verbogenes Metafield-JSON wird abgewiesen, statt als `NaN`-Preis in den Shop zu laufen |
 | `prepareForWrite` (50 KB) | misst den **ganzen** Zustand; scheitert notfalls laut, statt das Metafield zu sprengen |
 | Türöffnung → `beendet` | die Börse macht Schluss, bevor der Cutoff des Ticket-Systems zuschlägt |
-| Cron meldet Fehler mit 5xx | Vercel-Cron schaltet dabei **nicht** ab, markiert den Lauf aber als fehlgeschlagen. ⚠️ Bei Wechsel auf QStash neu bewerten — solche Dienste deaktivieren sich nach wiederholten 5xx. |
-| HMAC + zeitkonstanter Bearer | beide Routen fail-closed (401) |
+| **Cron nie 5xx an den Scheduler** | Nackte Läufe antworten IMMER 200, das Ergebnis steht im Body (`status`). Beim 5-Minuten-Takt ist der nächste Lauf ohnehin der Retry; ein 5xx riskiert Retry-Stürme bzw. Trigger, die sich selbst abschalten (Lehre aus dem Ticket-System-Runbook). Menschliche Hebel (`?start/?rebaseline/?reconcile`) behalten sprechende Codes. |
+| **Betriebsampel `/api/ticker/status`** + externer Wächter | Nur-Lese-Route (eigenes `MONITOR_SECRET`, `x-monitor-secret`): 200 = gut/bewusst aus, 503 = Mensch muss handeln (Cron steht >3 h, Anomalie wartet, Quelle falsch konfiguriert, Tracking aus), 500 = Lesen unmöglich. Der Apps-Script-Wächter des Ticket-Systems prüft sie mit (siehe `tonherd-tickets/monitoring/watcher/`). |
+| HMAC + zeitkonstanter Bearer/Monitor-Header | alle Routen fail-closed (401) |
 | Mock in Produktion wirkungslos | doppelt verriegelt |
 
 **EVEY-REGEL (bindend):** Geschrieben werden ausschließlich das **Preis-Feld** der Variante und das eigene Metafield `ticker.state`. NIEMALS Titel, Optionen, Inventar, Varianten-Struktur oder `evey.*`-Felder.
@@ -170,7 +171,7 @@ Ehrlichkeit statt Sicherheitsversprechen — das hier ist **nicht** gelöst, son
 
 1. **Der Preis hat kein Compare-and-Swap.** Shopify bietet keins. Zwei Schreiber im selben Millisekunden-Fenster können theoretisch einen veralteten Preis hinterlassen. Der Abgleich nach dem Schreiben macht das Fenster sehr klein, der stündliche Cron zieht jede Abweichung nach. Maximaler Schaden: wenige Cent, unter einer Stunde. Die saubere Lösung (ein serialisierter Schreiber mit dauerhafter Queue) wäre Ticketmaster-Architektur für 250 Tickets.
 2. **Ein echter Ausverkauf über 40 Tickets ohne einen einzigen Webhook** würde ebenfalls anhalten (409) und müsste von Hand aufgelöst werden. Die Alternative (raten) hat in beiden Richtungen Schaden angerichtet.
-3. **Kein Monitoring.** Der Cron meldet Fehler mit 5xx und Anomalien mit 409 — das sieht nur, wer in die Vercel-Oberfläche schaut. Ein externer Prüfer wäre die naheliegende nächste Ausbaustufe. *(Das Ticket-System hat einen — als Vorbild: `monitoring/watcher/`.)*
+3. ~~Kein Monitoring.~~ **Erledigt (16.07.):** Betriebsampel `/api/ticker/status` + Anschluss an den bestehenden Apps-Script-Wächter des Ticket-Systems (mailt bei Zustandswechsel an system@tonherd.com). Aktivierung = Go-Live-Schritt (Env `MONITOR_SECRET` + Script-Property, siehe unten).
 4. **Bewusst NICHT gebaut:** durable Queue, einzelner Writer-Prozess, Order-Ledger, Umbau auf `orders/paid`.
 
 ---
@@ -189,7 +190,9 @@ lib/ticker/mock.ts           # Dev-Mock (nur mit TICKER_MOCK=1 + nicht-Prod)
 lib/ticker/engine.test.ts    # Engine-Verhalten
 lib/ticker/routes.test.ts    # ROUTEN gegen gefälschten Shopify-Server — hier hängen die
                              #   Blocker aus Runde 2 und 3 als Netz
-app/api/ticker/tick/route.ts     # Cron: Quelle wählen, Drift, ?start=1, ?rebaseline=1
+app/api/ticker/tick/route.ts     # Cron (QStash): Quelle wählen, Drift, ?start=1,
+                                 #   ?rebaseline=1, ?reconcile=<sprünge>; nie 5xx an den Scheduler
+app/api/ticker/status/route.ts   # Betriebsampel für den externen Wächter (nur lesen)
 app/api/ticker/webhook/route.ts  # orders/create: liest NUR Bestell-ID, Menge, Testflag
 app/[locale]/tickets/page.tsx    # die Seite (zeigt den LIVE-Shop-Preis)
 components/ticker/*.tsx          # price-chart, price-hero, ticker-tape, countdown,
@@ -233,9 +236,22 @@ Der Mock simuliert mit der echten Engine drei Wochen Verlauf. **Er kann nichts k
    TICKER_ENABLED=1
    TICKETS_BASE_URL=https://tickets.tonherd.com     ← kanonische Domain, NIE *.vercel.app
    TICKETS_MONITOR_SECRET=<MONITOR_SECRET des Ticket-Systems>
+   MONITOR_SECRET=<neues Nur-Lese-Secret für /api/ticker/status>
    ```
 5. **Deployen** (nur manuell, Skill `tonherd-web-deploy` — `git push` deployt **nicht**).
-6. **Börse starten:** den Cron einmal mit `?start=1` aufrufen. Sie friert dabei die bereits verkauften Tickets als Baseline ein — die Alt-Käufer aus der Evey-Zeit reißen den Kurs **nicht** hoch. *(Wer früh gekauft hat, wird nicht bestraft. Wäre auch das Gegenteil der Idee.)*
+6. **QStash-Schedule anlegen** — es gibt KEINEN Vercel-Cron für den Tick (Hobby-Crons laufen nur 1×/Tag; deshalb steht in `vercel.json` auch keiner). Genau wie beim Ticket-System (`tonherd-tickets/docs/RUNBOOK.md`, Token im Schlüsselbund `tonherd-tickets-qstash-token`):
+   ```bash
+   Q=$(security find-generic-password -a qstash -s tonherd-tickets-qstash-token -w)
+   curl -s -X POST "https://qstash-eu-central-1.upstash.io/v2/schedules/https://now-music.at/api/ticker/tick" \
+     -H "Authorization: Bearer $Q" \
+     -H "Upstash-Cron: */5 * * * *" \
+     -H "Upstash-Method: GET" \
+     -H "Upstash-Retries: 1" \
+     -H "Upstash-Forward-Authorization: Bearer <CRON_SECRET>"
+   ```
+   ⚠️ `Upstash-Method: GET` ist zwingend (sonst POST → 405 bei jedem Lauf). Beide Schedules zusammen: 576 Läufe/Tag = 58 % des QStash-Free-Limits (1000/Tag).
+7. **Wächter scharfschalten:** Im Apps-Script „Tonherd Tickets Waechter" (Konto info@tonherd.com) den aktualisierten `Code.gs` einspielen (prüft jetzt BEIDE Ampeln) und Script-Property `BOERSE_MONITOR_SECRET` = Wert aus Schritt 4 setzen. Einmal `pruefe` laufen lassen.
+8. **Börse starten:** den Tick einmal mit `?start=1` aufrufen. Sie friert dabei die bereits verkauften Tickets als Baseline ein — die Alt-Käufer aus der Evey-Zeit reißen den Kurs **nicht** hoch. *(Wer früh gekauft hat, wird nicht bestraft. Wäre auch das Gegenteil der Idee.)* Liefert das Ticket-System gerade keine Zahl, verweigert der Start mit 503 — erst Schritt „Ticket-System scharfschalten" prüfen.
 
 ### 🚨 Notfall-Rollback (Reihenfolge ist entscheidend)
 

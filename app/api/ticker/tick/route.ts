@@ -27,13 +27,26 @@ import { authorizeCron, tickerEnabled } from "@/lib/ticker/guards";
 export const dynamic = "force-dynamic";
 
 /**
- * Stündlicher Cron: Drift anwenden + verpasste Verkäufe nachziehen.
+ * Cron (QStash, alle 5 Minuten): Drift anwenden + verpasste Verkäufe nachziehen.
+ * Vercel-Hobby-Crons laufen nur 1×/Tag — deshalb QStash, wie im Ticket-System
+ * (Anlage siehe Handoff/Go-Live; Vorbild tonherd-tickets/docs/RUNBOOK.md).
  *
  * Drei Schutzschichten, bevor irgendetwas geschrieben wird:
- *  1. Bearer CRON_SECRET (zeitkonstant verglichen)
+ *  1. Bearer CRON_SECRET (zeitkonstant verglichen; QStash liefert ihn über
+ *     Upstash-Forward-Authorization)
  *  2. TICKER_ENABLED — der Not-Aus. Ohne "1" passiert gar nichts.
  *  3. ?start=1 — die Börse startet NUR auf ausdrücklichen Wunsch. Ohne
  *     Metafield und ohne diesen Parameter bleibt der Shop-Preis unangetastet.
+ *
+ * ANTWORT-POLITIK (Lehre aus dem Ticket-System, dessen Runbook §"nie 5xx"):
+ * Ein NACKTER Lauf (der Scheduler) bekommt IMMER 200 — auch bei Fehlern und
+ * Anomalien steht das Ergebnis nur im Body (`status`). Ein Fehlercode kauft
+ * beim 5-Minuten-Takt nichts (der nächste Lauf ist ohnehin der Retry) und
+ * riskiert Retry-Stürme bzw. Trigger-Dienste, die sich nach Fehlerserien
+ * selbst abschalten — dann bliebe die Börse auch NACH der Heilung tot.
+ * Alarmiert wird stattdessen über /api/ticker/status + externen Wächter.
+ * Nur die MENSCHLICHEN Hebel (?start / ?rebaseline / ?reconcile) behalten
+ * sprechende HTTP-Codes — da sitzt jemand mit curl davor.
  */
 export async function GET(request: NextRequest) {
   if (!authorizeCron(request)) {
@@ -75,6 +88,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // Nackter Scheduler-Lauf oder menschlicher Hebel? Entscheidet über die
+  // HTTP-Codes im Fehlerfall (siehe Antwort-Politik oben).
+  const manuell =
+    startRequested || rebaselineRequested || reconcileSprung !== null;
+
   // Bei einem verlorenen Wettlauf (der Webhook war schneller) komplett neu lesen
   // und neu rechnen. Blind überschreiben würde dessen Verkauf löschen.
   for (let versuch = 0; versuch < 3; versuch++) {
@@ -88,7 +106,7 @@ export async function GET(request: NextRequest) {
       // Der Bestand ergibt keinen Sinn (Reset? Admin-Korrektur? Ausverkauf?).
       // Aus dem Bestand allein ist das nicht zu unterscheiden — also NICHTS
       // schreiben. Der Preis bleibt stehen, kein Verkauf geht verloren, und
-      // ein Mensch entscheidet mit `?rebaseline=1`.
+      // ein Mensch entscheidet über die Hebel im `hinweis`.
       if (err instanceof InventoryAnomalyError) {
         console.error("[ticker/tick] BESTANDS-ANOMALIE:", err.message);
         return NextResponse.json(
@@ -103,28 +121,25 @@ export async function GET(request: NextRequest) {
               "(z. B. ein Refund-Batch)? Dann ?reconcile=<spruenge> mit GENAU dem oben " +
               "gemeldeten Wert — der Sprung wird als echt übernommen und bewegt den Kurs.",
           },
-          { status: 409 }
+          // Scheduler: 200, sonst Retry-Sturm/Selbstabschaltung. Mensch: 409.
+          // Der Wächter sieht die Anomalie über /api/ticker/status (503).
+          { status: manuell ? 409 : 200 }
         );
       }
       console.error("[ticker/tick] fehlgeschlagen:", err);
-      // 500 ist hier richtig: Vercel-Cron schaltet bei Fehlern NICHT ab, sondern
-      // markiert den Lauf in der Oberfläche als fehlgeschlagen. Eine 200er-
-      // Antwort mit "status: error" würde den Ausfall verstecken — und ein
-      // stiller Dauerausfall ist das Schlimmste, was der Börse passieren kann.
-      // (Achtung, falls je auf QStash o.ä. umgestellt wird: Solche Dienste
-      // deaktivieren sich nach wiederholten 5xx. Dann muss das hier neu bewertet
-      // werden.)
-      // Der Preis bleibt in jedem Fall unverändert, und der nächste Lauf holt die
-      // Zeit nach — der Drift ist zeitbasiert.
+      // Der Preis bleibt in jedem Fall unverändert, und der nächste Lauf holt
+      // die Zeit nach — der Drift ist zeitbasiert. Dem SCHEDULER trotzdem 200
+      // geben (Antwort-Politik oben); der Ausfall ist nicht versteckt, sondern
+      // wandert über /api/ticker/status + Wächter in eine Alarm-Mail.
       return NextResponse.json(
         { status: "error", message: (err as Error).message },
-        { status: 500 }
+        { status: manuell ? 500 : 200 }
       );
     }
   }
   return NextResponse.json(
     { status: "error", message: "Zustand blieb nach 3 Versuchen umkämpft" },
-    { status: 500 }
+    { status: manuell ? 500 : 200 }
   );
 }
 
@@ -199,6 +214,7 @@ async function runTick(
     : Boolean(ticketZahl);
 
   if (state?.quelle === "tickets" && !ticketQuelleKonfiguriert()) {
+    const manuell = startRequested || rebaselineRequested || reconcileSprung !== null;
     return NextResponse.json(
       {
         status: "error",
@@ -207,7 +223,8 @@ async function runTick(
           "TICKETS_MONITOR_SECRET fehlen. Envs wiederherstellen — oder die Börse bewusst " +
           "neu aufsetzen. Es wird NICHT still auf den Bestand gewechselt.",
       },
-      { status: 500 }
+      // Scheduler: 200 (Antwort-Politik); der Wächter alarmiert über /status.
+      { status: manuell ? 500 : 200 }
     );
   }
 

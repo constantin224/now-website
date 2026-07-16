@@ -159,11 +159,24 @@ async function getTick(query = "") {
   );
 }
 
+const MONITOR_SECRET = "test-monitor-secret";
+
+async function getStatus(secret = MONITOR_SECRET) {
+  const { GET } = await import("@/app/api/ticker/status/route");
+  const { NextRequest } = await import("next/server");
+  return GET(
+    new NextRequest("https://now-music.at/api/ticker/status", {
+      headers: { "x-monitor-secret": secret },
+    })
+  );
+}
+
 beforeEach(() => {
   vi.stubEnv("TICKER_ENABLED", "1");
   vi.stubEnv("TICKER_MOCK", "");
   vi.stubEnv("SHOPIFY_WEBHOOK_SECRET", SECRET);
   vi.stubEnv("CRON_SECRET", CRON_SECRET);
+  vi.stubEnv("MONITOR_SECRET", MONITOR_SECRET);
   // Standard: KEIN Ticket-System konfiguriert → die bestehenden Tests prüfen
   // weiterhin den Bestands-Notpfad.
   vi.stubEnv("TICKETS_BASE_URL", "");
@@ -401,16 +414,17 @@ describe("Cron — Betriebsverhalten", () => {
     expect(shop.variantPrice).toBe(22); // KEIN Sprung auf den Deckel
   });
 
-  it("meldet einen Shopify-Ausfall als Fehler, statt ihn zu verstecken", async () => {
-    // Vercel-Cron schaltet bei 5xx NICHT ab, sondern markiert den Lauf als
-    // fehlgeschlagen. Eine 200er-Antwort würde einen Dauerausfall unsichtbar
-    // machen — das Schlimmste, was der Börse passieren kann.
+  it("Shopify-Ausfall: Scheduler bekommt 200, der Fehler steht im Body", async () => {
+    // Der Cron läuft über QStash — ein 5xx an den Scheduler kauft nichts (der
+    // nächste 5-Minuten-Lauf ist ohnehin der Retry) und riskiert Retry-Stürme
+    // bzw. Trigger, die sich nach Fehlerserien selbst abschalten. Sichtbar
+    // wird der Ausfall über /api/ticker/status + externen Wächter.
     vi.stubGlobal(
       "fetch",
       vi.fn(() => Promise.reject(new Error("Shopify nicht erreichbar")))
     );
     const r = await getTick();
-    expect(r.status).toBe(500);
+    expect(r.status).toBe(200);
     expect(await r.json()).toMatchObject({ status: "error" });
     expect(shop.variantPrice).toBe(22); // Preis bleibt unangetastet
   });
@@ -425,10 +439,10 @@ describe("Cron — Betriebsverhalten", () => {
 });
 
 describe("Bestands-Anomalie: halten statt raten", () => {
-  it("Bestands-Reset schreibt NICHTS und meldet sich mit 409", async () => {
+  it("Bestands-Reset schreibt NICHTS — Scheduler-Antwort 200, Anomalie im Body", async () => {
     shop.inventory = 0; // Reset / Tracking-Panne — Tracking meldet weiter true
     const r = await getTick();
-    expect(r.status).toBe(409);
+    expect(r.status).toBe(200); // nackter Lauf: nie 5xx/4xx an den Scheduler
     expect(await r.json()).toMatchObject({ status: "anomaly" });
     expect(shop.stateWrites).toBe(0);
     expect(shop.priceWrites).toBe(0);
@@ -437,7 +451,7 @@ describe("Bestands-Anomalie: halten statt raten", () => {
 
   it("?rebaseline=1 löst es bewusst auf — Kurs bleibt, Baseline zieht nach", async () => {
     shop.inventory = 300; // Kollege hat 50 Tickets nachgelegt
-    expect((await getTick()).status).toBe(409); // erst mal: Stopp
+    expect((await (await getTick()).json()).status).toBe("anomaly"); // erst mal: Stopp
 
     const r = await getTick("?rebaseline=1");
     expect(await r.json()).toMatchObject({ status: "rebaselined" });
@@ -553,7 +567,6 @@ describe("Kaputter Zustand im Metafield", () => {
   it("ein Drift-Anker in der fernen Zukunft wird abgewiesen (Drift wäre still aus)", async () => {
     shop.state = { ...shop.state!, lastTickAt: "2126-01-01T00:00:00.000Z" };
     const r = await getTick();
-    expect(r.status).toBe(500);
     expect(await r.json()).toMatchObject({ status: "error" });
     expect(shop.stateWrites).toBe(0);
   });
@@ -622,14 +635,14 @@ describe("Audit-Runde 4 — die Naht zur Ticket-Quelle", () => {
     expect(shop.variantPrice).toBeLessThanOrEqual(22);
   });
 
-  it("Ticket-Zustand + entfernte Envs → lauter Fehler, KEIN stiller Wechsel auf den Bestand", async () => {
+  it("Ticket-Zustand + entfernte Envs → Fehler im Body, KEIN stiller Wechsel auf den Bestand", async () => {
     shop.state = { ...shop.state!, quelle: "tickets", startTickets: 10, soldCount: 5 };
     shop.inventory = 200; // der Bestand ist längst divergent
     vi.stubEnv("TICKETS_BASE_URL", "");
     vi.stubEnv("TICKETS_MONITOR_SECRET", "");
 
     const r = await getTick();
-    expect(r.status).toBe(500);
+    expect(await r.json()).toMatchObject({ status: "error" });
     expect(shop.state!.soldCount).toBe(5); // unangetastet
     expect(shop.stateWrites).toBe(0);
   });
@@ -718,9 +731,9 @@ describe("Audit-Runde 4b — ?reconcile=<sprünge>: echte Sprünge bestätigen (
     shop.state = { ...shop.state!, soldCount: 10 };
     shop.inventory = 250; // alle 10 zurückgebucht → Sprung um −10
 
-    const anomalie = await getTick();
-    expect(anomalie.status).toBe(409); // erst mal: Stopp
-    expect((await anomalie.json()).spruenge).toBe(-10); // der zu bestätigende Wert
+    const anomalie = await (await getTick()).json();
+    expect(anomalie.status).toBe("anomaly"); // erst mal: Stopp
+    expect(anomalie.spruenge).toBe(-10); // der zu bestätigende Wert
 
     const r = await getTick("?reconcile=-10");
     expect(await r.json()).toMatchObject({ status: "reconciled", soldCount: 0 });
@@ -729,8 +742,8 @@ describe("Audit-Runde 4b — ?reconcile=<sprünge>: echte Sprünge bestätigen (
   });
 
   it("auch ein bestätigter Massen-VERKAUF geht über ?reconcile", async () => {
-    shop.inventory = 200; // 50 auf einmal — normal ein 409
-    expect((await getTick()).status).toBe(409);
+    shop.inventory = 200; // 50 auf einmal — normal eine Anomalie
+    expect((await (await getTick()).json()).status).toBe("anomaly");
 
     const r = await getTick("?reconcile=50");
     expect(await r.json()).toMatchObject({ status: "reconciled", soldCount: 50 });
@@ -742,7 +755,7 @@ describe("Audit-Runde 4b — ?reconcile=<sprünge>: echte Sprünge bestätigen (
     // weiterbewegt. Der Hebel darf NICHT den neuen Sprung schlucken.
     shop.state = { ...shop.state!, soldCount: 10 };
     shop.inventory = 250;
-    expect((await getTick()).status).toBe(409); // meldet −10
+    expect((await (await getTick()).json()).status).toBe("anomaly"); // meldet −10
 
     shop.inventory = 210; // inzwischen: Sprung wäre +30
     const r = await getTick("?reconcile=-10");
@@ -756,5 +769,82 @@ describe("Audit-Runde 4b — ?reconcile=<sprünge>: echte Sprünge bestätigen (
     expect(r.status).toBe(400);
     expect(await r.json()).toMatchObject({ status: "hebel_konflikt" });
     expect(shop.stateWrites).toBe(0);
+  });
+});
+
+describe("Betriebsampel /api/ticker/status (für den externen Wächter)", () => {
+  // Der Tick-Cron antwortet dem Scheduler nie mit 5xx — DIESE Route trägt
+  // stattdessen den Alarm: 200 = gut/bewusst aus, 503 = Mensch muss handeln,
+  // 500 = nicht mal lesen geht. Ein Google-Apps-Script-Wächter pollt sie.
+
+  it("ohne (oder mit falschem) Monitor-Secret → 401", async () => {
+    expect((await getStatus("falsch")).status).toBe(401);
+    vi.stubEnv("MONITOR_SECRET", ""); // fail-closed: kein Secret = kein Zugang
+    expect((await getStatus()).status).toBe(401);
+  });
+
+  it("Not-Aus oder noch nicht gestartet → 200 (kein Alarm vor dem Go-Live)", async () => {
+    vi.stubEnv("TICKER_ENABLED", "0");
+    let r = await getStatus();
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ status: "disabled" });
+
+    vi.stubEnv("TICKER_ENABLED", "1");
+    shop.state = null;
+    r = await getStatus();
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ status: "not_started" });
+  });
+
+  it("gesunder Betrieb → 200 mit Kennzahlen", async () => {
+    const r = await getStatus();
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ status: "ok", quelle: "bestand", soldCount: 0 });
+  });
+
+  it("Cron steht (kein Tick seit >3 h) → 503", async () => {
+    shop.state = {
+      ...shop.state!,
+      lastTickAt: new Date(Date.now() - 4 * 3_600_000).toISOString(),
+    };
+    const r = await getStatus();
+    expect(r.status).toBe(503);
+    const j = await r.json();
+    expect(j.status).toBe("rot");
+    expect(j.probleme.join()).toMatch(/Cron steht/);
+  });
+
+  it("wartende Bestands-Anomalie → 503 (und die Route schreibt dabei NICHTS)", async () => {
+    shop.inventory = 0; // Reset — der Tick würde anhalten
+    const r = await getStatus();
+    expect(r.status).toBe(503);
+    expect((await r.json()).probleme.join()).toMatch(/Anomalie/);
+    expect(shop.stateWrites).toBe(0);
+    expect(shop.priceWrites).toBe(0);
+  });
+
+  it("Bestandsverfolgung aus (Bestands-Modus) → 503", async () => {
+    shop.tracked = false;
+    shop.inventory = 0;
+    const r = await getStatus();
+    expect(r.status).toBe(503);
+    expect((await r.json()).probleme.join()).toMatch(/Bestandsverfolgung/);
+  });
+
+  it("Ticket-Zustand ohne Envs → 503", async () => {
+    shop.state = { ...shop.state!, quelle: "tickets" };
+    const r = await getStatus(); // TICKETS_BASE_URL ist im Standard-Setup leer
+    expect(r.status).toBe(503);
+    expect((await r.json()).probleme.join()).toMatch(/TICKETS_BASE_URL/);
+  });
+
+  it("Shopify weg → 500", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new Error("Shopify nicht erreichbar")))
+    );
+    const r = await getStatus();
+    expect(r.status).toBe(500);
+    expect(await r.json()).toMatchObject({ status: "lese_fehler" });
   });
 });

@@ -179,12 +179,10 @@ async function handleOrder(orderId: string, tickets: number, isTest: boolean) {
   // doppelt. Der Webhook beschleunigte nur den Preissprung — darauf verzichten
   // wir; kein Schreibvorgang, idempotent.
   //
-  // BEWUSSTER TRADE-OFF: Der Preissprung kommt erst mit dem nächsten
-  // BÖRSEN-Cron — der läuft STÜNDLICH (vercel.json), nicht alle 5 Minuten (das
-  // ist die Kadenz des Ticket-System-Crons, der nur dessen Ledger pflegt). Ein
-  // Kauf um 12:01 hebt den Kurs also schlimmstenfalls erst um 13:00. Für die
-  // Parodie ist das egal; wer es schneller will, stellt den Börsen-Cron in
-  // vercel.json auf */5 (Shopify-Last: +1 Read-Query alle 5 min, unkritisch).
+  // Verzögerung: Der Preissprung kommt mit dem nächsten Börsen-Cron. Der läuft
+  // über QStash alle 5 Minuten (Vercel-Hobby-Crons können nur 1×/Tag; Anlage
+  // siehe Handoff/Go-Live) — schlimmstenfalls also ~10 Minuten nach dem Kauf
+  // (Ticket-System-Ledger 5 min + Börsen-Tick 5 min). Für die Parodie egal.
   if (state.quelle === "tickets") {
     return NextResponse.json({
       ok: true,

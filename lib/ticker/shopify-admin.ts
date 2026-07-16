@@ -193,8 +193,8 @@ export async function writeTicker(
    * fünf Sekunden — bleibt sie aus, wiederholt es die Zustellung und **löscht
    * das Abo nach einigen Stunden**. Genau daran ist das Schwesterprojekt
    * (tonherd-tickets) schon aufgelaufen; dort sind die Webhooks deshalb gesperrt.
-   * Jeder Shopify-Roundtrip zählt also. Der stündliche Cron macht den Abgleich
-   * ohnehin — ein paar Minuten später, aber sicher.
+   * Jeder Shopify-Roundtrip zählt also. Der nächste Cron-Lauf (alle 5 Minuten)
+   * macht den Abgleich ohnehin — ein paar Minuten später, aber sicher.
    */
   mitAbgleich = true
 ): Promise<void> {
