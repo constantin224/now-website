@@ -234,6 +234,17 @@ export default async function TicketsPage({
         </div>
       </section>
 
+      {/* ============ LIVE-BETRACHTER — Fake-Andrang, offen absurd ============ */}
+      <div className="px-6 pt-[var(--spacing-block)]">
+        <p className="mx-auto flex max-w-2xl items-center justify-center gap-2.5 text-center text-xs md:text-sm text-sand/45">
+          <span className="relative flex w-1.5 h-1.5">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-market-up opacity-60 md:motion-safe:animate-ping" />
+            <span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-market-up" />
+          </span>
+          {t.liveViewers}
+        </p>
+      </div>
+
       {/* ============ SO FUNKTIONIERT'S — Erklärung links, Chart als Beweis rechts ============ */}
       <section className="pt-[var(--spacing-section)]">
         <div className="max-w-6xl mx-auto px-6">
@@ -296,6 +307,30 @@ export default async function TicketsPage({
         </div>
       </section>
 
+      {/* ============ TRUST-BADGES — Zertifikats-Leiste der großen Plattformen, deadpan ============ */}
+      <section className="pt-[var(--spacing-section)]">
+        <div className="max-w-5xl mx-auto px-6">
+          <ScrollReveal y={16}>
+            <ul className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 border-y border-line py-6">
+              {t.trust.badges.map((b) => (
+                <li
+                  key={b.text}
+                  className="flex items-baseline gap-2 text-[11px] md:text-xs tracking-[0.15em] uppercase text-sand/60"
+                >
+                  <span className="text-terracotta">✓</span>
+                  <span>{b.text}</span>
+                  {b.note && (
+                    <span className="normal-case tracking-normal text-sand-38 italic">
+                      ({b.note})
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </ScrollReveal>
+        </div>
+      </section>
+
       {/* ============ SAALPLAN + VIP-PACKAGES ============ */}
       <section className="pt-[var(--spacing-section)]">
         <div className="max-w-6xl mx-auto px-6">
@@ -329,6 +364,46 @@ export default async function TicketsPage({
         </div>
       </section>
 
+      {/* ============ BEWERTUNGEN — Trustpilot-Parodie ============ */}
+      <section className="pt-[var(--spacing-section)]">
+        <div className="max-w-6xl mx-auto px-6">
+          <ScrollReveal y={24}>
+            <div className="border-t border-line pt-[var(--spacing-block)]">
+              <div className="flex flex-wrap items-baseline justify-between gap-4">
+                <p className="text-[10px] tracking-[0.25em] uppercase text-sand-38">
+                  {t.reviews.eyebrow}
+                </p>
+                <p className="text-xs text-sand/45 tabular-nums">
+                  {t.reviews.aggregate}
+                </p>
+              </div>
+              <ul className="grid md:grid-cols-3 gap-10 md:gap-8 mt-10">
+                {t.reviews.items.map((r) => (
+                  <li key={r.quote}>
+                    <p
+                      className="text-terracotta/80 tracking-[0.3em] text-sm"
+                      aria-hidden
+                    >
+                      {"★".repeat(r.stars)}
+                      <span className="text-sand/20">
+                        {"★".repeat(5 - r.stars)}
+                      </span>
+                    </p>
+                    <span className="sr-only">
+                      {t.reviews.starsSr.replace("{stars}", String(r.stars))}
+                    </span>
+                    <p className="text-base md:text-lg text-sand/75 font-light italic leading-relaxed mt-4">
+                      {r.quote}
+                    </p>
+                    <p className="text-xs text-sand-38 mt-3">— {r.by}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
+
       {/* ============ FINALE — Band-Foto, Countdown, CTA ============ */}
       <section className="relative mt-[var(--spacing-section)]">
         <div className="absolute inset-0 overflow-hidden">
@@ -350,6 +425,9 @@ export default async function TicketsPage({
             <div className="flex justify-center mt-12">
               <Countdown targetIso={C.gigDateIso} labels={t.countdown} />
             </div>
+            <p className="text-xs text-sand/45 mt-5 tracking-wide">
+              {t.urgencyNote}
+            </p>
             <div className="mt-12">
               <p className="text-[10px] tracking-[0.25em] uppercase text-sand/45 mb-4">
                 {t.queueStatus}

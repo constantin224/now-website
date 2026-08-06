@@ -164,7 +164,27 @@
         "name": "MEET & GREET",
         "desc": "Free and unavoidable. After the show the band is at the bar, with nobody to shield them."
       }
-    ]
+    ],
+    "liveViewers": "3 people are viewing this page right now. Two of them are in the band.",
+    "trust": {
+      "badges": [
+        { "text": "Self-verified organiser", "note": "" },
+        { "text": "No bots", "note": "as far as we know" },
+        { "text": "No resale markup", "note": "" },
+        { "text": "SSL-encrypted", "note": "" }
+      ]
+    },
+    "urgencyNote": "This 'offer' ends in exactly this much time. No need to rush.",
+    "reviews": {
+      "eyebrow": "Reviews",
+      "aggregate": "3.7 out of 5 · 3 reviews · all made up",
+      "starsSr": "{stars} out of 5 stars",
+      "items": [
+        { "stars": 5, "quote": "I waited and it got cheaper. Feels illegal, but it isn't.", "by": "a fan" },
+        { "stars": 5, "quote": "Wanted to book Golden Circle — turned out it was the whole room.", "by": "another fan" },
+        { "stars": 1, "quote": "The price dropped after I bought.", "by": "understandably" }
+      ]
+    }
   },
   "impressum": {
     "title": "Legal Notice",

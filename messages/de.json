@@ -164,7 +164,27 @@
         "name": "MEET & GREET",
         "desc": "Gratis und unvermeidbar. Die Band steht nach der Show an der Bar und hat niemanden, der sie abschirmt."
       }
-    ]
+    ],
+    "liveViewers": "Gerade sehen sich 3 Personen diese Seite an. Zwei davon sind aus der Band.",
+    "trust": {
+      "badges": [
+        { "text": "Selbst-verifizierter Veranstalter", "note": "" },
+        { "text": "Keine Bots", "note": "soweit wir wissen" },
+        { "text": "Kein Zweitmarkt-Aufschlag", "note": "" },
+        { "text": "SSL-verschlüsselt", "note": "" }
+      ]
+    },
+    "urgencyNote": "Dieses „Angebot“ endet in exakt dieser Zeit. Kein Grund zur Eile.",
+    "reviews": {
+      "eyebrow": "Bewertungen",
+      "aggregate": "3,7 von 5 · 3 Bewertungen · alle ausgedacht",
+      "starsSr": "{stars} von 5 Sternen",
+      "items": [
+        { "stars": 5, "quote": "Hab gewartet, wurde billiger. Fühlt sich illegal an, ist es aber nicht.", "by": "ein Fan" },
+        { "stars": 5, "quote": "Wollte Golden Circle buchen — war schon der ganze Raum.", "by": "noch ein Fan" },
+        { "stars": 1, "quote": "Preis ist gefallen, nachdem ich gekauft hab.", "by": "verständlicherweise" }
+      ]
+    }
   },
   "impressum": {
     "title": "Impressum",
