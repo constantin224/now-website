@@ -1,16 +1,23 @@
 # Ticket-Börse — Handoff
 
-**Stand: 2026-07-16** · alles auf `main` · **119/119 Tests grün** · Build + tsc + Lint sauber
-**Die Börse LÄUFT NICHT.** Der Ticketpreis steht unverändert auf 22,00 €.
-*(Lint meldet 3 Fehler in `hero-video.tsx`/`use-media-query.ts` — Alt-Bestand, nichts mit der Börse zu tun.)*
+**Stand: 2026-08-06** · alles auf `main` · **123/123 Tests grün** · Build + tsc sauber
+**Die Börse LÄUFT NOCH NICHT — aber der Go-Live ist fertig vorbereitet.** Der Ticketpreis steht unverändert auf 22,00 € (live verifiziert 06.08.).
 
+> ## GO-LIVE = EIN SCRIPT: `./scripts/boerse-golive.sh`
+>
+> Vorbereitet am 06.08. (Details unten in der Go-Live-Sektion, Erledigtes abgehakt):
+> - Evey-Ablösung ist DURCH (27.07.), Wien 17.10. verkauft übers eigene Ticket-System — der alte Blocker ist weg.
+> - 3 von 6 Vercel-Envs gesetzt (`TICKER_ENABLED`, `TICKETS_BASE_URL`, `SHOPIFY_ADMIN_CLIENT_ID`); die 3 Secret-Envs setzt das Script (der Permission-Classifier blockt Keychain→Vercel-Pipes für Claude).
+> - Neues Nur-Lese-Secret im Schlüsselbund: `now-boerse-monitor-secret` (für `/api/ticker/status` + Apps-Script-Wächter).
+> - 4 neue Parodie-Sektionen committet (Live-Betrachter, Trust-Badges, Bewertungen-Parodie, Countdown-Note) — Codex-reviewt.
+> - ⚠️ **Wien MUSS vor dem Start manuell gearmt werden** (macht das Script): Auto-Arming des Ticket-Systems greift erst doors−12h (17.10. früh). Bis dahin liefert `/api/verkaufszahl` `scharf:false` → `?start=1` würde 503 verweigern, und die Börse bliebe im nur-drift-Modus (Verkäufe bewegten den Kurs nie).
+> - Nach dem Script bleibt EIN Handgriff: Apps-Script-Property `BOERSE_MONITOR_SECRET` setzen (Anleitung druckt das Script am Ende).
+>
 > ## Für den nächsten Chat: DAS HIER ZUERST
 >
 > 1. **Dieses Dokument** — Status, Modell, was nicht rückgebaut werden darf.
 > 2. **[`TICKET-BOERSE-x-TICKETSYSTEM.md`](TICKET-BOERSE-x-TICKETSYSTEM.md)** — die Kopplung mit dem Ticket-System (`tonherd-tickets`). Ohne das versteht man nicht, woher die Verkaufszahl kommt.
 > 3. `docs/superpowers/specs/2026-07-11-ticket-boerse-design.md` — das Konzept (Design-Entscheidungen, Copy).
->
-> **Nächster konkreter Schritt:** siehe [Go-Live](#go-live-die-reihenfolge-zählt) ganz unten. Er wartet auf die Evey-Ablösung.
 
 ---
 
@@ -270,7 +277,7 @@ Der Mock simuliert mit der echten Engine drei Wochen Verlauf. **Er kann nichts k
      -H "Upstash-Retries: 1" \
      -H "Upstash-Forward-Authorization: Bearer <CRON_SECRET>"
    ```
-   ⚠️ `Upstash-Method: GET` ist zwingend (sonst POST → 405 bei jedem Lauf). Beide Schedules zusammen: 576 Läufe/Tag = 58 % des QStash-Free-Limits (1000/Tag).
+   ⚠️ `Upstash-Method: GET` ist zwingend (sonst POST → 405 bei jedem Lauf). Alle drei Schedules zusammen (Ticket-Cron */5 + Sync */15 + Börse */5): 672 Läufe/Tag = 67 % des QStash-Free-Limits (1000/Tag). *(Stand 06.08. — die alte Zahl 576 stammte von vor dem Sync-Cron.)*
 7. **Wächter scharfschalten:** Im Apps-Script „Tonherd Tickets Waechter" (Konto info@tonherd.com) den aktualisierten `Code.gs` einspielen (prüft jetzt BEIDE Ampeln) und Script-Property `BOERSE_MONITOR_SECRET` = Wert aus Schritt 4 setzen. Einmal `pruefe` laufen lassen.
 8. **Börse starten:** den Tick einmal mit `?start=1` aufrufen. Sie friert dabei die bereits verkauften Tickets als Baseline ein — die Alt-Käufer aus der Evey-Zeit reißen den Kurs **nicht** hoch. *(Wer früh gekauft hat, wird nicht bestraft. Wäre auch das Gegenteil der Idee.)* Liefert das Ticket-System gerade keine Zahl, verweigert der Start mit 503 — erst Schritt „Ticket-System scharfschalten" prüfen.
 
@@ -289,9 +296,9 @@ Den Preis allein zurückzustellen **reicht nicht** — der nächste Tick übersc
 
 | | |
 |---|---|
-| 🔴 **Go-Live** | wartet auf die Evey-Ablösung (siehe oben) |
-| 🔴 **Testbestellungen im Ledger** | `/api/verkaufszahl` (`tonherd-tickets`) soll Testbestellungen ausschließen — sonst verzerrt eine später stornierte Testbestellung den Kurs dauerhaft (Runde 4b). Danach kann `ignoredTickets` im Ticket-Modus entfallen. |
-| 🟡 **Endpunkt mergen** | `tonherd-tickets`, Branch `feat/verkaufszahl-endpunkt` (2 Commits) — noch nicht gemergt |
+| 🟢 **Go-Live** | **vorbereitet (06.08.)** — Evey-Ablösung ist durch (27.07.); Ausführung = `./scripts/boerse-golive.sh` + Apps-Script-Property. ⚠️ Schritt „Ticket-System scharfschalten" heißt heute konkret: **Wien manuell armen** — das Auto-Arming des Ticket-Systems (seit 18.07., `lib/veranstalter-sync.ts`) greift erst doors−12h; bis dahin liefert `/api/verkaufszahl` `scharf:false`, der Start würde 503 verweigern. Das Script erledigt das. |
+| 🟢 **Testbestellungen im Ledger** | **erledigt (18.07.)** — `entitlementsForOrder` schließt `test:true` global aus; `ignoredTickets` im Ticket-Modus obsolet. |
+| 🟢 **Endpunkt mergen** | **erledigt (18.07.)** — `/api/verkaufszahl` ist gemergt + live (Codex fand beim Merge 2 Bugs: `used` ist HASH → hlen; `__leer__`-Sentinel zählte mit). |
 | 🟡 **Umsatz-Report** | `tonherd-tickets/scripts/report.ts` rechnet `verkauft × aktueller Variantenpreis` → mit dynamischem Preis **sinnlos**. Bewusst nicht gefixt: Der Query ist auf Shopify-Kostenpunkte budgetiert, das gehört gemessen. |
 | 🟢 **`read_all_orders`** | **erledigt** — gewährt über die gemeinsame App „Claude Code Admin". Die 60-Tage-Blende ist weg. |
 | 🟢 **Rechtlich** | geklärt: Dynamic Pricing ist legal (nicht personalisiert, Checkout-Preis bindend). Leitplanken: nie als „Rabatt"/Statt-Preis bewerben (30-Tage-Regel), keine erfundene Knappheit. |
