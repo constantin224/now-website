@@ -84,7 +84,7 @@
       "some": "NACHFRAGE REGISTRIERT — {count} TICKET(S) IN 24 STUNDEN",
       "none": "VIELE TICKETS VERFÜGBAR. WIRKLICH VIELE."
     },
-    "howItWorks": "Jedes verkaufte Ticket hebt den Kurs um 1 %. Jede Stunde ohne Verkauf senkt ihn wieder. Bei etwa anderthalb Tickets pro Tag steht der Preis still — darunter fällt er, darüber steigt er.",
+    "howItWorks": "Jedes verkaufte Ticket senkt den Preis um 1 € — für alle, die nach dir kaufen. Jeder Tag ohne Verkauf hebt ihn um 1 €. Ein Ticket pro Tag hält den Kurs. Kauft ihr schneller, wird's für alle billiger.",
     "buyCta": "Tickets sichern",
     "fees": "Servicegebühr: 0 €. Bearbeitungsgebühr: 0 €. Dynamische-Preis-Gebühr: 0 €. Wir verstehen es auch nicht.",
     "disclaimer": "* Angezeigter Preis inkl. gesetzl. USt. und exkl. sämtlicher Gebühren, die wir nicht erheben.",
@@ -134,11 +134,11 @@
       "cap": "Absolute Obergrenze: {price}"
     },
     "howItWorksTitle": "So funktioniert Dynamic Pricing",
-    "chartHeadline": "Kauft niemand, fällt er. Kauft wer, steigt er.",
+    "chartHeadline": "Kauft wer, fällt er. Kauft niemand, steigt er.",
     "closingLine": "Dynamic Pricing endet am 17. Oktober. Danach gibt es die Abendkassa — Fixpreis, wie im Mittelalter.",
     "heroTagline": "Dynamic Pricing wie bei den Superstars — nur in die andere Richtung.",
     "live": "LIVE",
-    "nextDrop": "Nächster Preisfall: in ein paar Minuten — außer, jemand kauft.",
+    "nextDrop": "Der Preis fällt nur, wenn jemand kauft. Sonst steigt er — 1 € pro Tag, schleichend.",
     "terminalLine": "The Loft, Wien · Dynamischer Preis läuft bis 17.10.2026",
     "share": "Kurs teilen",
     "shared": "Link kopiert",
@@ -180,7 +180,7 @@
       "aggregate": "3,7 von 5 · 3 Bewertungen · alle ausgedacht",
       "starsSr": "{stars} von 5 Sternen",
       "items": [
-        { "stars": 5, "quote": "Hab gewartet, wurde billiger. Fühlt sich illegal an, ist es aber nicht.", "by": "ein Fan" },
+        { "stars": 5, "quote": "Hab gekauft, für alle nach mir wurde's billiger. Gern geschehen.", "by": "ein Fan" },
         { "stars": 5, "quote": "Wollte Golden Circle buchen — war schon der ganze Raum.", "by": "noch ein Fan" },
         { "stars": 1, "quote": "Preis ist gefallen, nachdem ich gekauft hab.", "by": "verständlicherweise" }
       ]

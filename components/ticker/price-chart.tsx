@@ -5,7 +5,12 @@ import { shopPrice, type HistoryPoint } from "@/lib/ticker/engine";
 
 interface Props {
   history: HistoryPoint[];
-  rising: boolean; // Trend der 24h-Kennzahl — Chart-Farbe konsistent zum Pfeil
+  /**
+   * Trend der 24h-Kennzahl, als WERTUNG: true = Kurs fällt = die Community
+   * gewinnt (grün). Die Farb-Semantik ist gegenüber einem echten Börsen-Chart
+   * bewusst gedreht — Pfeil und Vorzeichen tragen die echte Richtung.
+   */
+  erfolg: boolean;
   floorEuro: number;
   locale: string;
   labels: {
@@ -39,7 +44,7 @@ function linePathOf(pts: { x: number; y: number }[]): string {
 
 // Interaktiver Börsen-Chart: Kurs-Linie + Fläche, Grid, Boden-Linie,
 // Verkaufs-Events — und Crosshair mit Tooltip beim Zeigen/Streichen.
-export function PriceChart({ history: raw, rising, floorEuro, locale, labels }: Props) {
+export function PriceChart({ history: raw, erfolg, floorEuro, locale, labels }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<number | null>(null);
 
@@ -92,8 +97,8 @@ export function PriceChart({ history: raw, rising, floorEuro, locale, labels }: 
 
   const { ih, yMin, yMax, pts } = geo;
   const y = (v: number) => PAD.top + (1 - (v - yMin) / (yMax - yMin)) * ih;
-  const color = rising ? UP : DOWN;
-  const gradId = rising ? "tickerAreaUp" : "tickerAreaDown";
+  const color = erfolg ? UP : DOWN;
+  const gradId = erfolg ? "tickerAreaUp" : "tickerAreaDown";
   const gridSteps = [0.25, 0.5, 0.75, 1].map((f) => yMin + f * (yMax - yMin));
   const floorY = y(floorEuro);
   const linePath = linePathOf(pts);

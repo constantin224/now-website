@@ -111,6 +111,11 @@ export default async function TicketsPage({
   const price = currentPriceEuro > 0 ? currentPriceEuro : shopPrice(priceOf(state, new Date()));
   const change = dayChangePct(state, now, price);
   const rising = change >= 0;
+  // Farb-Semantik ist hier GEDREHT: Ein fallender Kurs ist der Erfolg — die
+  // Community kauft den Preis runter. Er bekommt deshalb das Grün; Steigen
+  // heißt Flaute. Der Pfeil zeigt weiterhin die echte Richtung (nie
+  // farb-allein, siehe price-chart.tsx).
+  const erfolg = !rising;
   const sales24 = salesLast24h(state, now);
   // Historische Kurse als SHOP-Preis (10-Cent-Rundung) — so, wie sie damals im
   // Shop standen. Der aktuelle Preis gehört dazu, sonst könnte der Höchststand
@@ -124,7 +129,7 @@ export default async function TicketsPage({
       : sales24 >= 1
         ? t.demandBadge.some.replace("{count}", String(sales24))
         : t.demandBadge.none;
-  const trendCls = rising ? "text-market-up" : "text-market-down";
+  const trendCls = erfolg ? "text-market-up" : "text-market-down";
   const arrow = rising ? "▲" : "▼";
   const pct = `${Math.abs(change).toFixed(1).replace(".", ",")} %`;
 
@@ -271,7 +276,7 @@ export default async function TicketsPage({
                 <Tilt className="md:[filter:drop-shadow(0_0_24px_rgba(192,133,82,0.18))]">
                   <PriceChart
                     history={state.history}
-                    rising={rising}
+                    erfolg={erfolg}
                     floorEuro={C.floorEuro}
                     locale={locale}
                     labels={t.chart}
