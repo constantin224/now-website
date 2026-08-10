@@ -122,7 +122,7 @@ async function main() {
     ok(`Token-Flow + TickerRead (Preis ${leer.currentPriceEuro} €, tracked=${leer.inventoryTracked})`);
 
     const start: TickerState = initState(22, leer.currentInventory, new Date(), 0, "bestand");
-    await writeTicker(start, leer.currentPriceEuro, null); // null = "darf noch keines geben"
+    await writeTicker(start, leer.currentPriceEuro, null, new Date()); // null = "darf noch keines geben"
     ok("Metafield angelegt + Startpreis geschrieben (compareDigest: null)");
 
     // ---- 3: parseState-Roundtrip über Shopifys echte JSON-Rückgabe ----
@@ -139,9 +139,10 @@ async function main() {
 
     // ---- 4: Zustands-Update + Preis-Abgleich über den echten Pfad ----
     const zweiVerkäufe: TickerState = { ...gelesen.state, soldCount: 2 };
-    await writeTicker(zweiVerkäufe, gelesen.currentPriceEuro, gelesen.compareDigest);
+    await writeTicker(zweiVerkäufe, gelesen.currentPriceEuro, gelesen.compareDigest, new Date());
     const nach = await readTicker();
-    const soll = shopPrice(priceOf(zweiVerkäufe)); // 22 × 1,01² → 22,40
+    // 22 − 2 → 20,00 (der Zeit-Anteil im Sekundenbereich verschwindet in der 10-Cent-Rundung)
+    const soll = shopPrice(priceOf(zweiVerkäufe, new Date()));
     if (nach.currentPriceEuro !== soll) {
       fail("Preis-Update", `Shop ${nach.currentPriceEuro} ≠ erwartet ${soll}`);
     }
@@ -151,7 +152,7 @@ async function main() {
     // ---- 5: DER kritische Test — veralteter compareDigest muss abgewiesen werden ----
     let conflictGeworfen = false;
     try {
-      await writeTicker({ ...nach.state!, soldCount: 5 }, nach.currentPriceEuro, gelesen.compareDigest); // ALTER digest
+      await writeTicker({ ...nach.state!, soldCount: 5 }, nach.currentPriceEuro, gelesen.compareDigest, new Date()); // ALTER digest
     } catch (e) {
       if (e instanceof TickerConflictError) conflictGeworfen = true;
       else fail("CAS-Konflikt", `unerwarteter Fehler: ${(e as Error).message}`);
@@ -165,7 +166,7 @@ async function main() {
     // Unsere Start-Pfad-Annahme: null heißt "es darf noch keines geben".
     let nullVerhalten: string;
     try {
-      await writeTicker({ ...unberührt.state!, soldCount: 9 }, unberührt.currentPriceEuro, null);
+      await writeTicker({ ...unberührt.state!, soldCount: 9 }, unberührt.currentPriceEuro, null, new Date());
       const danach = await readTicker();
       nullVerhalten = danach.state?.soldCount === 9
         ? "ÜBERSCHREIBT (kein Schutz!)"
