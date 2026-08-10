@@ -105,21 +105,32 @@ export async function GET(request: NextRequest) {
   //    echte Divergenz — ein Punkt-Vergleich meldete bei jedem
   //    10-Cent-Rundungssprung einen Fehlalarm.
   const ankerZeit = new Date(state.lastTickAt);
-  const preisAmAnker = shopPrice(priceOf(state, ankerZeit));
   const preisJetzt = shopPrice(priceOf(state, now));
-  // Anker in der ZUKUNFT (Uhr-Skew; parseState toleriert bis 24 h): Das
-  // Fenster darf dann NICHT über min/max aufgespannt werden — es würde alle
-  // Zwischenwerte legitimieren, auch einen dauerhaft toten Preis-Write, und
-  // der Herzschlag-Alarm schweigt bei negativem Abstand ebenfalls. Legitim
-  // sind hier nur die beiden echten Schreib-Zeitpunkte selbst.
-  const divergent =
-    ankerZeit.getTime() > now.getTime()
-      ? currentPriceEuro !== preisAmAnker && currentPriceEuro !== preisJetzt
-      : currentPriceEuro < preisAmAnker || currentPriceEuro > preisJetzt;
-  if (divergent) {
+  const skewMs = ankerZeit.getTime() - now.getTime();
+  if (skewMs > 5 * 60_000) {
+    // Anker DEUTLICH in der Zukunft (parseState toleriert bis 24 h): Hier ist
+    // die UHR die Anomalie — und genau das wird gemeldet. Eine Preisprüfung
+    // wäre in diesem Zustand nicht entscheidbar: Ohne persistierten Zeitpunkt
+    // des letzten Preis-Writes lässt sich „legitimer Write nach der
+    // Uhr-Korrektur" nicht von „dauerhaft toter Preis-Write" unterscheiden —
+    // jede Heuristik erzeugt entweder Fehlalarme oder schluckt echte Ausfälle.
+    // (Der Herzschlag-Alarm schweigt bei negativem Abstand ebenfalls; dieser
+    // Ast übernimmt das Alarmieren.)
     probleme.push(
-      `Preis-Divergenz: Shop verlangt ${currentPriceEuro} €, der Kurs sagt ${preisAmAnker}–${preisJetzt} €`
+      `Uhr-Anomalie: lastTickAt liegt ${Math.round(skewMs / 60_000)} min in der ` +
+        `Zukunft (${state.lastTickAt}) — Preisprüfung ausgesetzt, Uhren prüfen`
     );
+  } else {
+    // Normalfall inkl. Millisekunden-Skew zwischen Serverless-Instanzen: Bei
+    // ≤5 min Skew ist die Fenster-Spannweite ≤0,4 Cent — min/max ist sicher.
+    const preisAmAnker = shopPrice(priceOf(state, ankerZeit));
+    const fensterMin = Math.min(preisAmAnker, preisJetzt);
+    const fensterMax = Math.max(preisAmAnker, preisJetzt);
+    if (currentPriceEuro < fensterMin || currentPriceEuro > fensterMax) {
+      probleme.push(
+        `Preis-Divergenz: Shop verlangt ${currentPriceEuro} €, der Kurs sagt ${fensterMin}–${fensterMax} €`
+      );
+    }
   }
 
   // 3. Quelle und Anomalien — je nach Modus. Alles hier ist ein TROCKENLAUF:
