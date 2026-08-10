@@ -6,11 +6,12 @@ import { shopPrice, type HistoryPoint } from "@/lib/ticker/engine";
 interface Props {
   history: HistoryPoint[];
   /**
-   * Trend der 24h-Kennzahl, als WERTUNG: true = Kurs fällt = die Community
-   * gewinnt (grün). Die Farb-Semantik ist gegenüber einem echten Börsen-Chart
-   * bewusst gedreht — Pfeil und Vorzeichen tragen die echte Richtung.
+   * Lage der 24h-Kennzahl. Farb-Semantik gegenüber einem echten Börsen-Chart
+   * bewusst GEDREHT: "down" = die Community kauft den Preis runter = grün;
+   * "up" = Flaute = terracotta; "flat" = neutral. Pfeil und Vorzeichen tragen
+   * die echte Richtung (nie farb-allein).
    */
-  erfolg: boolean;
+  trend: "down" | "flat" | "up";
   floorEuro: number;
   locale: string;
   labels: {
@@ -28,6 +29,7 @@ interface Props {
 // Nie farb-allein: Pfeil/Vorzeichen und Marker tragen die Information zusätzlich.
 const UP = "#9cb579";
 const DOWN = "#c08552";
+const FLAT = "#a89f92"; // neutral (Sand, gedimmt) — Stillstand ist keine Flaute
 const GRID = "rgba(212, 203, 190, 0.07)";
 const INK_MUTED = "rgba(212, 203, 190, 0.42)";
 const SURFACE = "#161210";
@@ -46,7 +48,7 @@ function linePathOf(pts: { x: number; y: number }[]): string {
 
 // Interaktiver Börsen-Chart: Kurs-Linie + Fläche, Grid, Boden-Linie,
 // Verkaufs-Events — und Crosshair mit Tooltip beim Zeigen/Streichen.
-export function PriceChart({ history: raw, erfolg, floorEuro, locale, labels }: Props) {
+export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<number | null>(null);
 
@@ -99,8 +101,9 @@ export function PriceChart({ history: raw, erfolg, floorEuro, locale, labels }: 
 
   const { ih, yMin, yMax, pts } = geo;
   const y = (v: number) => PAD.top + (1 - (v - yMin) / (yMax - yMin)) * ih;
-  const color = erfolg ? UP : DOWN;
-  const gradId = erfolg ? "tickerAreaUp" : "tickerAreaDown";
+  const color = trend === "down" ? UP : trend === "up" ? DOWN : FLAT;
+  const gradId =
+    trend === "down" ? "tickerAreaUp" : trend === "up" ? "tickerAreaDown" : "tickerAreaFlat";
   const gridSteps = [0.25, 0.5, 0.75, 1].map((f) => yMin + f * (yMax - yMin));
   const floorY = y(floorEuro);
   const linePath = linePathOf(pts);
@@ -330,28 +333,35 @@ export function PriceChart({ history: raw, erfolg, floorEuro, locale, labels }: 
           <div className="rounded-md border border-line bg-bg-card px-3 py-2 whitespace-nowrap shadow-lg">
             <p className="text-sand tabular-nums text-sm font-medium">
               {fmt(hv.p.price)}
-              {hvDelta !== null && hvDelta !== 0 && (
-                <span
-                  className={`ml-2 text-xs uppercase tracking-wide tabular-nums ${
-                    // Gedrehte Semantik wie die Kurs-Linie: fallendes Delta
-                    // (= jemand hat gekauft) ist der Erfolg und wird grün.
-                    hvDelta < 0 ? "text-market-up" : "text-market-down"
-                  }`}
-                >
-                  {hvDelta > 0 ? "+" : "−"}
-                  {fmtDelta(Math.abs(hvDelta))} ·{" "}
-                  {/* Jedes Event beim Namen nennen — ein Storno ist keine Flaute */}
-                  {hv.p.event === "sale"
-                    ? labels.sale
-                    : hv.p.event === "refund"
-                      ? labels.refund
-                      : hv.p.event === "rebaseline"
-                        ? labels.rebaseline
-                        : hv.p.event === "init"
-                          ? labels.start
-                          : labels.drift}
-                </span>
-              )}
+              {/* Das EVENT immer benennen — ein Verkauf am Boden bewegt 0 €,
+                  bleibt aber ein Verkauf. Nur das Delta hängt an der Bewegung. */}
+              <span
+                className={`ml-2 text-xs uppercase tracking-wide tabular-nums ${
+                  // Gedrehte Semantik wie die Kurs-Linie: fallendes Delta
+                  // (= jemand hat gekauft) ist der Erfolg und wird grün.
+                  hvDelta === null || hvDelta === 0
+                    ? "text-sand/55"
+                    : hvDelta < 0
+                      ? "text-market-up"
+                      : "text-market-down"
+                }`}
+              >
+                {hvDelta !== null && hvDelta !== 0 && (
+                  <>
+                    {hvDelta > 0 ? "+" : "−"}
+                    {fmtDelta(Math.abs(hvDelta))} ·{" "}
+                  </>
+                )}
+                {hv.p.event === "sale"
+                  ? labels.sale
+                  : hv.p.event === "refund"
+                    ? labels.refund
+                    : hv.p.event === "rebaseline"
+                      ? labels.rebaseline
+                      : hv.p.event === "init"
+                        ? labels.start
+                        : labels.drift}
+              </span>
             </p>
             <p className="text-sand/50 text-[11px] mt-0.5">{hvDate}</p>
           </div>

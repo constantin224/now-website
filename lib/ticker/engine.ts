@@ -545,20 +545,28 @@ export function rebaseline(
  * Testbestellungen seit 18.07. gar nicht erst mit (der Webhook bucht im
  * Ticket-Modus deshalb auch hier nichts mehr).
  *
- * Geklemmt auf MAX_SOLD_ABS: parseState lehnt größere Werte ab — ungeklemmt
- * könnte eine (signierte) Bestellflut einen Zustand schreiben, den die Engine
- * selbst nicht mehr lesen kann. Dieselbe geteilte Schranke wie überall.
+ * Jenseits von MAX_SOLD_ABS wird GEWORFEN, nicht geklemmt: parseState lehnt
+ * größere Werte ab (die Börse fröre an ihrer eigenen Prüfung ein) — aber eine
+ * stille Klemme wäre schlimmer: Sie neutralisierte die Bestellung nur
+ * TEILWEISE, merkte sie sich als verarbeitet (Dedup!), und der Rest der
+ * Testmenge zählte beim nächsten Cron dauerhaft als echte Verkäufe.
  */
 export function ignoreTestTickets(
   state: TickerState,
   orderId: string,
   tickets: number
 ): TickerState {
+  if (!Number.isSafeInteger(tickets) || tickets <= 0) {
+    throw new Error(`ignoreTestTickets: unbrauchbare Menge (${String(tickets)})`);
+  }
+  if (state.ignoredTickets + tickets > MAX_SOLD_ABS) {
+    throw new Error(
+      `ignoreTestTickets: ${state.ignoredTickets} + ${tickets} überschritte die ` +
+        `Repräsentierbarkeits-Grenze (${MAX_SOLD_ABS}) — Zustand bliebe unlesbar`
+    );
+  }
   return rememberOrder(
-    {
-      ...state,
-      ignoredTickets: Math.min(MAX_SOLD_ABS, state.ignoredTickets + tickets),
-    },
+    { ...state, ignoredTickets: state.ignoredTickets + tickets },
     orderId
   );
 }

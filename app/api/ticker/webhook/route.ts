@@ -168,7 +168,21 @@ async function handleOrder(orderId: string, tickets: number, isTest: boolean) {
   // wie jede echte Bestellung, und der Cron würde sie sonst als Verkauf zählen.
   // VOR dem Tracking-Check: Die Neutralisierung braucht den Bestand nicht.
   if (isTest) {
-    const neutralisiert = ignoreTestTickets(state, orderId, tickets);
+    let neutralisiert;
+    try {
+      neutralisiert = ignoreTestTickets(state, orderId, tickets);
+    } catch (err) {
+      // Repräsentierbarkeits-Grenze überschritten: ein DAUER-Zustand, kein
+      // Schluckauf. 500 hieße: Shopify wiederholt bis zur Abo-Löschung, ohne
+      // dass sich etwas ändern kann. Also 200, laut geloggt — der Bestand
+      // wird beim nächsten Cron als Anomalie anhalten und einen Menschen holen.
+      console.error("[ticker/webhook] Testbestellung NICHT neutralisierbar:", err);
+      return NextResponse.json({
+        ok: true,
+        status: "test_nicht_neutralisierbar",
+        message: (err as Error).message,
+      });
+    }
     // mitAbgleich=false: Shopify erwartet die Webhook-Antwort in ~5 s, sonst löscht
     // es irgendwann das Abo. Jeder gesparte Roundtrip zählt. Der Cron gleicht ab.
     await writeTicker(

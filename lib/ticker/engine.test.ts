@@ -360,14 +360,24 @@ describe("Testbestellungen bewegen den Kurs wirklich nicht", () => {
     expect(s3.soldCount).toBe(1);
   });
 
-  it("ignoreTestTickets klemmt an der Repräsentierbarkeits-Grenze", () => {
-    // Ungeklemmt schriebe eine (signierte) Bestellflut einen Zustand mit
+  it("ignoreTestTickets wirft an der Repräsentierbarkeits-Grenze — statt still zu klemmen", () => {
+    // Ungeprüft schriebe eine (signierte) Bestellflut einen Zustand mit
     // ignoredTickets > MAX_SOLD_ABS — parseState lehnte ihn beim nächsten
-    // Lesen ab, die Börse fröre an ihrer eigenen Prüfung ein.
+    // Lesen ab, die Börse fröre an ihrer eigenen Prüfung ein. Eine STILLE
+    // Klemme wäre aber genauso falsch: Sie neutralisierte die Bestellung nur
+    // teilweise, und der Rest zählte (Dedup!) dauerhaft als echte Verkäufe.
     let s = initState(22, 250, NOW);
-    for (let i = 0; i < 15; i++) s = ignoreTestTickets(s, `t-${i}`, 1000);
+    for (let i = 0; i < 10; i++) s = ignoreTestTickets(s, `t-${i}`, 1000);
     expect(s.ignoredTickets).toBe(MAX_SOLD_ABS);
     expect(() => parseState(JSON.stringify(s))).not.toThrow();
+    // Die überschreitende Bestellung wird ABGEWIESEN, nicht angeschnitten —
+    // der Zustand bleibt unangetastet (keine Teilneutralisierung, kein Dedup-Eintrag)
+    expect(() => ignoreTestTickets(s, "t-drüber", 1)).toThrow(/Grenze/);
+    expect(s.ignoredTickets).toBe(MAX_SOLD_ABS);
+    expect(hasSeenOrder(s, "t-drüber")).toBe(false);
+    // und unbrauchbare Mengen fliegen sofort
+    expect(() => ignoreTestTickets(s, "t-null", 0)).toThrow(/Menge/);
+    expect(() => ignoreTestTickets(s, "t-frac", 1.5)).toThrow(/Menge/);
   });
 });
 

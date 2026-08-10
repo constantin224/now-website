@@ -69,6 +69,14 @@ CRON=$( (grep '^CRON_SECRET=' "$HDIR/envs" || true) | cut -d= -f2- | sed -E 's/^
 [ -n "$CRON" ] || fehler "CRON_SECRET nicht in Vercel gefunden"
 printf 'Authorization: Bearer %s\n' "$CRON" > "$HDIR/cron"
 
+# WERTE prüfen, nicht nur Existenz: env_setzen überspringt vorhandene Variablen —
+# eine schon vorhandene TICKER_ENABLED=0 oder leere TICKER_EXPECTED_RUNNING
+# bliebe sonst still stehen und der ganze Go-Live liefe ins Leere.
+for PFLICHT in TICKER_ENABLED TICKER_EXPECTED_RUNNING; do
+  WERT=$( (grep "^$PFLICHT=" "$HDIR/envs" || true) | cut -d= -f2- | sed -E 's/^"//; s/"$//; s/\\n$//')
+  [ "$WERT" = "1" ] || fehler "$PFLICHT ist '$WERT' statt '1' — in Vercel korrigieren (vercel env rm $PFLICHT production && neu setzen), dann Script neu starten"
+done
+
 # Storefront-Token für den Preis-Beweis am Ende (nur Quotes + literales \n strippen)
 SFT=$( (grep '^NEXT_PUBLIC_SHOPIFY_STOREFRONT_TOKEN=' .env.local || true) | cut -d= -f2- | sed -E 's/^"//; s/"$//; s/\\n$//')
 [ -n "$SFT" ] || fehler "Storefront-Token nicht in .env.local"
@@ -121,22 +129,31 @@ LISTE=$(curl -sf -H @"$HDIR/qtk" "$QSTASH_BASE") || fehler "QStash-Schedule-List
 # falschem Takt würde sonst still übernommen. Bei Abweichung: Abbruch, Mensch entscheidet.
 BEFUND=$(printf '%s' "$LISTE" | CRON="$CRON" python3 -c '
 import json, os, sys
+ZIEL = "https://now-music.at/api/ticker/tick"
 for s in json.load(sys.stdin):
-    if "now-music.at/api/ticker/tick" in s.get("destination", ""):
+    if s.get("destination", "").rstrip("/") == ZIEL:
         ok = s.get("method") == "GET" and s.get("cron") == "*/5 * * * *"
+        if not ok:
+            print("kaputt method=%s cron=%s" % (s.get("method"), s.get("cron"))); break
         # Auch das weitergereichte Bearer-Secret pruefen: Ein Schedule mit
         # ALTEM CRON_SECRET saehe sonst korrekt aus, liefe aber nur 401er.
-        # (Die Ampel bliebe zunaechst gruen, weil der manuelle Start unten
-        # lastTickAt frisch setzt.) Header-Feld je nach QStash-Serialisierung
-        # suchen; ist gar keins auffindbar, nur warnen statt blocken.
-        blob = json.dumps(s)
+        # Erst das strukturierte Header-Feld (QStash: header -> Liste),
+        # zur Sicherheit danach der serialisierte Rest. Nicht auffindbar =
+        # nur Hinweis; der verbindliche Beweis ist der lastTickAt-Fortschritt
+        # im Nachspiel.
         cron = os.environ["CRON"]
-        if "uthorization" not in blob:
-            print("ok-ohne-header-pruefung" if ok else "kaputt method=%s cron=%s" % (s.get("method"), s.get("cron")))
-        elif cron not in blob:
-            print("kaputt forward-auth (altes CRON_SECRET?)")
+        soll = "Bearer " + cron
+        hdr = s.get("header") or {}
+        auth = None
+        for k, v in hdr.items():
+            if k.lower() in ("authorization", "upstash-forward-authorization"):
+                auth = v[0] if isinstance(v, list) and v else v
+        if auth is not None:
+            print("ok" if auth == soll else "kaputt forward-auth (altes CRON_SECRET?)")
+        elif cron in json.dumps(s):
+            print("ok")
         else:
-            print("ok" if ok else "kaputt method=%s cron=%s" % (s.get("method"), s.get("cron")))
+            print("ok-ohne-header-pruefung")
         break
 else:
     print("fehlt")
@@ -191,10 +208,13 @@ Noch 2 Handgriffe (einmalig):
 2. Seite anschauen: https://now-music.at/de/tickets — Hero zeigt jetzt den Kurs (22,00 €).
    Ab jetzt tickt die Börse alle 5 min — Community-Pricing: −1 € je verkauftem
    Ticket, +1 €/Tag kontinuierlich, Boden 8 €, Deckel 30 €.
-3. In ~10 min die Ampel ERNEUT prüfen — erst das beweist, dass der QStash-Tick
-   wirklich läuft (der Start oben kam von Hand):
-   curl -s -o /dev/null -w '%{http_code}\n' -H "x-monitor-secret: $(security find-generic-password -s now-boerse-monitor-secret -w)" https://now-music.at/api/ticker/status
-   (Der Apps-Script-Wächter aus Punkt 1 mailt ab dann ohnehin bei allem außer 200.)
+3. In ~10 min prüfen, ob QStash WIRKLICH tickt (der Start oben kam von Hand,
+   und die Ampel alarmiert erst nach 30 min Stillstand — ein bloßes 200 nach
+   10 min beweist also nichts). Beweis ist der lastTickAt-Fortschritt:
+   curl -s -H "x-monitor-secret: $(security find-generic-password -s now-boerse-monitor-secret -w)" https://now-music.at/api/ticker/status | grep -o '"lastTickAt":"[^"]*"'
+   → Der Zeitstempel (UTC!) muss JÜNGER sein als der Go-Live-Moment eben.
+   Steht er fest, tickt QStash nicht: Schedule in QStash ansehen/löschen,
+   Script neu starten. (Ab 30 min Stillstand mailt ohnehin der Wächter.)
 
 Not-Aus (Reihenfolge zwingend): TICKER_ENABLED=0 in Vercel → Metafield ticker.state
 löschen → erst dann Preis zurücksetzen. Details: docs/TICKET-BOERSE-HANDOFF.md.

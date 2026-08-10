@@ -117,7 +117,9 @@ export default async function TicketsPage({
   // zurechtzurunden: Der Checkout verlangt trotzdem den echten Betrag.
   // (Nur falls Shopify gar keinen brauchbaren Preis liefert: abgeleiteter Kurs.)
   const price = currentPriceEuro > 0 ? currentPriceEuro : shopPrice(priceOf(state, new Date()));
-  const change = dayChangePct(state, now, price);
+  // Auf die SICHTBARE Präzision (eine Nachkommastelle) gerundet, BEVOR die
+  // Lage bestimmt wird — sonst zeigt ein Hauch von Bewegung "▲ 0,0 %".
+  const change = Math.round(dayChangePct(state, now, price) * 10) / 10;
   // Drei Lagen, nicht zwei: Exakt 0 % ist weder Anstieg noch Erfolg — ein
   // stillstehender Kurs bekäme sonst Flaute-Farbe und einen ▲ für nichts.
   const rising = change > 0;
@@ -140,11 +142,17 @@ export default async function TicketsPage({
       : sales24 >= 1
         ? t.demandBadge.some.replace("{count}", String(sales24))
         : t.demandBadge.none;
+  const trend: "down" | "flat" | "up" = unveraendert ? "flat" : rising ? "up" : "down";
   const trendCls = unveraendert
     ? "text-sand/55"
     : erfolg
       ? "text-market-up"
       : "text-market-down";
+  const dotCls = unveraendert
+    ? "bg-sand/55"
+    : erfolg
+      ? "bg-market-up"
+      : "bg-market-down";
   const arrow = unveraendert ? "●" : rising ? "▲" : "▼";
   // Dezimaltrenner nach Locale — die EN-Seite zeigte sonst "3,4 %"
   const pct = `${new Intl.NumberFormat(locale === "en" ? "en-IE" : "de-AT", {
@@ -220,9 +228,10 @@ export default async function TicketsPage({
             <p
               className={`mt-4 flex items-center justify-center gap-3 text-lg md:text-2xl tabular-nums ${trendCls}`}
             >
+              {/* Der Punkt folgt der Lage — ein grüner Punkt neben Flaute-Zahlen wäre gelogen */}
               <span className="relative flex w-1.5 h-1.5">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-market-up opacity-60 md:motion-safe:animate-ping" />
-                <span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-market-up" />
+                <span className={`absolute inline-flex h-full w-full rounded-full ${dotCls} opacity-60 md:motion-safe:animate-ping`} />
+                <span className={`relative inline-flex rounded-full w-1.5 h-1.5 ${dotCls}`} />
               </span>
               {arrow} {pct}
               <span className="text-[10px] md:text-xs tracking-[0.2em] uppercase text-sand-38">
@@ -295,7 +304,7 @@ export default async function TicketsPage({
                 <Tilt className="md:[filter:drop-shadow(0_0_24px_rgba(192,133,82,0.18))]">
                   <PriceChart
                     history={state.history}
-                    erfolg={erfolg}
+                    trend={trend}
                     floorEuro={C.floorEuro}
                     locale={locale}
                     labels={t.chart}
