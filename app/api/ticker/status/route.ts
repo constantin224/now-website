@@ -104,13 +104,21 @@ export async function GET(request: NextRequest) {
   //    monoton). Nur ein Shop-Preis AUSSERHALB dieses Fensters ist eine
   //    echte Divergenz — ein Punkt-Vergleich meldete bei jedem
   //    10-Cent-Rundungssprung einen Fehlalarm.
-  const preisAmAnker = shopPrice(priceOf(state, new Date(state.lastTickAt)));
+  const ankerZeit = new Date(state.lastTickAt);
+  const preisAmAnker = shopPrice(priceOf(state, ankerZeit));
   const preisJetzt = shopPrice(priceOf(state, now));
-  const fensterMin = Math.min(preisAmAnker, preisJetzt);
-  const fensterMax = Math.max(preisAmAnker, preisJetzt);
-  if (currentPriceEuro < fensterMin || currentPriceEuro > fensterMax) {
+  // Anker in der ZUKUNFT (Uhr-Skew; parseState toleriert bis 24 h): Das
+  // Fenster darf dann NICHT über min/max aufgespannt werden — es würde alle
+  // Zwischenwerte legitimieren, auch einen dauerhaft toten Preis-Write, und
+  // der Herzschlag-Alarm schweigt bei negativem Abstand ebenfalls. Legitim
+  // sind hier nur die beiden echten Schreib-Zeitpunkte selbst.
+  const divergent =
+    ankerZeit.getTime() > now.getTime()
+      ? currentPriceEuro !== preisAmAnker && currentPriceEuro !== preisJetzt
+      : currentPriceEuro < preisAmAnker || currentPriceEuro > preisJetzt;
+  if (divergent) {
     probleme.push(
-      `Preis-Divergenz: Shop verlangt ${currentPriceEuro} €, der Kurs sagt ${fensterMin}–${fensterMax} €`
+      `Preis-Divergenz: Shop verlangt ${currentPriceEuro} €, der Kurs sagt ${preisAmAnker}–${preisJetzt} €`
     );
   }
 
