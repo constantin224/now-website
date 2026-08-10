@@ -121,12 +121,17 @@ export async function GET(request: NextRequest) {
         `Zukunft (${state.lastTickAt}) — Preisprüfung ausgesetzt, Uhren prüfen`
     );
   } else {
-    // Normalfall inkl. Millisekunden-Skew zwischen Serverless-Instanzen: Bei
-    // ≤5 min Skew ist die Fenster-Spannweite ≤0,4 Cent — min/max ist sicher.
+    // Normalfall inkl. Millisekunden-Skew zwischen Serverless-Instanzen.
+    // Legitim ist GENAU die Menge der Werte, die shopPrice() für irgendeinen
+    // Zeitpunkt zwischen Anker und jetzt geschrieben haben kann: die
+    // 10-Cent-Rasterpunkte innerhalb des Fensters. Ein Preis NEBEN dem Raster
+    // (etwa 22,05 €, von Hand im Admin gesetzt) ist immer eine Divergenz —
+    // shopPrice() kann ihn nie erzeugt haben.
     const preisAmAnker = shopPrice(priceOf(state, ankerZeit));
     const fensterMin = Math.min(preisAmAnker, preisJetzt);
     const fensterMax = Math.max(preisAmAnker, preisJetzt);
-    if (currentPriceEuro < fensterMin || currentPriceEuro > fensterMax) {
+    const aufRaster = Math.round(currentPriceEuro * 10) / 10 === currentPriceEuro;
+    if (!aufRaster || currentPriceEuro < fensterMin || currentPriceEuro > fensterMax) {
       probleme.push(
         `Preis-Divergenz: Shop verlangt ${currentPriceEuro} €, der Kurs sagt ${fensterMin}–${fensterMax} €`
       );
