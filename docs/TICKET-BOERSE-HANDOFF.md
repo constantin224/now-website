@@ -1,6 +1,6 @@
 # Ticket-Börse — Handoff
 
-**Stand: 2026-08-06** · alles auf `main` · **123/123 Tests grün** · Build + tsc sauber
+**Stand: 2026-08-10** · alles auf `main` · Tests/Build/tsc grün (Zahlen siehe unten) · **Preismodell seit 10.08. GEDREHT: Community-Pricing** (Spec: `docs/superpowers/specs/2026-08-10-boerse-community-pricing-design.md`)
 **Die Börse LÄUFT NOCH NICHT — aber der Go-Live ist fertig vorbereitet.** Der Ticketpreis steht unverändert auf 22,00 € (live verifiziert 06.08.).
 
 > ## GO-LIVE = EIN SCRIPT: `./scripts/boerse-golive.sh`
@@ -23,7 +23,7 @@
 
 ## Was das ist
 
-Die Band **Now.** parodiert das Dynamic Pricing der großen Ticketkonzerne — nur **invers**: Der Ticketpreis für das Konzert am **17.10.2026 (The Loft, Wien)** **fällt**, wenn niemand kauft, und **steigt** bei jedem Verkauf. Der Preis im Shopify-Shop ändert sich dabei wirklich.
+Die Band **Now.** parodiert das Dynamic Pricing der großen Ticketkonzerne — als **Community-Pricing**: Jedes verkaufte Ticket macht den Preis für das Konzert am **17.10.2026 (The Loft, Wien)** für alle Nächsten **1 € billiger**; jeder Tag ohne Verkauf hebt ihn um **1 €**. Wer kauft, schenkt den Nächsten etwas. Der Preis im Shopify-Shop ändert sich dabei wirklich.
 
 Die Seite `/de/tickets` + `/en/tickets` zeigt den Kurs, den Chart und die Parodie: Fake-Warteschlange („Position 1 von 1"), VIP-Packages, Saalplan mit genau einer Fläche, Gebühren-Fußnote („Wir verstehen es auch nicht.").
 
@@ -45,25 +45,26 @@ Die Seite `/de/tickets` + `/en/tickets` zeigt den Kurs, den Chart und die Parodi
 
 ## Das Preismodell
 
-Der Preis wird **nie gespeichert, sondern immer neu abgeleitet**. Das ist die zentrale Sicherheitseigenschaft — ein gespeicherter Preis könnte „ratschen" (sich durch Kauf/Storno-Zyklen hochschaukeln), ein abgeleiteter nicht:
+Der Preis wird **nie gespeichert, sondern immer neu abgeleitet** — aus Zustand UND Zeit. Das ist die zentrale Sicherheitseigenschaft — ein gespeicherter Preis könnte „ratschen", ein abgeleiteter nicht:
 
 ```
-Preis = clamp( Startpreis × (1 + Kauf-Schub)^verkaufteTickets × Drift^Stunden )
+Preis = clamp( Startpreis − 1 € × verkaufteTickets + 1 € × TageSeitStart, 8 €, 30 € )
 ```
 
 | Parameter | Wert | wo |
 |---|---|---|
 | Startpreis | 22,00 € (fix, **nicht** „was im Shop steht") | `lib/ticker/config.ts` |
-| Kauf-Schub | **+1 %** je verkauftem Ticket | `saleBumpPct` |
-| Flaute-Drift | **−0,06 %/Stunde** (≈ −1,4 %/Tag), **zeitbasiert** | `driftFactorPerHour` |
-| Boden / Deckel | 5 € / 25 € | `floorEuro` / `capEuro` |
+| Kauf-Senkung | **−1,00 €** je verkauftem Ticket | `saleDropEuro` |
+| Zeit-Anstieg | **+1,00 €/Tag**, kontinuierlich (~4,2 Cent/h), abgeleitet aus `startAtIso` | `riseEuroPerDay` |
+| Boden / Deckel | 8 € / 30 € | `floorEuro` / `capEuro` |
 | Shop-Preis | auf 10 Cent gerundet | `shopPrice()` |
 | Gnadenfrist | **gibt es nicht** (Parameter entfernt) | — |
 
-**Gleichgewicht bei ~1,4 Verkäufen/Tag.** Weniger → der Kurs fällt. Mehr → er steigt Richtung Deckel.
-**Von Constantin akzeptiert:** Nur 13 % Luft nach oben; ab ~2 Verkäufen/Tag klebt der Kurs am Deckel.
+**Gleichgewicht bei exakt 1 Verkauf/Tag** („Ein Ticket pro Tag hält den Kurs"). Mehr → die Community kauft den Preis Richtung Boden. Weniger → er steigt Richtung Deckel. Korridor: 22 Netto-Verkäufe bis zum Boden, 8 Flaute-Tage bis zum Deckel.
 
-**Ein Tick rechnet IMMER in dieser Reihenfolge: erst Drift, dann Verkäufe.** Beide wirken unabhängig im selben Schritt. Wer den Verkaufs-Zweig je wieder vorzeitig zurückkehren lässt, baut den teuersten Fehler des Projekts nach (siehe Runde 2, Punkt 6).
+**ADDITIV statt multiplikativ (seit 10.08.):** Kauf- und Zeit-Anteil sind unabhängige Summanden — die alte Reihenfolge-Regel („erst Drift, dann Verkäufe") ist gegenstandslos, und die teuerste Fehlerklasse des Projekts (Runde 2, Punkt 6: „Verkauf löschte den aufgelaufenen Drift") ist strukturell unmöglich. Der Zeit-Anteil hängt an `startAtIso` im Zustand (kein Akkumulator; der frühere `driftMultiplier` samt `MIN_DRIFT` entfiel ersatzlos — Uhr-Rücksprünge heilen sich selbst). `lastTickAt` bleibt als Betriebs-Anker: Ampel-Herzschlag + Zeitfenster der Verkaufsgrenze, **nicht** mehr preisrelevant. `priceOf(state, now)` braucht deshalb die Zeit als Parameter; `writeTicker(…, now)` reicht sie durch.
+
+**Zwei bewusste Verhaltensfolgen:** (1) **Boden-Kleben ist Feature** — nach einer Kaufwelle liegt der rohe Wert unter 8 €, der Kurs bleibt „festgenagelt", bis der Zeit-Anstieg aufgeholt hat. (2) **Alt-Storno unter die Baseline hebt den Kurs über 22 €** (weniger Community-Rabatt), Deckel klemmt. Die Ampel prüft die Preis-Divergenz zum Zeitpunkt des **letzten Ticks** — der abgeleitete Kurs kriecht zwischen den Ticks weiter, gegen `now` gäbe es bei jedem 10-Cent-Rundungssprung einen Fehlalarm.
 
 ---
 
@@ -76,7 +77,7 @@ Preis = clamp( Startpreis × (1 + Kauf-Schub)^verkaufteTickets × Drift^Stunden 
 Das löst drei Dinge, die die Börse allein **nicht** lösen konnte:
 
 1. **Bestands-Reset vs. Ausverkauf** — aus dem Bestand nicht unterscheidbar. Jetzt irrelevant.
-2. **Der Cutoff des Ticket-Systems** nullt bei Türöffnung den Bestand. Für die Börse sah das wie ein schlagartiger Ausverkauf aus — der Kurs wäre beim eigenen Konzert an den Deckel gesprungen.
+2. **Der Cutoff des Ticket-Systems** nullt bei Türöffnung den Bestand. Für die Börse sah das wie ein schlagartiger Ausverkauf aus — der Kurs wäre beim eigenen Konzert an eine Preisgrenze gesprungen (im heutigen Modell: 250 „Verkäufe" → Boden).
 3. **Storno ohne Rückbuchung ins Lager** — das Ticket blieb **für immer** als verkauft gezählt, der Kurs fiel nie zurück.
 
 **Die drei Betriebszustände** (steht in der Cron-Antwort als `quelle`):

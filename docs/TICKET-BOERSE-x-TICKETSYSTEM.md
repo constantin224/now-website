@@ -104,7 +104,7 @@ const price = Number(totals.product.variants.nodes[0]?.price ?? 0);
 gross = Math.round(sold * price * 100) / 100;
 ```
 
-Verkaufte Tickets **×** dem *aktuellen* Variantenpreis. Mit dynamischen Preisen hat jeder Käufer einen anderen Preis gezahlt — irgendwo zwischen 5 € und 25 €. Der Report multipliziert alle mit dem Preis vom Abrufzeitpunkt. Das Ergebnis ist beliebig.
+Verkaufte Tickets **×** dem *aktuellen* Variantenpreis. Mit dynamischen Preisen hat jeder Käufer einen anderen Preis gezahlt — irgendwo zwischen 8 € und 30 €. Der Report multipliziert alle mit dem Preis vom Abrufzeitpunkt. Das Ergebnis ist beliebig.
 
 Der Handoff des Ticket-Systems kennt das Problem bereits für zwei Preisstufen („bei >1 Preisstufe Umsatz manuell aus Shopify"). Mit der Börse wird aus einer Ungenauigkeit eine sinnlose Zahl.
 
