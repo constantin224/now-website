@@ -39,6 +39,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (!tickerEnabled()) {
+    // "Bewusst aus" und "versehentlich aus" sind aus TICKER_ENABLED allein
+    // nicht unterscheidbar — eine im Live-Betrieb verschwundene Env bliebe
+    // sonst lautlos (der Wächter alarmiert nur bei Nicht-200). Deshalb setzt
+    // der Go-Live TICKER_EXPECTED_RUNNING=1: Ab dann ist disabled ein Alarm.
+    // Beim BEWUSSTEN Not-Aus ist die Alarm-Mail gewollt — wer den Hebel zieht,
+    // weiß es; wer ihn nicht gezogen hat, muss es erfahren.
+    if (process.env.TICKER_EXPECTED_RUNNING === "1") {
+      return NextResponse.json(
+        {
+          status: "rot",
+          probleme: [
+            "TICKER_ENABLED ist aus, obwohl Betrieb erwartet wird (TICKER_EXPECTED_RUNNING=1) — Not-Aus gezogen oder Env verloren?",
+          ],
+        },
+        { status: 503 }
+      );
+    }
     return NextResponse.json({ status: "disabled" });
   }
 

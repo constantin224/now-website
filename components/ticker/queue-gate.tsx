@@ -44,7 +44,7 @@ export function QueueGate({ href, label, queue }: Props) {
         role="status"
         aria-live="polite"
       >
-        {/* Fortschrittsbalken — Salbeigrün wie der Aufwärtstrend der Börse.
+        {/* Fortschrittsbalken — Salbeigrün wie der Community-Erfolg (fallender Kurs).
             Puls nur auf Desktop und nur wenn keine reduzierten Bewegungen
             gewünscht sind; sonst steht der Balken statisch (Design-Hausregel). */}
         <div className="h-1 bg-sand/10 rounded-full overflow-hidden mb-4">

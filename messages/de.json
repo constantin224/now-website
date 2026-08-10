@@ -73,8 +73,6 @@
     "metaTitle": "Tickets — Offizielle Ticket-Plattform | Now.",
     "platformLabel": "OFFIZIELLE TICKET-PLATTFORM DER NOW. WORLD TOUR 2026 (1 TERMIN)",
     "eventTitle": "Now. // Wien",
-    "eventSubtitle": "Album-Präsentation",
-    "currentPrice": "Aktueller Marktpreis",
     "dayChange": "24h-Veränderung",
     "chartTitle": "Preisentwicklung — 100 % transparent. Im Gegensatz zu den anderen.",
     "allTimeHigh": "Allzeithoch",
@@ -84,7 +82,7 @@
       "some": "NACHFRAGE REGISTRIERT — {count} TICKET(S) IN 24 STUNDEN",
       "none": "VIELE TICKETS VERFÜGBAR. WIRKLICH VIELE."
     },
-    "howItWorks": "Jedes verkaufte Ticket senkt den Preis um 1 € — für alle, die nach dir kaufen. Jeder Tag ohne Verkauf hebt ihn um 1 €. Ein Ticket pro Tag hält den Kurs. Kauft ihr schneller, wird's für alle billiger.",
+    "howItWorks": "Der Preis steigt von selbst — 1 € pro Tag. Jedes verkaufte Ticket zieht sofort 1 € ab, für alle, die nach dir kaufen. Ein Ticket pro Tag hält den Kurs. Kauft ihr schneller, wird's für alle billiger.",
     "buyCta": "Tickets sichern",
     "fees": "Servicegebühr: 0 €. Bearbeitungsgebühr: 0 €. Dynamische-Preis-Gebühr: 0 €. Wir verstehen es auch nicht.",
     "disclaimer": "* Angezeigter Preis inkl. gesetzl. USt. und exkl. sämtlicher Gebühren, die wir nicht erheben.",
@@ -112,9 +110,7 @@
       "note": "Beste Plätze: alle. Schlechteste Plätze: keine."
     },
     "eventMeta": "17.10.2026 · The Loft, Wien · Beginn 19:00",
-    "symbol": "NOW.T",
     "stats": {
-      "volume24h": "Volumen 24h",
       "available": "Im Umlauf",
       "availableUnit": "Tickets",
       "sold": "Verkauft seit Handelsstart"
@@ -124,22 +120,22 @@
       "sale": "Kauf",
       "drift": "Flaute",
       "start": "Handelsstart",
-      "today": "Heute"
+      "today": "Heute",
+      "refund": "Storno",
+      "rebaseline": "Korrektur"
     },
     "tape": {
       "price": "Aktueller Ticketpreis: {price} {arrow} {pct} in 24h",
-      "sold24h": "Heute verkauft: {n} Tickets",
+      "sold24h": "Letzte 24 h: {n} Tickets verkauft",
       "available": "Noch verfügbar: {n} Tickets",
       "floor": "Absolute Untergrenze: {price}",
       "cap": "Absolute Obergrenze: {price}"
     },
     "howItWorksTitle": "So funktioniert Dynamic Pricing",
-    "chartHeadline": "Kauft wer, fällt er. Kauft niemand, steigt er.",
     "closingLine": "Dynamic Pricing endet am 17. Oktober. Danach gibt es die Abendkassa — Fixpreis, wie im Mittelalter.",
     "heroTagline": "Dynamic Pricing wie bei den Superstars — nur in die andere Richtung.",
     "live": "LIVE",
     "nextDrop": "Der Preis fällt nur, wenn jemand kauft. Sonst steigt er — 1 € pro Tag, schleichend.",
-    "terminalLine": "The Loft, Wien · Dynamischer Preis läuft bis 17.10.2026",
     "share": "Kurs teilen",
     "shared": "Link kopiert",
     "shareText": "Das NOW.-Ticket steht gerade bei {price}. Dynamic Pricing wie bei den Superstars — nur in die andere Richtung:",
@@ -168,10 +164,22 @@
     "liveViewers": "Gerade sehen sich 3 Personen diese Seite an. Zwei davon sind aus der Band.",
     "trust": {
       "badges": [
-        { "text": "Selbst-verifizierter Veranstalter", "note": "" },
-        { "text": "Keine Bots", "note": "soweit wir wissen" },
-        { "text": "Kein Zweitmarkt-Aufschlag", "note": "" },
-        { "text": "SSL-verschlüsselt", "note": "" }
+        {
+          "text": "Selbst-verifizierter Veranstalter",
+          "note": ""
+        },
+        {
+          "text": "Keine Bots",
+          "note": "soweit wir wissen"
+        },
+        {
+          "text": "Kein Zweitmarkt-Aufschlag",
+          "note": ""
+        },
+        {
+          "text": "SSL-verschlüsselt",
+          "note": ""
+        }
       ]
     },
     "urgencyNote": "Dieses „Angebot“ endet in exakt dieser Zeit. Kein Grund zur Eile.",
@@ -180,11 +188,24 @@
       "aggregate": "3,7 von 5 · 3 Bewertungen · alle ausgedacht",
       "starsSr": "{stars} von 5 Sternen",
       "items": [
-        { "stars": 5, "quote": "Hab gekauft, für alle nach mir wurde's billiger. Gern geschehen.", "by": "ein Fan" },
-        { "stars": 5, "quote": "Wollte Golden Circle buchen — war schon der ganze Raum.", "by": "noch ein Fan" },
-        { "stars": 1, "quote": "Preis ist gefallen, nachdem ich gekauft hab.", "by": "verständlicherweise" }
+        {
+          "stars": 5,
+          "quote": "Hab gekauft, für alle nach mir wurde's billiger. Gern geschehen.",
+          "by": "ein Fan"
+        },
+        {
+          "stars": 5,
+          "quote": "Wollte Golden Circle buchen — war schon der ganze Raum.",
+          "by": "noch ein Fan"
+        },
+        {
+          "stars": 1,
+          "quote": "Preis ist gefallen, nachdem ich gekauft hab.",
+          "by": "verständlicherweise"
+        }
       ]
-    }
+    },
+    "unavailableNote": "Der Live-Kurs ist gerade nicht erreichbar. Im Shop gilt wie immer der Preis an der Kassa."
   },
   "impressum": {
     "title": "Impressum",

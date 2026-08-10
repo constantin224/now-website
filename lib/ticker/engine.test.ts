@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { TICKER_CONFIG as C } from "./config";
 import {
   hasSeenOrder,
+  MAX_SOLD_ABS,
   ignoreTestTickets,
   initState,
   InventoryAnomalyError,
@@ -22,7 +23,7 @@ const at = (h: number) => new Date(NOW.getTime() + h * H);
 
 // Der Webhook-Pfad: signierte Bestellung, ohne Zeit-Anker-Verschiebung. So
 // prüft man die Wirkung eines Kaufs isoliert vom Betriebs-Anker lastTickAt.
-const WEBHOOK = { allowDrift: false, trustedSales: 50 } as const;
+const WEBHOOK = { advanceAnchor: false, trustedSales: 50 } as const;
 // Um wie viel Euro der Kurs allein durch h Stunden Flaute GESTIEGEN ist.
 const rise = (h: number) => (C.riseEuroPerDay * h) / 24;
 
@@ -50,10 +51,10 @@ describe("Verkäufe", () => {
   it("klemmt am Boden — Verkäufe werden dort weiter gezählt UND protokolliert", () => {
     const s0 = initState(22, INV, NOW);
     // 16 Verkäufe drücken den rohen Wert (6 €) unter den Boden
-    const s1 = tick(s0, INV - 16, NOW, { allowDrift: false, trustedSales: 16 });
+    const s1 = tick(s0, INV - 16, NOW, { advanceAnchor: false, trustedSales: 16 });
     expect(priceOf(s1, NOW)).toBe(C.floorEuro);
 
-    const s2 = tick(s1, INV - 21, NOW, { allowDrift: false, trustedSales: 5 });
+    const s2 = tick(s1, INV - 21, NOW, { advanceAnchor: false, trustedSales: 5 });
     expect(priceOf(s2, NOW)).toBe(C.floorEuro);
     expect(s2.soldCount).toBe(21);
     // Der Punkt MUSS geschrieben werden, obwohl der Preis gleich bleibt —
@@ -93,12 +94,6 @@ describe("Storno — KEINE Preis-Ratsche (Angriffsszenario)", () => {
     expect(s.soldCount).toBe(0);
   });
 
-  it("Storno setzt lastSaleAt nicht neu", () => {
-    const s0 = initState(22, INV, NOW);
-    const s1 = tick(s0, INV - 1, at(1));
-    const s2 = tick(s1, INV, at(2)); // Storno
-    expect(s2.lastSaleAt).toBe(s1.lastSaleAt); // NICHT auf "jetzt" gesetzt
-  });
 });
 
 describe("Bestands-Manipulation — kein Preissprung", () => {
@@ -176,12 +171,12 @@ describe("Zeit-Anstieg — zeitbasiert und idempotent", () => {
     expect(s.history.length).toBe(before);
   });
 
-  it("Webhook (allowDrift: false) verschiebt den Anker nie, verarbeitet aber Verkäufe", () => {
+  it("Webhook (advanceAnchor: false) verschiebt den Anker nie, verarbeitet aber Verkäufe", () => {
     const s0 = initState(22, INV, NOW);
-    const s1 = tick(s0, INV, at(48), { allowDrift: false });
+    const s1 = tick(s0, INV, at(48), { advanceAnchor: false });
     expect(s1.lastTickAt).toBe(s0.lastTickAt); // Anker unberührt
     expect(s1.history).toHaveLength(1); // kein Drift-Punkt
-    const s2 = tick(s0, INV - 1, at(48), { allowDrift: false });
+    const s2 = tick(s0, INV - 1, at(48), { advanceAnchor: false });
     expect(s2.soldCount).toBe(1); // Kauf zählt
     // Der PREIS enthält die Zeit trotzdem — er ist aus startAtIso abgeleitet
     expect(priceOf(s2, at(48))).toBeCloseTo(22 + rise(48) - C.saleDropEuro, 10);
@@ -199,7 +194,7 @@ describe("Kauf und Zeit sind unabhängige Summanden (Runde-2-Klasse strukturell 
     // Das alte Killer-Szenario: Cron 0 h, Verkauf (Webhook) bei 23 h, Cron bei
     // 24 h. Der Zeit-Anteil MUSS volle 24 h betragen, nicht bloß eine.
     const s0 = initState(22, INV, NOW);
-    const verkauft = tick(s0, INV - 1, at(23), { allowDrift: false, trustedSales: 50 });
+    const verkauft = tick(s0, INV - 1, at(23), { advanceAnchor: false, trustedSales: 50 });
     expect(verkauft.lastTickAt).toBe(s0.lastTickAt); // Anker unberührt!
 
     const nachCron = tick(verkauft, INV - 1, at(24));
@@ -213,7 +208,7 @@ describe("Kauf und Zeit sind unabhängige Summanden (Runde-2-Klasse strukturell 
       verkauft += 1;
       // Verkauf kurz vor dem Cron (Webhook), dann der Cron
       s = tick(s, INV - verkauft, at(d * 24 - 1), {
-        allowDrift: false,
+        advanceAnchor: false,
         trustedSales: 50,
       });
       s = tick(s, INV - verkauft, at(d * 24));
@@ -237,7 +232,7 @@ describe("Kauf und Zeit sind unabhängige Summanden (Runde-2-Klasse strukturell 
 describe("Mengenkauf — signierter Webhook zählt voll", () => {
   it("Bestellung über 6 Tickets bewegt den Preis (trustedSales)", () => {
     const s0 = initState(22, INV, NOW);
-    const s1 = tick(s0, INV - 6, NOW, { allowDrift: false, trustedSales: 50 });
+    const s1 = tick(s0, INV - 6, NOW, { advanceAnchor: false, trustedSales: 50 });
     expect(s1.soldCount).toBe(6);
     expect(priceOf(s1, NOW)).toBe(22 - 6 * C.saleDropEuro);
   });
@@ -257,7 +252,7 @@ describe("Mengenkauf — signierter Webhook zählt voll", () => {
   it("auch mit trustedSales ist eine Aufstockung keine Verkaufszahl", () => {
     const s0 = initState(22, 100, NOW);
     expect(() =>
-      tick(s0, 250, at(1), { allowDrift: false, trustedSales: 50 })
+      tick(s0, 250, at(1), { advanceAnchor: false, trustedSales: 50 })
     ).toThrow(InventoryAnomalyError);
   });
 
@@ -267,11 +262,11 @@ describe("Mengenkauf — signierter Webhook zählt voll", () => {
     // wir" hätte daraus 250 Verkäufe gemacht — Kurs sofort am Boden.
     const s0 = initState(22, 250, NOW);
     expect(() =>
-      tick(s0, 0, at(1), { allowDrift: false, trustedSales: 1 })
+      tick(s0, 0, at(1), { advanceAnchor: false, trustedSales: 1 })
     ).toThrow(InventoryAnomalyError);
 
     // Die bestätigte Menge selbst zählt aber voll, auch über der Zeit-Grenze:
-    const s1 = tick(s0, 250 - 30, at(1), { allowDrift: false, trustedSales: 30 });
+    const s1 = tick(s0, 250 - 30, at(1), { advanceAnchor: false, trustedSales: 30 });
     expect(s1.soldCount).toBe(30);
   });
 });
@@ -364,6 +359,16 @@ describe("Testbestellungen bewegen den Kurs wirklich nicht", () => {
     const s3 = tick(s2, 247, at(2));
     expect(s3.soldCount).toBe(1);
   });
+
+  it("ignoreTestTickets klemmt an der Repräsentierbarkeits-Grenze", () => {
+    // Ungeklemmt schriebe eine (signierte) Bestellflut einen Zustand mit
+    // ignoredTickets > MAX_SOLD_ABS — parseState lehnte ihn beim nächsten
+    // Lesen ab, die Börse fröre an ihrer eigenen Prüfung ein.
+    let s = initState(22, 250, NOW);
+    for (let i = 0; i < 15; i++) s = ignoreTestTickets(s, `t-${i}`, 1000);
+    expect(s.ignoredTickets).toBe(MAX_SOLD_ABS);
+    expect(() => parseState(JSON.stringify(s))).not.toThrow();
+  });
 });
 
 describe("Zustand passt immer ins Metafield", () => {
@@ -404,9 +409,9 @@ describe("Extremwerte ergeben nie einen NaN-Preis", () => {
 describe("Community-Pricing: additives Modell", () => {
   it("1 Verkauf senkt um exakt 1 €, Storno hebt exakt zurück", () => {
     let s = initState(22, INV, NOW);
-    s = tick(s, INV - 1, NOW, { allowDrift: false, trustedSales: 1 });
+    s = tick(s, INV - 1, NOW, { advanceAnchor: false, trustedSales: 1 });
     expect(priceOf(s, NOW)).toBe(21);
-    s = tick(s, INV, NOW, { allowDrift: false });
+    s = tick(s, INV, NOW, { advanceAnchor: false });
     expect(priceOf(s, NOW)).toBe(22); // exakte Symmetrie
   });
 
@@ -417,7 +422,7 @@ describe("Community-Pricing: additives Modell", () => {
 
   it("Boden klebt: Kaufwelle drückt roh unter den Boden, Zeit muss erst aufholen", () => {
     let s = initState(22, INV, NOW);
-    s = tick(s, INV - 20, NOW, { allowDrift: false, trustedSales: 20 }); // roh 2 €
+    s = tick(s, INV - 20, NOW, { advanceAnchor: false, trustedSales: 20 }); // roh 2 €
     expect(priceOf(s, NOW)).toBe(C.floorEuro);
     // 5 Tage später: roh 7 € — immer noch Boden
     expect(priceOf(s, at(5 * 24))).toBe(C.floorEuro);
@@ -504,7 +509,7 @@ describe("Audit-Runde 4 — Alt-Storno unter die Baseline (Ticket-Modus)", () =>
     const s0 = initState(22, INV, NOW, 50, "tickets");
     // Ticket-System meldet 49 gültige Tickets (ein Alt-Käufer stornierte)
     const bestand = INV - 49 + 50; // bestandAusTicketZahl
-    const s1 = tick(s0, bestand, NOW, { allowDrift: false, trustedSales: 1 });
+    const s1 = tick(s0, bestand, NOW, { advanceAnchor: false, trustedSales: 1 });
     expect(s1.soldCount).toBe(-1);
     expect(priceOf(s1, NOW)).toBe(22 + C.saleDropEuro);
     expect(s1.history.at(-1)).toMatchObject({ event: "refund", qty: 1 });
@@ -512,8 +517,8 @@ describe("Audit-Runde 4 — Alt-Storno unter die Baseline (Ticket-Modus)", () =>
 
   it("der nächste Verkauf senkt den Kurs exakt zurück — Symmetrie über die Baseline", () => {
     const s0 = initState(22, INV, NOW, 50, "tickets");
-    const s1 = tick(s0, INV - 49 + 50, NOW, { allowDrift: false, trustedSales: 1 });
-    const s2 = tick(s1, INV - 50 + 50, NOW, { allowDrift: false, trustedSales: 1 });
+    const s1 = tick(s0, INV - 49 + 50, NOW, { advanceAnchor: false, trustedSales: 1 });
+    const s2 = tick(s1, INV - 50 + 50, NOW, { advanceAnchor: false, trustedSales: 1 });
     expect(s2.soldCount).toBe(0);
     expect(priceOf(s2, NOW)).toBe(22);
   });
@@ -532,7 +537,7 @@ describe("Audit-Runde 4 — Aufstockung ist keine Massen-Rückbuchung", () => {
     // Ein Storno MIT Rückbuchung sieht im Bestand genauso aus wie eine kleine
     // Aufstockung — nicht unterscheidbar. Kleine Bewegungen bleiben Stornos.
     const s0 = initState(22, 250, NOW);
-    const s1 = tick(s0, 252, at(1), { allowDrift: false });
+    const s1 = tick(s0, 252, at(1), { advanceAnchor: false });
     expect(s1.soldCount).toBe(-2);
     expect(s1.history.at(-1)).toMatchObject({ event: "refund", qty: 2 });
   });
@@ -544,7 +549,7 @@ describe("Audit-Runde 4 — die Engine schreibt nur, was parseState wieder liest
     // einen Zustand, den ihr eigenes parseState beim nächsten Tick ablehnt.
     const s = { ...initState(22, 250, NOW), soldCount: 9_990 };
     expect(() =>
-      tick(s, 250 - 10_010, at(1), { allowDrift: false, trustedSales: 20 })
+      tick(s, 250 - 10_010, at(1), { advanceAnchor: false, trustedSales: 20 })
     ).toThrow(InventoryAnomalyError);
   });
 });

@@ -20,8 +20,9 @@ export const TICKER_CONFIG = {
   //
   // GLEICHGEWICHT: 1 Verkauf/Tag hält den Kurs exakt still. Mehr → er fällt
   // Richtung Boden (die Community "kauft den Preis runter"), weniger → er
-  // steigt Richtung Deckel. Korridor: 22 Netto-Verkäufe bis zum Boden,
-  // 8 Flaute-Tage bis zum Deckel.
+  // steigt Richtung Deckel. Vom START: 14 Netto-Verkäufe bis zum Boden und
+  // 8 Flaute-Tage bis zum Deckel (vom Deckel aus wären es maximal 22 bis
+  // zum Boden — der Zeit-Anteil verschiebt die Distanz laufend).
   saleDropEuro: 1.0,
 
   // KEINE Gnadenfrist — und zwar nicht als Zahl 0, sondern gar nicht.

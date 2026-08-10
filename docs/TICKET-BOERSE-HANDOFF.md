@@ -23,7 +23,7 @@
 
 ## Was das ist
 
-Die Band **Now.** parodiert das Dynamic Pricing der großen Ticketkonzerne — als **Community-Pricing**: Jedes verkaufte Ticket macht den Preis für das Konzert am **17.10.2026 (The Loft, Wien)** für alle Nächsten **1 € billiger**; jeder Tag ohne Verkauf hebt ihn um **1 €**. Wer kauft, schenkt den Nächsten etwas. Der Preis im Shopify-Shop ändert sich dabei wirklich.
+Die Band **Now.** parodiert das Dynamic Pricing der großen Ticketkonzerne — als **Community-Pricing**: Jedes verkaufte Ticket macht den Preis für das Konzert am **17.10.2026 (The Loft, Wien)** für alle Nächsten **1 € billiger**; die Zeit hebt ihn kontinuierlich um **1 €/Tag** (Verkäufe ziehen davon ab — ein Ticket pro Tag hält den Kurs). Wer kauft, schenkt den Nächsten etwas. Der Preis im Shopify-Shop ändert sich dabei wirklich.
 
 Die Seite `/de/tickets` + `/en/tickets` zeigt den Kurs, den Chart und die Parodie: Fake-Warteschlange („Position 1 von 1"), VIP-Packages, Saalplan mit genau einer Fläche, Gebühren-Fußnote („Wir verstehen es auch nicht.").
 
@@ -36,7 +36,7 @@ Die Seite `/de/tickets` + `/en/tickets` zeigt den Kurs, den Chart und die Parodi
 | | |
 |---|---|
 | Code | `main` |
-| Tests | 119/119 (Engine + Routen gegen einen gefälschten Shopify-Server) · Naht real verifiziert: Generalprobe 16.07. BESTANDEN (siehe Go-Live Schritt 0) |
+| Tests | 131/131 (Engine + Routen gegen einen gefälschten Shopify-Server + 96-Tage-Simulation) · Naht real verifiziert: Generalprobe 16.07. BESTANDEN (vor dem Go-Live erneut laufen lassen — sie prüft seit 10.08. das additive Modell) |
 | In Shopify | **kein** `ticker.state`-Metafield, Preis unverändert **22,00 €** |
 | Läuft | **nein** — und auch nach einem Deploy passiert nichts, bis jemand `?start=1` auslöst **und** `TICKER_ENABLED=1` gesetzt ist |
 | Wartet auf | die Evey-Ablösung durch das eigene Ticket-System (`project_tonherd_tickets`) |
@@ -60,7 +60,7 @@ Preis = clamp( Startpreis − 1 € × verkaufteTickets + 1 € × TageSeitStart
 | Shop-Preis | auf 10 Cent gerundet | `shopPrice()` |
 | Gnadenfrist | **gibt es nicht** (Parameter entfernt) | — |
 
-**Gleichgewicht bei exakt 1 Verkauf/Tag** („Ein Ticket pro Tag hält den Kurs"). Mehr → die Community kauft den Preis Richtung Boden. Weniger → er steigt Richtung Deckel. Korridor: 22 Netto-Verkäufe bis zum Boden, 8 Flaute-Tage bis zum Deckel.
+**Gleichgewicht bei exakt 1 Verkauf/Tag** („Ein Ticket pro Tag hält den Kurs"). Mehr → die Community kauft den Preis Richtung Boden. Weniger → er steigt Richtung Deckel. Vom Start: 14 Netto-Verkäufe bis zum Boden, 8 Flaute-Tage bis zum Deckel (der Zeit-Anteil verschiebt die Distanz laufend).
 
 **ADDITIV statt multiplikativ (seit 10.08.):** Kauf- und Zeit-Anteil sind unabhängige Summanden — die alte Reihenfolge-Regel („erst Drift, dann Verkäufe") ist gegenstandslos, und die teuerste Fehlerklasse des Projekts (Runde 2, Punkt 6: „Verkauf löschte den aufgelaufenen Drift") ist strukturell unmöglich. Der Zeit-Anteil hängt an `startAtIso` im Zustand (kein Akkumulator; der frühere `driftMultiplier` samt `MIN_DRIFT` entfiel ersatzlos — Uhr-Rücksprünge heilen sich selbst). `lastTickAt` bleibt als Betriebs-Anker: Ampel-Herzschlag + Zeitfenster der Verkaufsgrenze, **nicht** mehr preisrelevant. `priceOf(state, now)` braucht deshalb die Zeit als Parameter; `writeTicker(…, now)` reicht sie durch.
 
@@ -119,7 +119,7 @@ Drei Audit-Runden (Codex `gpt-5.6-sol` + `gpt-5.5`, adversarial). **In Runde 3 s
 11. **Und dieser Fix kippte ins Gegenteil.** Nach 72 h Cron-Ausfall wären 576 „Verkäufe" erlaubt gewesen — ein Bestands-Reset 250 → 0 wäre als Ausverkauf durchgegangen. → zusätzliche **absolute Decke** (`maxSalesAbsolute: 40`).
 12. **`trustSales: true` ließ den Webhook jeden Bestandssprung schlucken.** Ein Reset auf 0 während einer 1-Ticket-Bestellung → 250 Verkäufe. → `trustedSales: number`: Vertraut wird der **bestätigten Bestellmenge**, nicht dem Sprung. *(Von einem eigenen Test gefunden.)*
 13. **KEIN automatisches Rebaseline mehr.** Ein Reset (250→0) und ein Ausverkauf (250→0) sind aus dem Bestand **nicht unterscheidbar**. Die Börse rät nicht: unerklärlicher Sprung → **nichts wird geschrieben**, Preis bleibt, kein Verkauf geht verloren, **HTTP 409 `anomaly`**. Auflösung durch einen Menschen: **`?rebaseline=1`**.
-14. **Testbestellungen bewegten den Kurs doch.** Der Webhook ignorierte sie — aber sie senken den Bestand wie jede echte Bestellung, und der Cron zählte sie. → Feld `ignoredTickets`.
+14. **Testbestellungen bewegten den Kurs doch.** Der Webhook ignorierte sie — aber sie senken den Bestand wie jede echte Bestellung, und der Cron zählte sie. → Feld `ignoredTickets`. *(Stand heute: NUR noch für den Bestands-Notpfad — das Ticket-Ledger zählt Tests seit 18.07. gar nicht mit, der Webhook bucht im Ticket-Modus deshalb auch keine `ignoredTickets` mehr; siehe „Testbestellungen" unter Offen/Erledigt.)*
 
 Außerdem: Uhr-Rücksprung driftete doppelt; `driftMultiplier` konnte unter seine eigene Validierungsgrenze fallen und die Börse **einfrieren** (`MIN_DRIFT`); der Byte-Guard maß nur die History statt des ganzen Zustands (`prepareForWrite`); Verkäufe am Deckel erzeugten keinen History-Punkt (Seite meldete „heute 0 verkauft") — *im heutigen Modell ist die entsprechende Grenze der Boden*; der Hero klemmte den Live-Preis an die Grenze und versprach damit einen Preis, den der Checkout nicht hält. *(driftMultiplier/MIN_DRIFT gibt es seit dem Additiv-Umbau vom 10.08. nicht mehr — die Einfrier-Klasse ist mit dem Akkumulator verschwunden.)*
 
@@ -144,7 +144,7 @@ Im Bestands-Notpfad bewusst geblieben (Restrisiko): Zählt der Cron einen Verkau
 - **Ungültiges `quelle`-Feld** (Admin-Tippfehler "ticket") wurde still als "bestand" gelesen — derselbe stille Quellenwechsel, den das Feld verhindern soll. → vorhandenes, aber ungültiges Feld wird jetzt **abgewiesen**; nur ein FEHLENDES Feld fällt auf "bestand" (korrekt: die Börse ist vor Runde 4 nie gestartet, Alt-Zustände können nur bestandsbasiert sein).
 - **Echte Massen-Stornos im Bestands-Modus hatten keinen korrekten Auflösungsweg:** Die (neue) symmetrische Klemme hält einen Refund-Batch >8/h korrekt an — aber `?rebaseline=1` hätte die echten Stornos lautlos aus Kurs und Statistik gelöscht. → **Zweiter Hebel `?reconcile=<sprünge>`**: „der Sprung war echt" — er wird über den normalen tick()-Pfad übernommen und bewegt den Kurs. Bestätigt wird der **konkrete Wert aus der 409-Meldung** (z. B. `?reconcile=-10`), kein bloßes Ja: Hat sich der Bestand zwischen Sehen und Bestätigen weiterbewegt, hält der Hebel erneut an, statt ungefragt den neuen Sprung zu schlucken *(Befund aus dem Gegencheck auf den Gegencheck — Runde 4c, wenn man so will)*. Rebaseline und Reconcile schließen einander aus. Der 409-Hinweis erklärt beide Hebel.
 - **`doorsUtc` ohne Zeitzone** wäre in der Server-Zeitzone interpretiert worden (Abschaltmoment umgebungsabhängig). → RFC-3339 mit explizitem Z/Offset erzwungen.
-- 🔴 **OFFEN (gehört ins Ticket-System, nicht hierher):** Wird eine **neutralisierte Testbestellung später storniert**, fällt sie aus dem Ledger, aber `ignoredTickets` bleibt erhöht → der Kurs wäre **dauerhaft** um die Testmenge zu niedrig. Richtiger Fix: Der `/api/verkaufszahl`-Endpunkt (`tonherd-tickets`, Branch `feat/verkaufszahl-endpunkt`, ungemergt) soll **Testbestellungen gar nicht erst mitzählen** — dann braucht der Ticket-Modus `ignoredTickets` überhaupt nicht mehr. Bis dahin: Generalprobe nur mit Not-Aus oder Testprodukt (stand ohnehin schon in der Kopplungs-Doku).
+- 🟢 **ERLEDIGT (Ledger 18.07. + Webhook 10.08.):** Der `/api/verkaufszahl`-Endpunkt zählt Testbestellungen **gar nicht erst mit** (`entitlementsForOrder` schließt `test:true` global aus) — und seit 10.08. erhöht der Webhook im Ticket-Modus auch keine `ignoredTickets` mehr (sonst hätte der Cron die Testmenge DOPPELT abgezogen und den Kurs fälschlich gehoben). **Die Regel heute: Ticket-Modus ignoriert Tests vollständig; `ignoredTickets` existiert nur noch für den Bestands-Notpfad** (dort mit MAX_SOLD_ABS-Klemme).
 
 ---
 
@@ -165,7 +165,7 @@ Im Bestands-Notpfad bewusst geblieben (Restrisiko): Zählt der Cron einen Verkau
 | `prepareForWrite` (50 KB) | misst den **ganzen** Zustand; scheitert notfalls laut, statt das Metafield zu sprengen |
 | Türöffnung → `beendet` | die Börse macht Schluss, bevor der Cutoff des Ticket-Systems zuschlägt |
 | **Cron nie 5xx an den Scheduler** | Nackte Läufe antworten IMMER 200, das Ergebnis steht im Body (`status`). Beim 5-Minuten-Takt ist der nächste Lauf ohnehin der Retry; ein 5xx riskiert Retry-Stürme bzw. Trigger, die sich selbst abschalten (Lehre aus dem Ticket-System-Runbook). Menschliche Hebel (`?start/?rebaseline/?reconcile`) behalten sprechende Codes. |
-| **Betriebsampel `/api/ticker/status`** + externer Wächter | Nur-Lese-Route (eigenes `MONITOR_SECRET`, `x-monitor-secret`): 200 = gut/bewusst aus, 503 = Mensch muss handeln (Cron steht >3 h, Anomalie wartet, Quelle falsch konfiguriert, Tracking aus), 500 = Lesen unmöglich. Der Apps-Script-Wächter des Ticket-Systems prüft sie mit (siehe `tonherd-tickets/monitoring/watcher/`). |
+| **Betriebsampel `/api/ticker/status`** + externer Wächter | Nur-Lese-Route (eigenes `MONITOR_SECRET`, `x-monitor-secret`): 200 = gut/bewusst aus, 503 = Mensch muss handeln (Cron steht **>30 min**, Anomalie wartet, Quelle falsch konfiguriert, Tracking aus, Preis außerhalb des legitimen Fensters, Uhr-Anomalie — und seit 10.08.: `TICKER_ENABLED` aus, obwohl `TICKER_EXPECTED_RUNNING=1`), 500 = Lesen unmöglich. Der Apps-Script-Wächter des Ticket-Systems prüft sie mit (siehe `tonherd-tickets/monitoring/watcher/`). |
 | HMAC + zeitkonstanter Bearer/Monitor-Header | alle Routen fail-closed (401) |
 | Mock in Produktion wirkungslos | doppelt verriegelt |
 
@@ -188,7 +188,7 @@ Ehrlichkeit statt Sicherheitsversprechen — das hier ist **nicht** gelöst, son
 
 ```
 lib/ticker/config.ts         # ALLE Parameter — nur hier ändern, Tests sind config-basiert
-lib/ticker/engine.ts         # pure Engine: priceOf(), tick() [Drift DANN Verkäufe],
+lib/ticker/engine.ts         # pure Engine: priceOf(state, now), tick() [Anker/History + absolute Verkaufszahl],
                              #   parseState(), prepareForWrite(), Dedup, Anomalie
 lib/ticker/tickets-quelle.ts # holt die Verkaufszahl vom Ticket-System
 lib/ticker/shopify-admin.ts  # readTicker/writeTicker: CAS, getrennte Requests, Preis-Abgleich
@@ -258,6 +258,7 @@ Der Mock simuliert mit der echten Engine drei Wochen Verlauf. **Er kann nichts k
 4. **Envs in Vercel setzen** (`now-website`):
    ```
    TICKER_ENABLED=1
+   TICKER_EXPECTED_RUNNING=1                        ← ab Go-Live: „disabled" = Alarm statt Ruhe
    TICKETS_BASE_URL=https://tickets.tonherd.com     ← kanonische Domain, NIE *.vercel.app
    TICKETS_MONITOR_SECRET=<MONITOR_SECRET des Ticket-Systems>
    MONITOR_SECRET=<neues Nur-Lese-Secret für /api/ticker/status>

@@ -77,7 +77,6 @@ export interface TickerState {
    * Akkumulator, den ein anderer Code-Pfad versehentlich überspringen könnte.
    */
   startAtIso: string;
-  lastSaleAt: string; // ISO — nur Information
   lastTickAt: string; // ISO — Betriebs-Anker: Ampel-Herzschlag + Zeitfenster der Verkaufsgrenze
   recentOrders: string[]; // bereits verarbeitete Bestellungen (Doppel-Webhooks)
   history: HistoryPoint[];
@@ -169,7 +168,6 @@ export function initState(
     soldCount: 0,
     ignoredTickets: 0,
     startAtIso: t,
-    lastSaleAt: t,
     lastTickAt: t,
     recentOrders: [],
     history: [{ t, price: round4(price), event: "init" }],
@@ -296,7 +294,6 @@ export function parseState(
     ignoredTickets:
       s.ignoredTickets === undefined ? 0 : num("ignoredTickets", 0, MAX_SOLD_ABS, true),
     startAtIso,
-    lastSaleAt: iso("lastSaleAt"),
     lastTickAt,
     // Bestell-IDs: nur Ziffernfolgen vernünftiger Länge, Anzahl begrenzt. Sonst
     // könnte ein manipuliertes Metafield den Zustand über das Shopify-Limit
@@ -315,12 +312,11 @@ export interface TickOptions {
    * Bestellung (auch Merch) und würde sonst das Zeitfenster der
    * Verkaufsgrenze künstlich verkürzen.
    *
-   * Der PREIS hängt an diesem Flag NICHT mehr: Er enthält die verstrichene
-   * Zeit immer, weil er aus `startAtIso` abgeleitet ist. Ein Webhook-Write
-   * kann keine Flaute-Zeit löschen — die Fehlerklasse aus Runde 2 existiert
-   * strukturell nicht mehr.
+   * Der PREIS hängt an diesem Flag NICHT: Er enthält die verstrichene Zeit
+   * immer, weil er aus `startAtIso` abgeleitet ist. (Der alte Name
+   * `advanceAnchor` log deshalb — er klang, als schalte er den Zeit-Anteil ab.)
    */
-  allowDrift?: boolean;
+  advanceAnchor?: boolean;
   /**
    * Die von einem HMAC-signierten, deduplizierten Webhook BESTÄTIGTE Ticketmenge.
    *
@@ -355,7 +351,7 @@ export function tick(
   now: Date,
   opts: TickOptions = {}
 ): TickerState {
-  const allowDrift = opts.allowDrift ?? true;
+  const advanceAnchor = opts.advanceAnchor ?? true;
   const trustedSales = opts.trustedSales ?? 0;
 
   // Die verstrichene Zeit MUSS vor dem Anker-Nachziehen gemessen werden: `applyZeit` setzt
@@ -366,7 +362,7 @@ export function tick(
     (now.getTime() - new Date(state.lastTickAt).getTime()) / 3_600_000
   );
 
-  const mitZeit = allowDrift ? applyZeit(state, now) : state;
+  const mitZeit = advanceAnchor ? applyZeit(state, now) : state;
   return applyInventory(mitZeit, currentInventory, now, trustedSales, stundenSeitTick);
 }
 
@@ -501,11 +497,7 @@ function applyInventory(
     });
   }
 
-  const next: TickerState = {
-    ...state,
-    soldCount: totalSold,
-    lastSaleAt: newSales > 0 ? nowIso : state.lastSaleAt,
-  };
+  const next: TickerState = { ...state, soldCount: totalSold };
   const price = priceOf(next, now);
   return {
     ...next,
@@ -547,14 +539,26 @@ export function rebaseline(
   };
 }
 
-/** Tickets einer Testbestellung: senken den Bestand, dürfen den Kurs nicht bewegen. */
+/**
+ * Tickets einer Testbestellung: senken den Bestand, dürfen den Kurs nicht
+ * bewegen. NUR für den Bestands-Notpfad — das Ticket-Ledger zählt
+ * Testbestellungen seit 18.07. gar nicht erst mit (der Webhook bucht im
+ * Ticket-Modus deshalb auch hier nichts mehr).
+ *
+ * Geklemmt auf MAX_SOLD_ABS: parseState lehnt größere Werte ab — ungeklemmt
+ * könnte eine (signierte) Bestellflut einen Zustand schreiben, den die Engine
+ * selbst nicht mehr lesen kann. Dieselbe geteilte Schranke wie überall.
+ */
 export function ignoreTestTickets(
   state: TickerState,
   orderId: string,
   tickets: number
 ): TickerState {
   return rememberOrder(
-    { ...state, ignoredTickets: state.ignoredTickets + tickets },
+    {
+      ...state,
+      ignoredTickets: Math.min(MAX_SOLD_ABS, state.ignoredTickets + tickets),
+    },
     orderId
   );
 }

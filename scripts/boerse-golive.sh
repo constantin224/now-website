@@ -54,6 +54,9 @@ env_setzen() {
   fi
 }
 env_setzen TICKER_ENABLED "1"
+# Ab dem Go-Live ist "disabled" ein Alarm (503 der Ampel), kein Ruhezustand:
+# Eine versehentlich verlorene TICKER_ENABLED-Env bliebe sonst lautlos.
+env_setzen TICKER_EXPECTED_RUNNING "1"
 env_setzen TICKETS_BASE_URL "$TICKETS"
 env_setzen SHOPIFY_ADMIN_CLIENT_ID "aec9c6c4f780fd9d0a082bd97e501392"
 env_setzen MONITOR_SECRET "$MON"
@@ -116,18 +119,32 @@ schritt "7/9 QStash-Schedule für den Tick"
 LISTE=$(curl -sf -H @"$HDIR/qtk" "$QSTASH_BASE") || fehler "QStash-Schedule-Liste nicht abrufbar"
 # Nicht nur die URL prüfen: ein vorhandenes Schedule mit falscher Methode oder
 # falschem Takt würde sonst still übernommen. Bei Abweichung: Abbruch, Mensch entscheidet.
-BEFUND=$(printf '%s' "$LISTE" | python3 -c '
-import json, sys
+BEFUND=$(printf '%s' "$LISTE" | CRON="$CRON" python3 -c '
+import json, os, sys
 for s in json.load(sys.stdin):
     if "now-music.at/api/ticker/tick" in s.get("destination", ""):
         ok = s.get("method") == "GET" and s.get("cron") == "*/5 * * * *"
-        print("ok" if ok else "kaputt method=%s cron=%s" % (s.get("method"), s.get("cron")))
+        # Auch das weitergereichte Bearer-Secret pruefen: Ein Schedule mit
+        # ALTEM CRON_SECRET saehe sonst korrekt aus, liefe aber nur 401er.
+        # (Die Ampel bliebe zunaechst gruen, weil der manuelle Start unten
+        # lastTickAt frisch setzt.) Header-Feld je nach QStash-Serialisierung
+        # suchen; ist gar keins auffindbar, nur warnen statt blocken.
+        blob = json.dumps(s)
+        cron = os.environ["CRON"]
+        if "uthorization" not in blob:
+            print("ok-ohne-header-pruefung" if ok else "kaputt method=%s cron=%s" % (s.get("method"), s.get("cron")))
+        elif cron not in blob:
+            print("kaputt forward-auth (altes CRON_SECRET?)")
+        else:
+            print("ok" if ok else "kaputt method=%s cron=%s" % (s.get("method"), s.get("cron")))
         break
 else:
     print("fehlt")
 ')
 case "$BEFUND" in
-  ok)     echo "Schedule existiert korrekt — übersprungen" ;;
+  ok)     echo "Schedule existiert korrekt (inkl. Forward-Auth) — übersprungen" ;;
+  ok-ohne-header-pruefung)
+          echo "Schedule existiert (Methode+Takt ok); Forward-Auth war in der API-Antwort nicht prüfbar — falls die Ampel in ~30 min rot wird: Schedule in QStash löschen und Script neu starten" ;;
   fehlt)  BEFUND="anlegen" ;;
   *)      fehler "Vorhandenes Tick-Schedule passt nicht ($BEFUND) — in QStash ansehen/löschen, dann Script neu starten" ;;
 esac
@@ -172,7 +189,12 @@ Noch 2 Handgriffe (einmalig):
    BOERSE_MONITOR_SECRET = Wert aus:  security find-generic-password -s now-boerse-monitor-secret -w
    Danach einmal die Funktion "pruefe" ausführen (sollte still bleiben = gesund).
 2. Seite anschauen: https://now-music.at/de/tickets — Hero zeigt jetzt den Kurs (22,00 €).
-   Ab jetzt tickt die Börse alle 5 min: Drift −0,06 %/h, +1 % je Verkauf, Boden 5 €, Deckel 25 €.
+   Ab jetzt tickt die Börse alle 5 min — Community-Pricing: −1 € je verkauftem
+   Ticket, +1 €/Tag kontinuierlich, Boden 8 €, Deckel 30 €.
+3. In ~10 min die Ampel ERNEUT prüfen — erst das beweist, dass der QStash-Tick
+   wirklich läuft (der Start oben kam von Hand):
+   curl -s -o /dev/null -w '%{http_code}\n' -H "x-monitor-secret: $(security find-generic-password -s now-boerse-monitor-secret -w)" https://now-music.at/api/ticker/status
+   (Der Apps-Script-Wächter aus Punkt 1 mailt ab dann ohnehin bei allem außer 200.)
 
 Not-Aus (Reihenfolge zwingend): TICKER_ENABLED=0 in Vercel → Metafield ticker.state
 löschen → erst dann Preis zurücksetzen. Details: docs/TICKET-BOERSE-HANDOFF.md.

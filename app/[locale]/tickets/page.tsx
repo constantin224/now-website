@@ -71,14 +71,17 @@ export default async function TicketsPage({
 
   const euro = euroIn(locale);
   const now = new Date();
-  const { state, currentInventory, currentPriceEuro } = await readTicker().catch(
-    (err) => {
-      // Fehler sichtbar machen — sonst sieht ein echter Shopify-Ausfall genauso
-      // aus wie "Börse noch nicht gestartet".
-      console.error("[tickets] readTicker fehlgeschlagen:", err);
-      return { state: null, currentInventory: 0, currentPriceEuro: 0 };
-    }
-  );
+  // Fehler auch für BESUCHER sichtbar machen — sonst sieht ein echter
+  // Shopify-Ausfall genauso aus wie "Börse noch nicht gestartet" (und der
+  // Hinweis stand nur im Serverlog).
+  const { state, currentInventory, currentPriceEuro, leseFehler } =
+    await readTicker().then(
+      (r) => ({ ...r, leseFehler: false }),
+      (err) => {
+        console.error("[tickets] readTicker fehlgeschlagen:", err);
+        return { state: null, currentInventory: 0, currentPriceEuro: 0, leseFehler: true };
+      }
+    );
 
   // Börse noch nicht initialisiert / API-Fehler → nüchterner Fallback
   if (!state) {
@@ -92,6 +95,11 @@ export default async function TicketsPage({
             {t.eventTitle}
           </h1>
           <p className="text-sand/45 tracking-wide mt-2">{t.eventMeta}</p>
+          {leseFehler && (
+            <p className="text-sm text-sand/55 mt-6 max-w-md mx-auto">
+              {t.unavailableNote}
+            </p>
+          )}
           <a
             href={C.shopProductUrl}
             className="inline-block border border-terracotta/30 bg-terracotta/10 text-terracotta px-8 py-3 text-[11px] tracking-[3px] uppercase hover:bg-terracotta/20 transition-colors rounded-full mt-10"
@@ -110,12 +118,15 @@ export default async function TicketsPage({
   // (Nur falls Shopify gar keinen brauchbaren Preis liefert: abgeleiteter Kurs.)
   const price = currentPriceEuro > 0 ? currentPriceEuro : shopPrice(priceOf(state, new Date()));
   const change = dayChangePct(state, now, price);
-  const rising = change >= 0;
+  // Drei Lagen, nicht zwei: Exakt 0 % ist weder Anstieg noch Erfolg — ein
+  // stillstehender Kurs bekäme sonst Flaute-Farbe und einen ▲ für nichts.
+  const rising = change > 0;
+  const unveraendert = change === 0;
   // Farb-Semantik ist hier GEDREHT: Ein fallender Kurs ist der Erfolg — die
   // Community kauft den Preis runter. Er bekommt deshalb das Grün; Steigen
   // heißt Flaute. Der Pfeil zeigt weiterhin die echte Richtung (nie
   // farb-allein, siehe price-chart.tsx).
-  const erfolg = !rising;
+  const erfolg = change < 0;
   const sales24 = salesLast24h(state, now);
   // Historische Kurse als SHOP-Preis (10-Cent-Rundung) — so, wie sie damals im
   // Shop standen. Der aktuelle Preis gehört dazu, sonst könnte der Höchststand
@@ -129,9 +140,17 @@ export default async function TicketsPage({
       : sales24 >= 1
         ? t.demandBadge.some.replace("{count}", String(sales24))
         : t.demandBadge.none;
-  const trendCls = erfolg ? "text-market-up" : "text-market-down";
-  const arrow = rising ? "▲" : "▼";
-  const pct = `${Math.abs(change).toFixed(1).replace(".", ",")} %`;
+  const trendCls = unveraendert
+    ? "text-sand/55"
+    : erfolg
+      ? "text-market-up"
+      : "text-market-down";
+  const arrow = unveraendert ? "●" : rising ? "▲" : "▼";
+  // Dezimaltrenner nach Locale — die EN-Seite zeigte sonst "3,4 %"
+  const pct = `${new Intl.NumberFormat(locale === "en" ? "en-IE" : "de-AT", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(Math.abs(change))} %`;
 
   // Laufband in Klartext — jeder Eintrag ohne Börsen-Jargon verständlich
   const tapeItems = [

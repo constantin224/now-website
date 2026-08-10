@@ -662,16 +662,20 @@ describe("Audit-Runde 4 — die Naht zur Ticket-Quelle", () => {
     expect(shop.variantPrice).toBe(22);
   });
 
-  it("Testbestellungen werden auch im Ticket-Modus neutralisiert", async () => {
-    // Das Ticket-System zählt Testbestellungen im Berechtigungs-Set mit —
-    // ohne ignoredTickets würde der nächste Cron sie als Verkauf werten.
+  it("Testbestellung im Ticket-Modus: KEIN ignoredTickets — das Ledger zählt sie nicht", async () => {
+    // Das Ticket-System schließt test:true seit 18.07. global aus dem Ledger
+    // aus. Würde der Webhook hier trotzdem ignoredTickets erhöhen, zöge der
+    // nächste Cron die Testmenge DOPPELT ab (soldCount = gueltige − start −
+    // ignored) — der Kurs stiege fälschlich um die Testmenge.
     shop.state = { ...shop.state!, quelle: "tickets" };
-    await postWebhook(orderBody({ id: 42, tickets: 3, test: true }));
-    expect(shop.state!.ignoredTickets).toBe(3);
+    const r = await postWebhook(orderBody({ id: 42, tickets: 3, test: true }));
+    expect(await r.json()).toMatchObject({ ignoriert: "Testbestellung" });
+    expect(shop.stateWrites).toBe(0); // gar kein Schreibvorgang
+    expect(shop.state!.ignoredTickets).toBe(0);
 
-    tickets.gueltigeTickets = 3; // die Testbestellung taucht im Ledger auf
+    tickets.gueltigeTickets = 0; // die Testbestellung taucht im Ledger NICHT auf
     await getTick();
-    expect(shop.state!.soldCount).toBe(0); // neutralisiert
+    expect(shop.state!.soldCount).toBe(0); // Kurs unberührt
     expect(shop.variantPrice).toBe(22);
   });
 
@@ -809,6 +813,15 @@ describe("Betriebsampel /api/ticker/status (für den externen Wächter)", () => 
     let r = await getStatus();
     expect(r.status).toBe(200);
     expect(await r.json()).toMatchObject({ status: "disabled" });
+
+    // Ab dem Go-Live (TICKER_EXPECTED_RUNNING=1) ist "aus" dagegen ein Alarm:
+    // Eine versehentlich verlorene Env bliebe sonst lautlos, der Wächter
+    // reagiert nur auf Nicht-200.
+    vi.stubEnv("TICKER_EXPECTED_RUNNING", "1");
+    r = await getStatus();
+    expect(r.status).toBe(503);
+    expect((await r.json()).probleme.join()).toMatch(/TICKER_ENABLED/);
+    vi.stubEnv("TICKER_EXPECTED_RUNNING", "");
 
     vi.stubEnv("TICKER_ENABLED", "1");
     shop.state = null;

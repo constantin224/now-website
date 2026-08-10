@@ -66,6 +66,9 @@ function readOrder(rawBody: string): OrderInfo {
       if (!Number.isInteger(q) || q <= 0 || q > 1000) return { id: null, tickets: 0, isTest: false };
       tickets += q;
     }
+    // Auch die SUMME klemmen: Mehrere Positionen derselben Variante könnten
+    // sonst zusammen eine absurde Menge ergeben (die Halle hat 250 Plätze).
+    if (tickets > 1000) return { id: null, tickets: 0, isTest: false };
 
     return {
       id: /^\d{1,25}$/.test(id) && id !== "0" ? id : null,
@@ -146,12 +149,24 @@ async function handleOrder(orderId: string, tickets: number, isTest: boolean) {
   }
 
   // ---- Testbestellung ----
-  // Sie darf den Kurs nicht bewegen — aber sie zählt in BEIDEN Quellen mit:
-  // Sie senkt den Bestand wie jede echte Bestellung, UND das Ticket-System
-  // führt sie im Berechtigungs-Set (eine Testbestellung ist dort eine normale,
-  // bezahlte Bestellung). Deshalb wird sie in beiden Modi neutralisiert —
-  // `ignoredTickets` wird in beiden Rechnungen abgezogen. Und zwar VOR dem
-  // Tracking-Check: Die Neutralisierung braucht den Bestand nicht.
+  // Im TICKET-MODUS gibt es nichts zu neutralisieren: Das Bestell-Ledger des
+  // Ticket-Systems schließt `test:true` seit 18.07. global aus — die
+  // Testbestellung taucht in `gueltigeTickets` gar nicht erst auf. Würde der
+  // Webhook hier trotzdem `ignoredTickets` erhöhen, zöge der nächste Cron die
+  // Menge DOPPELT ab (soldCount = gueltige − start − ignored) und höbe den
+  // Kurs fälschlich an. Kein Schreibvorgang nötig, idempotent.
+  if (isTest && state.quelle === "tickets") {
+    return NextResponse.json({
+      ok: true,
+      ignoriert: "Testbestellung",
+      tickets,
+      hinweis: "Ticket-Ledger zählt Testbestellungen nicht — nichts zu neutralisieren",
+    });
+  }
+
+  // Im BESTANDS-Notpfad muss sie neutralisiert werden: Sie senkt den Bestand
+  // wie jede echte Bestellung, und der Cron würde sie sonst als Verkauf zählen.
+  // VOR dem Tracking-Check: Die Neutralisierung braucht den Bestand nicht.
   if (isTest) {
     const neutralisiert = ignoreTestTickets(state, orderId, tickets);
     // mitAbgleich=false: Shopify erwartet die Webhook-Antwort in ~5 s, sonst löscht
@@ -214,10 +229,10 @@ async function handleOrder(orderId: string, tickets: number, isTest: boolean) {
   // trustedSales: Der Payload ist HMAC-signiert und dedupliziert — GENAU diese
   // Menge darf die Klemme überschreiten. Eine 6er-Bestellung zählt damit voll,
   // ein Bestandssturz auf 0 aber nicht (er hält an und meldet sich).
-  // allowDrift: false — der Webhook darf den lastTickAt-Anker nicht verschieben,
+  // advanceAnchor: false — der Webhook darf den lastTickAt-Anker nicht verschieben,
   // sonst schrumpfte das Zeitfenster der Verkaufsgrenze mit jeder Bestellung.
   const next = tick(state, effectiveInventory, now, {
-    allowDrift: false,
+    advanceAnchor: false,
     trustedSales: tickets,
   });
 

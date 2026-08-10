@@ -73,8 +73,6 @@
     "metaTitle": "Tickets — Official Ticket Platform | Now.",
     "platformLabel": "OFFICIAL TICKET PLATFORM OF THE NOW. WORLD TOUR 2026 (1 DATE)",
     "eventTitle": "Now. // Vienna",
-    "eventSubtitle": "Album Release Show",
-    "currentPrice": "Current market price",
     "dayChange": "24h change",
     "chartTitle": "Price history — 100% transparent. Unlike the others.",
     "allTimeHigh": "All-time high",
@@ -84,7 +82,7 @@
       "some": "DEMAND DETECTED — {count} TICKET(S) IN 24 HOURS",
       "none": "PLENTY OF TICKETS AVAILABLE. GENUINELY PLENTY."
     },
-    "howItWorks": "Every ticket sold cuts the price by €1 — for everyone buying after you. Every day without a sale raises it by €1. One ticket a day holds the line. Buy faster and it gets cheaper for everyone.",
+    "howItWorks": "The price climbs on its own — €1 per day. Every ticket sold immediately takes €1 back off, for everyone buying after you. One ticket a day holds the line. Buy faster and it gets cheaper for everyone.",
     "buyCta": "Secure tickets",
     "fees": "Service fee: €0. Handling fee: €0. Dynamic pricing fee: €0. We don't understand it either.",
     "disclaimer": "* Price includes VAT and excludes all the fees we don't charge.",
@@ -112,9 +110,7 @@
       "note": "Best spots: all of them. Worst spots: none."
     },
     "eventMeta": "17 Oct 2026 · The Loft, Vienna · Doors 19:00",
-    "symbol": "NOW.T",
     "stats": {
-      "volume24h": "24h volume",
       "available": "In circulation",
       "availableUnit": "tickets",
       "sold": "Sold since trading start"
@@ -124,22 +120,22 @@
       "sale": "Sale",
       "drift": "Lull",
       "start": "Trading start",
-      "today": "Today"
+      "today": "Today",
+      "refund": "Refund",
+      "rebaseline": "Adjustment"
     },
     "tape": {
       "price": "Current ticket price: {price} {arrow} {pct} in 24h",
-      "sold24h": "Sold today: {n} tickets",
+      "sold24h": "Last 24 hours: {n} tickets sold",
       "available": "Still available: {n} tickets",
       "floor": "Absolute floor: {price}",
       "cap": "Absolute ceiling: {price}"
     },
     "howItWorksTitle": "How dynamic pricing works",
-    "chartHeadline": "Somebody buys, it falls. Nobody buys, it rises.",
     "closingLine": "Dynamic pricing ends on October 17. After that: box office — fixed price, like in the Middle Ages.",
     "heroTagline": "Dynamic pricing like the superstars — only in the other direction.",
     "live": "LIVE",
     "nextDrop": "The price only drops when somebody buys. Otherwise it climbs — €1 a day, slowly.",
-    "terminalLine": "The Loft, Vienna · Dynamic price runs until 17 Oct 2026",
     "share": "Share rate",
     "shared": "Link copied",
     "shareText": "The NOW. ticket is currently at {price}. Dynamic pricing like the superstars — only in the other direction:",
@@ -168,10 +164,22 @@
     "liveViewers": "3 people are viewing this page right now. Two of them are in the band.",
     "trust": {
       "badges": [
-        { "text": "Self-verified organiser", "note": "" },
-        { "text": "No bots", "note": "as far as we know" },
-        { "text": "No resale markup", "note": "" },
-        { "text": "SSL-encrypted", "note": "" }
+        {
+          "text": "Self-verified organiser",
+          "note": ""
+        },
+        {
+          "text": "No bots",
+          "note": "as far as we know"
+        },
+        {
+          "text": "No resale markup",
+          "note": ""
+        },
+        {
+          "text": "SSL-encrypted",
+          "note": ""
+        }
       ]
     },
     "urgencyNote": "This 'offer' ends in exactly this much time. No need to rush.",
@@ -180,11 +188,24 @@
       "aggregate": "3.7 out of 5 · 3 reviews · all made up",
       "starsSr": "{stars} out of 5 stars",
       "items": [
-        { "stars": 5, "quote": "Bought one, made it cheaper for everyone after me. You're welcome.", "by": "a fan" },
-        { "stars": 5, "quote": "Wanted to book Golden Circle — turned out it was the whole room.", "by": "another fan" },
-        { "stars": 1, "quote": "The price dropped after I bought.", "by": "understandably" }
+        {
+          "stars": 5,
+          "quote": "Bought one, made it cheaper for everyone after me. You're welcome.",
+          "by": "a fan"
+        },
+        {
+          "stars": 5,
+          "quote": "Wanted to book Golden Circle — turned out it was the whole room.",
+          "by": "another fan"
+        },
+        {
+          "stars": 1,
+          "quote": "The price dropped after I bought.",
+          "by": "understandably"
+        }
       ]
-    }
+    },
+    "unavailableNote": "The live price is unavailable right now. As always, the checkout price is what counts."
   },
   "impressum": {
     "title": "Legal Notice",

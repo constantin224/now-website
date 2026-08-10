@@ -17,6 +17,8 @@ interface Props {
     floor: string;
     sale: string;
     drift: string;
+    refund: string;
+    rebaseline: string;
     start: string;
     today: string;
   };
@@ -338,7 +340,16 @@ export function PriceChart({ history: raw, erfolg, floorEuro, locale, labels }: 
                 >
                   {hvDelta > 0 ? "+" : "−"}
                   {fmtDelta(Math.abs(hvDelta))} ·{" "}
-                  {hv.p.event === "sale" ? labels.sale : labels.drift}
+                  {/* Jedes Event beim Namen nennen — ein Storno ist keine Flaute */}
+                  {hv.p.event === "sale"
+                    ? labels.sale
+                    : hv.p.event === "refund"
+                      ? labels.refund
+                      : hv.p.event === "rebaseline"
+                        ? labels.rebaseline
+                        : hv.p.event === "init"
+                          ? labels.start
+                          : labels.drift}
                 </span>
               )}
             </p>
