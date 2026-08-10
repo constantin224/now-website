@@ -22,8 +22,8 @@ export type VerkaufsQuelle = "tickets" | "bestand";
  * (liest) und applyInventory (schreibt). Wären die beiden Grenzen verschieden,
  * könnte die Engine einen Zustand erzeugen, den ihr eigenes parseState beim
  * nächsten Lesen ablehnt — die Börse fröre an ihrer eigenen Prüfung ein.
- * (1,01^n läuft ab n ≈ 71.333 zu Infinity über; 10.000 liegt sicher darunter
- * und ist für einen Klub mit 250 Plätzen absurd hoch.)
+ * (Im linearen Modell gibt es keinen Zahlen-Overflow mehr; die Grenze bleibt
+ * als Absurditäts- und Repräsentierbarkeits-Schranke — ein Klub hat 250 Plätze.)
  */
 export const MAX_SOLD_ABS = 10_000;
 
@@ -35,14 +35,15 @@ export interface HistoryPoint {
 }
 
 /**
- * Der Preis wird NICHT gespeichert, sondern IMMER aus dem Zustand ABGELEITET:
+ * Der Preis wird NICHT gespeichert, sondern IMMER aus Zustand + Zeit ABGELEITET:
  *
- *     Preis = clamp( Startpreis × (1 + Kauf-Schub)^verkaufte × driftMultiplier )
+ *     Preis = clamp( Startpreis − saleDropEuro × verkaufte + riseEuroPerDay × TageSeitStart )
  *
- * Das ist der Kern der Robustheit: Weil `soldCount` absolut aus dem Shopify-
- * Inventar stammt und der Preis eine reine Funktion davon ist, kann der Kurs
- * nicht "ratschen". Ein Storno senkt den Preis exakt so weit, wie der Kauf ihn
- * gehoben hat. Ein verlorener Schreibvorgang heilt beim nächsten Tick von selbst.
+ * Das ist der Kern der Robustheit: Weil `soldCount` absolut aus der
+ * Wahrheitsquelle stammt und der Preis eine reine Funktion davon ist, kann der
+ * Kurs nicht "ratschen". Ein Storno hebt den Preis exakt so weit, wie der Kauf
+ * ihn gesenkt hat. Ein verlorener Schreibvorgang heilt beim nächsten Tick von
+ * selbst.
  */
 export interface TickerState {
   startPrice: number; // Startpreis beim Börsenstart (eingefroren)
@@ -60,14 +61,21 @@ export interface TickerState {
   /**
    * Verkaufte Tickets seit Börsenstart. DARF NEGATIV WERDEN: Storniert ein
    * Alt-Käufer (Ticket von VOR dem Börsenstart), fällt die gültige Ticketzahl
-   * unter die Baseline — der Kurs sinkt dann unter den Startpreis. Das ist
-   * gewollt (weniger verkaufte Tickets = niedrigerer Kurs) und symmetrisch:
-   * Der nächste Verkauf hebt ihn exakt wieder an. Früher warf dieser Fall eine
-   * Anomalie und fror die Börse dauerhaft ein (409 bei jedem Cron-Lauf).
+   * unter die Baseline — der Kurs steigt dann über den Startpreis (weniger
+   * verkaufte Tickets = weniger Community-Rabatt). Das ist gewollt und
+   * symmetrisch: Der nächste Verkauf senkt ihn exakt wieder zurück. Früher warf
+   * dieser Fall eine Anomalie und fror die Börse dauerhaft ein (409 bei jedem
+   * Cron-Lauf).
    */
   soldCount: number;
   ignoredTickets: number; // Tickets aus Testbestellungen — bewegen den Kurs nicht
-  driftMultiplier: number; // kumulierter Flaute-Faktor (startet bei 1)
+  /**
+   * Börsenstart — Anker des ZEIT-Anteils: riseEuroPerDay × Tage seit diesem
+   * Zeitpunkt. ABGELEITET statt akkumuliert (der frühere driftMultiplier
+   * entfiel ersatzlos): Uhr-Rücksprünge heilen sich selbst, und es gibt keinen
+   * Akkumulator, den ein anderer Code-Pfad versehentlich überspringen könnte.
+   */
+  startAtIso: string;
   lastSaleAt: string; // ISO — nur Information
   lastTickAt: string; // ISO — Anker für den ZEITBASIERTEN Drift
   recentOrders: string[]; // bereits verarbeitete Bestellungen (Doppel-Webhooks)
@@ -97,15 +105,6 @@ export function bestandOhneAenderung(state: TickerState): number {
   return state.startInventory - state.soldCount - state.ignoredTickets;
 }
 
-/**
- * Untergrenze des Flaute-Faktors. Er fällt exponentiell und wäre nach einigen
- * Jahren beliebig klein — zwei Probleme auf einmal: `parseState` würde den
- * eigenen Zustand als ungültig ablehnen (die Börse erstickt an ihrer Prüfung),
- * und `0` mal einem übergelaufenen `Infinity` ergäbe `NaN`. Der Preis liegt an
- * dieser Stelle längst am Boden — tiefer muss der Faktor nicht.
- */
-const MIN_DRIFT = 1e-6;
-
 const clamp = (p: number) => Math.min(C.capEuro, Math.max(C.floorEuro, p));
 
 function parseQuelle(v: unknown): VerkaufsQuelle {
@@ -120,23 +119,26 @@ function parseQuelle(v: unknown): VerkaufsQuelle {
 const round4 = (n: number) => Math.round(n * 10_000) / 10_000;
 
 /**
- * Der Preis als reine Funktion des Zustands.
+ * Der Preis als reine Funktion von Zustand UND Zeit. Die Zeit kommt — wie
+ * überall in der Engine — von außen herein; es gibt keinen Akkumulator.
  *
- * Der `Number.isFinite`-Riegel ist Absicht und kein toter Code: Ein sehr großer
- * `soldCount` lässt `1,01^n` zu `Infinity` überlaufen. `clamp` fängt das zwar ab
- * (Infinity wird zum Deckel), aber nur solange der Faktor positiv ist. Käme je
- * eine `NaN` durch, würde `toFixed(2)` daraus den String "NaN" machen — und den
- * als Preis an Shopify schicken. Lieber laut scheitern als still Unsinn verkaufen.
+ * Der NaN-Riegel bleibt Absicht: Käme je eine NaN durch (verbogener Zustand),
+ * würde toFixed(2) daraus den String "NaN" machen — und den als Preis an
+ * Shopify schicken. Lieber laut scheitern als still Unsinn verkaufen.
  */
-export function priceOf(state: TickerState): number {
+export function priceOf(state: TickerState, now: Date): number {
+  // Uhr vor dem Börsenstart (Rücksprung, verbogener Zustand): Zeit-Anteil 0,
+  // nie negativ — sonst fiele der Kurs unter das, was die Verkäufe hergeben.
+  const tage = Math.max(
+    0,
+    (now.getTime() - new Date(state.startAtIso).getTime()) / 86_400_000
+  );
   const roh =
-    state.startPrice *
-    Math.pow(1 + C.saleBumpPct, state.soldCount) *
-    state.driftMultiplier;
+    state.startPrice - C.saleDropEuro * state.soldCount + C.riseEuroPerDay * tage;
   if (Number.isNaN(roh)) {
     throw new Error("Börsen-Zustand ergibt keinen Preis (NaN)");
   }
-  return clamp(roh); // Infinity → Deckel, das ist korrekt
+  return clamp(roh);
 }
 
 // Shop-Preis: geklemmt + auf 10 Cent gerundet (krumme Preise sind Absicht)
@@ -165,7 +167,7 @@ export function initState(
     quelle,
     soldCount: 0,
     ignoredTickets: 0,
-    driftMultiplier: 1,
+    startAtIso: t,
     lastSaleAt: t,
     lastTickAt: t,
     recentOrders: [],
@@ -186,10 +188,10 @@ export function initState(
 export function parseState(
   raw: string,
   /**
-   * Wenn übergeben, wird `lastTickAt` gegen die Gegenwart geprüft (mit 24 h
-   * Toleranz für Uhr-Schieflagen). Ein von Hand verbogener Anker in der fernen
-   * Zukunft (Tippfehler "2626") würde sonst still JEDEN Drift deaktivieren —
-   * applyDrift läse dauerhaft eine rückwärts laufende Uhr.
+   * Wenn übergeben, werden `lastTickAt` und `startAtIso` gegen die Gegenwart
+   * geprüft (mit 24 h Toleranz für Uhr-Schieflagen). Ein von Hand verbogener
+   * Anker in der fernen Zukunft (Tippfehler "2626") würde sonst still die
+   * Verkaufsgrenze verzerren bzw. den Zeit-Anteil dauerhaft auf 0 halten.
    */
   now?: Date
 ): TickerState {
@@ -260,7 +262,17 @@ export function parseState(
   // 24 h Toleranz deckt jede reale Uhr-Schieflage (NTP, Zeitzonen-Verwirrung).
   if (now && new Date(lastTickAt).getTime() > now.getTime() + 24 * 3_600_000) {
     throw new Error(
-      `Börsen-Zustand: 'lastTickAt' liegt in der Zukunft (${lastTickAt}) — der Drift wäre dauerhaft aus`
+      `Börsen-Zustand: 'lastTickAt' liegt in der Zukunft (${lastTickAt}) — die Verkaufsgrenze wäre still verzerrt`
+    );
+  }
+
+  const startAtIso = iso("startAtIso");
+  // Ein Start-Anker in der fernen Zukunft hielte den Zeit-Anteil dauerhaft
+  // auf 0 (Math.max-Klemme in priceOf) — der Kurs könnte nie wieder steigen.
+  // Verbogener Zustand, kein Uhr-Randfall: abweisen.
+  if (now && new Date(startAtIso).getTime() > now.getTime() + 24 * 3_600_000) {
+    throw new Error(
+      `Börsen-Zustand: 'startAtIso' liegt in der Zukunft (${startAtIso}) — der Zeit-Anteil wäre dauerhaft 0`
     );
   }
 
@@ -282,9 +294,7 @@ export function parseState(
     quelle: parseQuelle(s.quelle),
     ignoredTickets:
       s.ignoredTickets === undefined ? 0 : num("ignoredTickets", 0, MAX_SOLD_ABS, true),
-    // Der Faktor kann nur fallen (Flaute), nie über 1 steigen. Untergrenze =
-    // MIN_DRIFT, damit der eigene Drift den Zustand nicht ungültig macht.
-    driftMultiplier: num("driftMultiplier", MIN_DRIFT, 1),
+    startAtIso,
     lastSaleAt: iso("lastSaleAt"),
     lastTickAt,
     // Bestell-IDs: nur Ziffernfolgen vernünftiger Länge, Anzahl begrenzt. Sonst
@@ -299,13 +309,15 @@ export function parseState(
 
 export interface TickOptions {
   /**
-   * Darf dieser Aufruf die verstrichene Zeit verdriften? Nur der Cron darf das.
-   * Der Webhook feuert bei JEDER Bestellung (auch Merch) und würde sonst
-   * zusätzliche Drift-Schritte auslösen.
+   * Darf dieser Aufruf den `lastTickAt`-Anker verschieben und Drift-History-
+   * Punkte schreiben? Nur der Cron darf das — der Webhook feuert bei JEDER
+   * Bestellung (auch Merch) und würde sonst das Zeitfenster der
+   * Verkaufsgrenze künstlich verkürzen.
    *
-   * WICHTIG: Ein Aufruf mit `allowDrift: false` verschiebt `lastTickAt` NICHT.
-   * Täte er es, würde jeder Verkauf die seit dem letzten Cron aufgelaufene
-   * Flaute-Zeit löschen — der Kurs stiege dann dauerhaft zu schnell.
+   * Der PREIS hängt an diesem Flag NICHT mehr: Er enthält die verstrichene
+   * Zeit immer, weil er aus `startAtIso` abgeleitet ist. Ein Webhook-Write
+   * kann keine Flaute-Zeit löschen — die Fehlerklasse aus Runde 2 existiert
+   * strukturell nicht mehr.
    */
   allowDrift?: boolean;
   /**
@@ -325,18 +337,16 @@ export interface TickOptions {
 /**
  * Ein Börsen-Schritt. Pure Funktion — die Zeit kommt IMMER von außen rein.
  *
- * Reihenfolge ist bedeutungstragend: ERST driften, DANN das Inventar verrechnen.
- * Beide Wirkungen treffen denselben Tick unabhängig voneinander. Würde ein
- * Verkauf den Drift-Zweig überspringen (so war es ursprünglich gebaut), ginge
- * die bis dahin verstrichene Flaute-Zeit verloren — bei einem Verkauf pro Tag
- * und einem täglichen Cron würde faktisch nie gedriftet und der Kurs klebte
- * binnen zwei Wochen am Deckel.
+ * Die frühere Reihenfolge-Regel ("erst Drift, dann Verkäufe") ist im additiven
+ * Modell gegenstandslos: Zeit- und Kauf-Anteil sind unabhängige Summanden der
+ * Preisformel, keiner kann den anderen löschen (Runde-2-Blocker 6 ist damit
+ * strukturell unmöglich). applyZeit läuft weiterhin zuerst, weil es lastTickAt
+ * setzt und applyInventory das unangetastet lassen soll.
  *
- * Der Drift ist ZEITBASIERT (nicht pro Aufruf): Er rechnet mit den tatsächlich
- * verstrichenen Stunden seit `lastTickAt`. Damit ist tick() zeit-idempotent —
- * ein doppelt gefeuerter Cron, ein ausgefallener Lauf oder eine gröbere
- * Cron-Kadenz (Vercel-Hobby: nur 1×/Tag) ergeben denselben Kurs wie stündliche
- * Läufe. Wiederholte Aufrufe können den Preis nicht künstlich nach unten prügeln.
+ * Der Zeit-Anteil ist ZEITBASIERT abgeleitet (aus startAtIso, nicht pro
+ * Aufruf): tick() ist zeit-idempotent — ein doppelt gefeuerter Cron, ein
+ * ausgefallener Lauf oder eine gröbere Cron-Kadenz ergeben denselben Kurs wie
+ * stündliche Läufe. Wiederholte Aufrufe können den Preis nicht bewegen.
  */
 export function tick(
   state: TickerState,
@@ -347,7 +357,7 @@ export function tick(
   const allowDrift = opts.allowDrift ?? true;
   const trustedSales = opts.trustedSales ?? 0;
 
-  // Die verstrichene Zeit MUSS vor dem Drift gemessen werden: `applyDrift` setzt
+  // Die verstrichene Zeit MUSS vor dem Anker-Nachziehen gemessen werden: `applyZeit` setzt
   // `lastTickAt` auf jetzt, danach wäre der Abstand immer null — und die
   // zeitskalierte Verkaufsgrenze fiele auf ihren Sockel zurück.
   const stundenSeitTick = Math.max(
@@ -355,55 +365,37 @@ export function tick(
     (now.getTime() - new Date(state.lastTickAt).getTime()) / 3_600_000
   );
 
-  const drifted = allowDrift ? applyDrift(state, now) : state;
-  return applyInventory(drifted, currentInventory, now, trustedSales, stundenSeitTick);
+  const mitZeit = allowDrift ? applyZeit(state, now) : state;
+  return applyInventory(mitZeit, currentInventory, now, trustedSales, stundenSeitTick);
 }
 
-/** Schritt 1: die verstrichene Zeit verrechnen. Setzt als Einziger `lastTickAt`. */
-function applyDrift(state: TickerState, now: Date): TickerState {
-  const nowIso = now.toISOString();
-  const priceBefore = priceOf(state);
-
-  // Gedriftet wird exakt die Zeit seit dem letzten Tick — nicht mehr, nicht
-  // weniger. Rückwärts laufende Uhren → 0 (nie negativ).
-  //
-  // Früher wurde hier zusätzlich auf `hoursSinceSale` geklemmt (Rest der
-  // Gnadenfrist). Das war ein Fehler, und zwar auch bei einer Gnadenfrist von
-  // NULL: Ein Verkauf um 23:00 machte `hoursSinceSale` beim Cron um 24:00 zu
-  // 1 — gedriftet wurde dann eine Stunde statt vierundzwanzig. Der Verkauf
-  // löschte also rückwirkend Flaute-Zeit, die längst VOR ihm lag. Genau das
-  // trieb den Kurs binnen zwei Wochen an den Deckel.
-  //
-  // `lastSaleAt` bleibt im Zustand — aber nur noch als Information, nie wieder
-  // als Bremse für den Drift.
+/**
+ * Schritt 1: den Zeit-Anker nachziehen. Setzt als Einziger `lastTickAt`.
+ *
+ * Der PREIS hängt nicht mehr an diesem Anker (er ist aus startAtIso
+ * abgeleitet) — `lastTickAt` bleibt für den Betrieb: die Ampel misst daran
+ * "Cron steht", die zeitskalierte Verkaufsgrenze ihr Zeitfenster. Ein
+ * History-Punkt entsteht nur, wenn sich der Kurs seit dem letzten Punkt
+ * bewegt hat (am Boden/Deckel entstünde sonst alle fünf Minuten ein toter
+ * Punkt).
+ */
+function applyZeit(state: TickerState, now: Date): TickerState {
   const driftHours =
     (now.getTime() - new Date(state.lastTickAt).getTime()) / 3_600_000;
 
   // Läuft die Uhr rückwärts (Zeitumstellung, NTP-Korrektur, Zustand aus der
-  // Zukunft), wird NICHT gedriftet — und der Anker bleibt, wo er ist. Ihn
-  // zurückzusetzen wäre der Fehler: Die Strecke zwischen dem alten Anker und
-  // dem Rücksprung würde später ein ZWEITES Mal gedriftet.
+  // Zukunft), bleibt der Anker, wo er ist — ihn zurückzusetzen würde das
+  // Zeitfenster der Verkaufsgrenze künstlich aufblähen.
   if (driftHours <= 0) return state;
 
-  const next: TickerState = {
-    ...state,
-    // Untergrenze: Der Multiplikator fällt exponentiell und würde nach Jahren
-    // beliebig klein. `parseState` lehnt Werte unter 1e-9 ab — die Börse würde
-    // an ihrer eigenen Prüfung ersticken. Ausserdem hält der Wert > 0 die
-    // Mathematik von `Infinity × 0 = NaN` fern. Der Preis liegt hier längst
-    // am Boden; der Multiplikator muss nicht weiter sinken.
-    driftMultiplier: Math.max(
-      MIN_DRIFT,
-      state.driftMultiplier * Math.pow(C.driftFactorPerHour, driftHours)
-    ),
-    lastTickAt: nowIso,
-  };
-  const price = priceOf(next);
-  if (price === priceBefore) return next; // am Boden angekommen — kein Punkt
+  const next: TickerState = { ...state, lastTickAt: now.toISOString() };
+  const price = round4(priceOf(next, now));
+  const letzter = next.history[next.history.length - 1];
+  if (price === letzter.price) return next; // nichts bewegt — kein Punkt
 
   return {
     ...next,
-    history: [...next.history, { t: nowIso, price: round4(price), event: "drift" }],
+    history: [...next.history, { t: next.lastTickAt, price, event: "drift" }],
   };
 }
 
@@ -513,7 +505,7 @@ function applyInventory(
     soldCount: totalSold,
     lastSaleAt: newSales > 0 ? nowIso : state.lastSaleAt,
   };
-  const price = priceOf(next);
+  const price = priceOf(next, now);
   return {
     ...next,
     // Verkäufe und Stornos bekommen IMMER einen Punkt — auch am Deckel, wo sich
@@ -549,7 +541,7 @@ export function rebaseline(
     startInventory: currentInventory + state.soldCount + state.ignoredTickets,
     history: [
       ...state.history,
-      { t: now.toISOString(), price: round4(priceOf(state)), event: "rebaseline" },
+      { t: now.toISOString(), price: round4(priceOf(state, now)), event: "rebaseline" },
     ],
   };
 }

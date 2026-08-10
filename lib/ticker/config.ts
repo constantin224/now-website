@@ -11,32 +11,32 @@ export const TICKER_CONFIG = {
   // Wird nur beim allerersten Tick verwendet (Init), danach nie wieder.
   startPriceEuro: 22.0,
 
-  // Preis = Startpreis × (1 + Kauf-Schub)^verkaufte × Drift^Stunden.
-  // Kauf und Flaute wirken beide PROZENTUAL — dadurch ist die Wirkung eines
-  // Kaufs immer gleich stark (nicht später entwertet), und ein Storno macht
-  // exakt den Kauf rückgängig. +1 % ≈ +22 Cent bei 22 €.
+  // Preis = clamp( Startpreis − saleDropEuro × verkaufte + riseEuroPerDay × Tage ).
+  // ADDITIV, nicht prozentual: "genau 1 €" ist die Botschaft der Seite —
+  // jedes Ticket senkt exakt gleich stark, ein Storno hebt exakt zurück.
+  // Nebengewinn: Kauf- und Zeit-Anteil sind unabhängige Summanden. Der teuerste
+  // Fehler des Projekts (Runde 2: "jeder Verkauf löschte den aufgelaufenen
+  // Drift") ist damit strukturell unmöglich — es gibt nichts zu löschen.
   //
-  // GLEICHGEWICHT: Kauf-Schub (1 %) × Verkäufe/Tag = Tages-Drift (1,43 %)
-  // → bei ~1,4 Verkäufen/Tag (≈ halbe Halle bis zum Gig) steht der Kurs still.
-  //   Weniger Nachfrage → Kurs fällt. Mehr → Kurs steigt Richtung Deckel.
-  saleBumpPct: 0.01,
+  // GLEICHGEWICHT: 1 Verkauf/Tag hält den Kurs exakt still. Mehr → er fällt
+  // Richtung Boden (die Community "kauft den Preis runter"), weniger → er
+  // steigt Richtung Deckel. Korridor: 22 Netto-Verkäufe bis zum Boden,
+  // 8 Flaute-Tage bis zum Deckel.
+  saleDropEuro: 1.0,
 
   // KEINE Gnadenfrist — und zwar nicht als Zahl 0, sondern gar nicht.
-  // Sie ist zweimal zum Verhängnis geworden: Erst ließ sie bei ≥1 Verkauf/Tag
-  // nie driften, danach fraß ihre Formel selbst bei Wert 0 noch rückwirkend
-  // Flaute-Zeit, die vor dem Verkauf lag. Der Drift läuft jetzt ausschließlich
-  // über die Zeit seit dem letzten Tick. Wer sie wieder einführen will, muss sie
-  // als "Verkauf pausiert den Drift für die NÄCHSTEN n Stunden" bauen — nie
-  // wieder als Klemme auf die Vergangenheit.
+  // Sie ist zweimal zum Verhängnis geworden (siehe HANDOFF, Runde 2). Im
+  // additiven Modell wäre sie ohnehin ein Fremdkörper: Der Zeit-Anteil hängt
+  // ausschließlich an startAtIso, kein Ereignis kann ihn pausieren.
 
-  // −0,06 %/h ≈ −1,4 %/Tag. Bei totaler Flaute erreicht der Kurs den Boden
-  // erst kurz vor dem Gig (~100 Tage von 22 € auf 5 €), statt schon nach
-  // 6 Wochen dort zu kleben. Drift ist ZEITBASIERT (siehe engine.ts) — die
-  // Cron-Kadenz beeinflusst die Kurve nicht mehr.
-  driftFactorPerHour: 0.9994,
+  // +1 €/Tag, KONTINUIERLICH (~4,2 Cent/Stunde) — kein Mitternachts-Sprung,
+  // der Chart tickt mit jedem 5-Minuten-Cron sichtbar weiter. Der Zeit-Anteil
+  // ist aus startAtIso ABGELEITET (siehe engine.ts) — die Cron-Kadenz
+  // beeinflusst die Kurve nicht.
+  riseEuroPerDay: 1.0,
 
-  floorEuro: 5.0, // Boden — lächerlich niedrig, aber nicht gratis
-  capEuro: 25.0, // Deckel — fair statt Konzern-Abzocke
+  floorEuro: 8.0, // Boden — lächerlich niedrig, aber nicht gratis
+  capEuro: 30.0, // Deckel — Flaute macht teurer, aber nie Konzern-Abzocke
 
   // Sicherheitsklemme gegen Inventar-Pannen — gilt NUR für den Cron, der
   // Verkäufe aus dem Bestand ableitet. Ein absurder Sturz kommt dort nicht von
