@@ -360,22 +360,30 @@ describe("Testbestellungen bewegen den Kurs wirklich nicht", () => {
     expect(s3.soldCount).toBe(1);
   });
 
-  it("ignoreTestTickets wirft an der Repräsentierbarkeits-Grenze — statt still zu klemmen", () => {
-    // Ungeprüft schriebe eine (signierte) Bestellflut einen Zustand mit
-    // ignoredTickets > MAX_SOLD_ABS — parseState lehnte ihn beim nächsten
-    // Lesen ab, die Börse fröre an ihrer eigenen Prüfung ein. Eine STILLE
-    // Klemme wäre aber genauso falsch: Sie neutralisierte die Bestellung nur
-    // teilweise, und der Rest zählte (Dedup!) dauerhaft als echte Verkäufe.
-    let s = initState(22, 250, NOW);
-    for (let i = 0; i < 10; i++) s = ignoreTestTickets(s, `t-${i}`, 1000);
+  it("ignoreTestTickets faltet Überläufe auf — volle Neutralisierung, Zustand bleibt lesbar", () => {
+    // An der Repräsentierbarkeits-Grenze (parseState lehnt ignoredTickets >
+    // MAX_SOLD_ABS ab) wäre eine stille Klemme fatal: Teilneutralisierung +
+    // Dedup = der Rest zählte dauerhaft als echte Verkäufe. Stattdessen
+    // verlässt der Überlauf ignoredTickets UND startInventory gleichzeitig —
+    // totalSold = startInventory − bestand − ignoredTickets ist davon
+    // algebraisch unberührt.
+    const basis = {
+      ...initState(22, 20_500, NOW),
+      ignoredTickets: MAX_SOLD_ABS - 1, // konsistenter Bestand: 20.500 − 9.999 = 10.501
+    };
+    const s = ignoreTestTickets(basis, "test-big", 2); // 1 drüber → Überlauf 1
     expect(s.ignoredTickets).toBe(MAX_SOLD_ABS);
+    expect(s.startInventory).toBe(20_499); // −1 = der aufgefaltete Überlauf
+    expect(hasSeenOrder(s, "test-big")).toBe(true);
     expect(() => parseState(JSON.stringify(s))).not.toThrow();
-    // Die überschreitende Bestellung wird ABGEWIESEN, nicht angeschnitten —
-    // der Zustand bleibt unangetastet (keine Teilneutralisierung, kein Dedup-Eintrag)
-    expect(() => ignoreTestTickets(s, "t-drüber", 1)).toThrow(/Grenze/);
-    expect(s.ignoredTickets).toBe(MAX_SOLD_ABS);
-    expect(hasSeenOrder(s, "t-drüber")).toBe(false);
-    // und unbrauchbare Mengen fliegen sofort
+
+    // Die Neutralisierung ist VOLLSTÄNDIG: Shopify schreibt den Bestand um
+    // die 2 Testtickets fort — der Cron sieht daraus null Verkäufe.
+    const nachCron = tick(s, 10_501 - 2, at(1));
+    expect(nachCron.soldCount).toBe(0);
+    expect(priceOf(nachCron, at(1))).toBeCloseTo(22 + rise(1), 10);
+
+    // unbrauchbare Mengen fliegen weiterhin sofort
     expect(() => ignoreTestTickets(s, "t-null", 0)).toThrow(/Menge/);
     expect(() => ignoreTestTickets(s, "t-frac", 1.5)).toThrow(/Menge/);
   });

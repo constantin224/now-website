@@ -545,11 +545,14 @@ export function rebaseline(
  * Testbestellungen seit 18.07. gar nicht erst mit (der Webhook bucht im
  * Ticket-Modus deshalb auch hier nichts mehr).
  *
- * Jenseits von MAX_SOLD_ABS wird GEWORFEN, nicht geklemmt: parseState lehnt
- * größere Werte ab (die Börse fröre an ihrer eigenen Prüfung ein) — aber eine
- * stille Klemme wäre schlimmer: Sie neutralisierte die Bestellung nur
- * TEILWEISE, merkte sie sich als verarbeitet (Dedup!), und der Rest der
- * Testmenge zählte beim nächsten Cron dauerhaft als echte Verkäufe.
+ * Läuft `ignoredTickets` an die Repräsentierbarkeits-Grenze (parseState lehnt
+ * größere Werte ab), wird der Überlauf ALGEBRAISCH AUFGEFALTET statt geklemmt
+ * oder abgewiesen: Dieselbe Menge verlässt `ignoredTickets` UND
+ * `startInventory` — `totalSold = startInventory − bestand − ignoredTickets`
+ * bleibt dadurch exakt unverändert, die Bestellung ist VOLL neutralisiert,
+ * der Zustand bleibt lesbar. (Eine stille Klemme hätte teilweise
+ * neutralisiert und den Rest per Dedup dauerhaft als echte Verkäufe
+ * zementiert; ein Abweisen mit 200 hätte dasselbe getan, nur ohne Spur.)
  */
 export function ignoreTestTickets(
   state: TickerState,
@@ -559,14 +562,20 @@ export function ignoreTestTickets(
   if (!Number.isSafeInteger(tickets) || tickets <= 0) {
     throw new Error(`ignoreTestTickets: unbrauchbare Menge (${String(tickets)})`);
   }
-  if (state.ignoredTickets + tickets > MAX_SOLD_ABS) {
-    throw new Error(
-      `ignoreTestTickets: ${state.ignoredTickets} + ${tickets} überschritte die ` +
-        `Repräsentierbarkeits-Grenze (${MAX_SOLD_ABS}) — Zustand bliebe unlesbar`
-    );
+  const ueberlauf = Math.max(0, state.ignoredTickets + tickets - MAX_SOLD_ABS);
+  // parseState begrenzt startInventory auf ±1.000.000 — auch das Auffalten
+  // darf keinen selbst-unlesbaren Zustand erzeugen. Jenseits davon ist die
+  // Lage so absurd (zehntausende signierte Fake-Testbestellungen), dass laut
+  // Scheitern ohne Schreibvorgang das einzig Ehrliche ist.
+  if (state.startInventory - ueberlauf < -1_000_000) {
+    throw new Error("ignoreTestTickets: startInventory liefe aus der Lesbarkeits-Grenze");
   }
   return rememberOrder(
-    { ...state, ignoredTickets: state.ignoredTickets + tickets },
+    {
+      ...state,
+      startInventory: state.startInventory - ueberlauf,
+      ignoredTickets: state.ignoredTickets + tickets - ueberlauf,
+    },
     orderId
   );
 }
