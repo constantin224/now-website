@@ -185,6 +185,8 @@ export async function writeTicker(
   state: TickerState,
   liveShopPrice: number | null,
   compareDigest: string | null,
+  /** Request-Zeit des Aufrufers — der Preis ist aus Zustand + Zeit abgeleitet. */
+  now: Date,
   /**
    * Nach dem Preis-Write noch einmal nachsehen, ob der Zustand inzwischen ein
    * anderer ist (Schritt 3 unten).
@@ -198,7 +200,7 @@ export async function writeTicker(
    */
   mitAbgleich = true
 ): Promise<void> {
-  const nextShopPrice = shopPrice(priceOf(state));
+  const nextShopPrice = shopPrice(priceOf(state, now));
 
   if (MOCK) {
     console.warn(
@@ -261,7 +263,7 @@ export async function writeTicker(
   // ein anderer ist — und den Preis dann auf den JETZT gültigen nachziehen.
   const danach = await readTicker();
   if (!danach.state) return;
-  const sollPreis = shopPrice(priceOf(danach.state));
+  const sollPreis = shopPrice(priceOf(danach.state, now));
   if (danach.currentPriceEuro !== sollPreis) {
     console.warn(
       `[ticker] Preis-Abgleich: Shop ${danach.currentPriceEuro} € → ${sollPreis} €`

@@ -11,7 +11,7 @@ export type TickerEvent = "init" | "sale" | "drift" | "refund" | "rebaseline";
  * Die Quelle steht im Zustand, nicht in den Env-Variablen: Ein nachträglich
  * gesetztes (oder entferntes) TICKETS_BASE_URL darf die Wahrheitsquelle NICHT
  * still wechseln. Beim Wechsel bestand→tickets würden alle Alt-Tickets als
- * frische Verkäufe gelesen (Kurs an den Deckel); beim Wechsel tickets→bestand
+ * frische Verkäufe gelesen (Kurs stürzte an den Boden); beim Wechsel tickets→bestand
  * übernähme ein womöglich längst divergenter Bestand (Storno ohne Rückbuchung
  * senkt ihn nie). Wechsel nur explizit: Börse neu starten.
  */
@@ -53,7 +53,8 @@ export interface TickerState {
    *
    * Für den Gig am 17.10. sind das die Alt-Bestellungen aus der Evey-Zeit. Ohne diese
    * Baseline würde die Börse sie beim Start als frische Verkäufe lesen und den Kurs
-   * sofort hochreißen — bestraft würde also, wer FRÜH gekauft hat. Genau verkehrt herum.
+   * sofort Richtung Boden stürzen — sie verschenkte Community-Rabatt für Käufe,
+   * die vor ihr lagen.
    */
   startTickets: number;
   /** Woher die Verkaufszahl stammt — beim Start eingefroren, nie still gewechselt. */
@@ -77,7 +78,7 @@ export interface TickerState {
    */
   startAtIso: string;
   lastSaleAt: string; // ISO — nur Information
-  lastTickAt: string; // ISO — Anker für den ZEITBASIERTEN Drift
+  lastTickAt: string; // ISO — Betriebs-Anker: Ampel-Herzschlag + Zeitfenster der Verkaufsgrenze
   recentOrders: string[]; // bereits verarbeitete Bestellungen (Doppel-Webhooks)
   history: HistoryPoint[];
 }
@@ -429,7 +430,7 @@ export class InventoryAnomalyError extends Error {
  *
  * Die absolute Obergrenze: Ohne sie kippt es ins Gegenteil. Nach drei Tagen
  * Cron-Ausfall wären 576 Verkäufe "erlaubt" — ein Bestands-Reset von 250 auf 0
- * ginge dann als Ausverkauf durch und schösse den Kurs an den Deckel. Deshalb
+ * ginge dann als Ausverkauf durch und drückte den Kurs auf den Boden. Deshalb
  * gilt zusätzlich: Mehr als `maxSalesAbsolute` ohne Webhook-Bestätigung glaubt
  * die Börse NIEMANDEM, egal wie viel Zeit vergangen ist.
  */

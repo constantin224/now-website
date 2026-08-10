@@ -27,7 +27,7 @@ export function mockTicker(now: Date = new Date()): {
     state,
     // Der Shop-Preis ist immer der gerundete — so sieht die Preview genau das,
     // was ein Kunde im Checkout zahlen würde.
-    currentPriceEuro: shopPrice(priceOf(state)),
+    currentPriceEuro: shopPrice(priceOf(state, now)),
     currentInventory: inventory,
     inventoryTracked: true,
     compareDigest: null,

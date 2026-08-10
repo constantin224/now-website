@@ -108,7 +108,7 @@ export default async function TicketsPage({
   // Preis außerhalb von Boden und Deckel, wäre es eine Lüge, ihn auf 25 €
   // zurechtzurunden: Der Checkout verlangt trotzdem den echten Betrag.
   // (Nur falls Shopify gar keinen brauchbaren Preis liefert: abgeleiteter Kurs.)
-  const price = currentPriceEuro > 0 ? currentPriceEuro : shopPrice(priceOf(state));
+  const price = currentPriceEuro > 0 ? currentPriceEuro : shopPrice(priceOf(state, new Date()));
   const change = dayChangePct(state, now, price);
   const rising = change >= 0;
   const sales24 = salesLast24h(state, now);

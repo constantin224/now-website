@@ -141,7 +141,7 @@ async function handleOrder(orderId: string, tickets: number, isTest: boolean) {
     return NextResponse.json({
       ok: true,
       ignoriert: "Bestellung bereits verarbeitet",
-      price: shopPrice(priceOf(state)),
+      price: shopPrice(priceOf(state, now)),
     });
   }
 
@@ -160,6 +160,7 @@ async function handleOrder(orderId: string, tickets: number, isTest: boolean) {
       prepareForWrite(neutralisiert, now),
       currentPriceEuro,
       compareDigest,
+      now,
       false
     );
     return NextResponse.json({
@@ -213,8 +214,8 @@ async function handleOrder(orderId: string, tickets: number, isTest: boolean) {
   // trustedSales: Der Payload ist HMAC-signiert und dedupliziert — GENAU diese
   // Menge darf die Klemme überschreiten. Eine 6er-Bestellung zählt damit voll,
   // ein Bestandssturz auf 0 aber nicht (er hält an und meldet sich).
-  // allowDrift: false — der Webhook darf den Drift-Anker nicht verschieben,
-  // sonst löschte jeder Verkauf die seit dem letzten Cron aufgelaufene Flaute.
+  // allowDrift: false — der Webhook darf den lastTickAt-Anker nicht verschieben,
+  // sonst schrumpfte das Zeitfenster der Verkaufsgrenze mit jeder Bestellung.
   const next = tick(state, effectiveInventory, now, {
     allowDrift: false,
     trustedSales: tickets,
@@ -225,6 +226,7 @@ async function handleOrder(orderId: string, tickets: number, isTest: boolean) {
     prepareForWrite(gemerkt, now),
     currentPriceEuro, // der LIVE-Preis, nicht der abgeleitete
     compareDigest,
+    now,
     false // kein Abgleich-Roundtrip — Shopify wartet nur ~5 s (siehe writeTicker)
   );
   revalidatePath("/de/tickets");
@@ -233,6 +235,6 @@ async function handleOrder(orderId: string, tickets: number, isTest: boolean) {
   return NextResponse.json({
     ok: true,
     tickets,
-    price: shopPrice(priceOf(gemerkt)),
+    price: shopPrice(priceOf(gemerkt, now)),
   });
 }

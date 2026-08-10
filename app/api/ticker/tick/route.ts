@@ -196,8 +196,9 @@ async function runTick(
   // Ist das Ticket-System konfiguriert, antwortet aber gerade nicht (nicht
   // erreichbar, nicht scharf, Müll-Antwort), dann würde `startTickets = 0`
   // eingefroren. Sobald das System später antwortet, zählten ALLE Alt-Tickets
-  // als frische Verkäufe — Kurs an den Deckel, bestraft wäre, wer früh gekauft
-  // hat. Ein einziger Timeout im Start-Moment genügt dafür. Also: verweigern.
+  // als frische Verkäufe — Kurs stürzte an den Boden, die Börse verschenkte
+  // Rabatt für Käufe, die vor ihr lagen. Ein einziger Timeout im Start-Moment
+  // genügt dafür. Also: verweigern.
   if (!state && startRequested && ticketQuelleKonfiguriert() && !ticketZahl) {
     return NextResponse.json(
       {
@@ -215,21 +216,21 @@ async function runTick(
   // Das Ticket-System nullt bei Türöffnung den Bestand und nimmt das Produkt aus
   // dem Shop (sein Verkaufs-Stopp). Liefe die Börse weiter, läse sie diesen
   // Bestandssturz — vor der Härtung hätte sie ihn als Ausverkauf gelesen und den
-  // Kurs beim eigenen Konzert an den Deckel geschossen. Also: vorher aufhören.
+  // Kurs beim eigenen Konzert auf den Boden gedrückt. Also: vorher aufhören.
   // Der Preis bleibt stehen, wo er war; verkauft wird ohnehin nicht mehr.
   const schluss = new Date(ticketZahl?.doorsUtc ?? C.gigDateIso).getTime();
   if (now.getTime() >= schluss) {
     return NextResponse.json({
       status: "beendet",
       reason: "Türöffnung erreicht — die Börse ist geschlossen, der Preis bleibt stehen.",
-      price: state ? shopPrice(priceOf(state)) : currentPriceEuro,
+      price: state ? shopPrice(priceOf(state, now)) : currentPriceEuro,
     });
   }
 
   // Welche Quelle GILT: die im Zustand eingefrorene — nicht die, die die
   // Env-Variablen gerade nahelegen. Ein nachträglich gesetztes TICKETS_BASE_URL
   // darf einen bestandsbasierten Zustand NICHT still auf das Ticket-System
-  // umstellen (alle Alt-Tickets würden als frische Verkäufe gelesen) — und
+  // umstellen (alle Alt-Tickets würden als frische Verkäufe den Kurs stürzen) — und
   // entfernte Envs dürfen einen Ticket-Zustand nicht still auf den womöglich
   // divergenten Bestand kippen. Wechsel nur explizit: Börse neu starten.
   const aktiveQuelleIstTickets = state
@@ -296,14 +297,14 @@ async function runTick(
     }
     if (rebaselineRequested) {
       const gezogen = rebaseline(state, currentInventory, now);
-      await writeTicker(prepareForWrite(gezogen, now), currentPriceEuro, compareDigest);
+      await writeTicker(prepareForWrite(gezogen, now), currentPriceEuro, compareDigest, now);
       revalidatePath("/de/tickets");
       revalidatePath("/en/tickets");
       return NextResponse.json({
         status: "rebaselined",
         startInventory: gezogen.startInventory,
         soldCount: gezogen.soldCount,
-        price: shopPrice(priceOf(gezogen)),
+        price: shopPrice(priceOf(gezogen, now)),
       });
     }
     // reconcile: exakt den BESTÄTIGTEN Sprung übernehmen — über den normalen
@@ -330,13 +331,13 @@ async function runTick(
     const uebernommen = tick(state, currentInventory, now, {
       trustedSales: Math.abs(aktuellerSprung),
     });
-    await writeTicker(prepareForWrite(uebernommen, now), currentPriceEuro, compareDigest);
+    await writeTicker(prepareForWrite(uebernommen, now), currentPriceEuro, compareDigest, now);
     revalidatePath("/de/tickets");
     revalidatePath("/en/tickets");
     return NextResponse.json({
       status: "reconciled",
       soldCount: uebernommen.soldCount,
-      price: shopPrice(priceOf(uebernommen)),
+      price: shopPrice(priceOf(uebernommen, now)),
     });
   }
 
@@ -346,7 +347,7 @@ async function runTick(
 
   if (!state) {
     // Börsenstart. Die bereits verkauften Tickets werden als Baseline eingefroren —
-    // die Alt-Bestellungen aus der Evey-Zeit dürfen den Kurs nicht hochreißen.
+    // die Alt-Bestellungen aus der Evey-Zeit dürfen den Kurs nicht stürzen.
     // Die Quelle wird MIT eingefroren (das Start-Gate oben garantiert: wenn das
     // Ticket-System konfiguriert ist, ist ticketZahl hier vorhanden).
     next = initState(
@@ -394,7 +395,7 @@ async function runTick(
   // abgeleiteten Kurs ab, muss er nachgezogen werden. Sonst bliebe eine
   // Divergenz (etwa nach einem fehlgeschlagenen Preis-Write oder einer
   // Preisänderung von Hand im Admin) für immer stehen.
-  const sollPreis = shopPrice(priceOf(next));
+  const sollPreis = shopPrice(priceOf(next, now));
   const preisWeichtAb = currentPriceEuro !== sollPreis;
 
   if (!state || next !== state || preisWeichtAb) {
@@ -402,7 +403,8 @@ async function runTick(
       prepareForWrite(next, now),
       // Der LIVE-Preis aus dem Shop, nicht der aus dem Zustand abgeleitete.
       currentPriceEuro,
-      compareDigest
+      compareDigest,
+      now
     );
     revalidatePath("/de/tickets");
     revalidatePath("/en/tickets");

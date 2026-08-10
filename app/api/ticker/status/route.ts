@@ -95,7 +95,12 @@ export async function GET(request: NextRequest) {
   //    scheitert aber dauerhaft am Preis-Write, sähen Kunden für immer den
   //    falschen Preis — und niemand merkte es. Eine frische Divergenz heilt
   //    der nächste Tick binnen 5 Minuten; bleibt sie, gehört sie gemeldet.
-  const sollPreis = shopPrice(priceOf(state));
+  //
+  //    Verglichen wird zum ZEITPUNKT DES LETZTEN TICKS, nicht zu jetzt: Der
+  //    abgeleitete Kurs kriecht zwischen den Ticks weiter (+~4 Cent/h) — zu
+  //    `now` gerechnet, meldete die Ampel bei jedem 10-Cent-Rundungssprung
+  //    eine falsche Divergenz, bis der nächste Cron den Shop nachzieht.
+  const sollPreis = shopPrice(priceOf(state, new Date(state.lastTickAt)));
   if (currentPriceEuro !== sollPreis) {
     probleme.push(
       `Preis-Divergenz: Shop verlangt ${currentPriceEuro} €, der Kurs sagt ${sollPreis} €`

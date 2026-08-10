@@ -52,7 +52,7 @@ export const TICKER_CONFIG = {
   // 8/Stunde deckt jeden realistischen Ansturm ab. `maxSalesAbsolute` ist die
   // harte Decke darüber: Ohne sie wären nach drei Tagen Cron-Ausfall 576
   // "Verkäufe" erlaubt — ein Bestands-Reset von 250 auf 0 ginge als Ausverkauf
-  // durch und schösse den Kurs an den Deckel. 40 Tickets (16 % der Halle) ohne
+  // durch und drückte den Kurs auf den Boden. 40 Tickets (16 % der Halle) ohne
   // eine einzige Webhook-Bestätigung glaubt die Börse niemandem; darüber hält
   // sie an und fragt (siehe `InventoryAnomalyError`).
   maxSalesPerTick: 5,

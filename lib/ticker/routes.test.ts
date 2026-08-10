@@ -286,7 +286,7 @@ describe("Mengenkauf", () => {
   it("Bestellung über 6 Tickets zählt voll (nicht als Inventar-Panne verworfen)", async () => {
     await postWebhook(orderBody({ id: 9, tickets: 6 }));
     expect(shop.state!.soldCount).toBe(6);
-    expect(shop.variantPrice).toBeGreaterThan(22);
+    expect(shop.variantPrice).toBeLessThan(22);
   });
 });
 
@@ -307,15 +307,15 @@ describe("Wettlauf: Cron und Webhook schreiben gleichzeitig", () => {
     expect(await r.json()).toMatchObject({ status: "ok" });
     // Der Verkauf des anderen Schreibers ist erhalten geblieben.
     expect(shop.state!.soldCount).toBe(1);
-    expect(shop.variantPrice).toBeGreaterThan(22);
+    expect(shop.variantPrice).toBeLessThan(22);
   });
 
   it("der CRON zieht einen veralteten Preis wieder gerade", async () => {
     // Der Preis ist das einzige Feld ohne Compare-and-Swap — Shopify bietet dafür
     // keins. Der gefährliche Ablauf:
     //   A schreibt Zustand (1 Verkauf) … A stockt …
-    //   B schreibt Zustand (2 Verkäufe) + Preis 22,40 €
-    //   A schreibt jetzt erst seinen Preis: 22,20 €   ← veraltet, gewinnt aber
+    //   B schreibt Zustand (2 Verkäufe) + Preis 20,00 €
+    //   A schreibt jetzt erst seinen Preis: 21,00 €   ← veraltet, gewinnt aber
     // Der Abgleich nach dem Schreiben zieht das im Cron wieder gerade.
     let dazwischen = false;
     shop.onBeforePriceWrite = () => {
@@ -332,7 +332,7 @@ describe("Wettlauf: Cron und Webhook schreiben gleichzeitig", () => {
 
     // Der Preis muss zum AKTUELLEN Zustand (2 Verkäufe) passen, nicht zu dem,
     // den unser Lauf für richtig hielt (1 Verkauf).
-    const soll = 22 * Math.pow(1.01, 2);
+    const soll = 22 - 2 * C.saleDropEuro; // der Zeit-Anteil (~4 Cent) verschwindet in der 10-Cent-Rundung
     expect(shop.variantPrice).toBeCloseTo(Math.round(soll * 10) / 10, 2);
     expect(shop.state!.soldCount).toBe(2);
   });
@@ -365,7 +365,7 @@ describe("Halb geglückter Schreibvorgang heilt sich selbst", () => {
     // Nächster Cron-Lauf mit funktionierendem Preis-Write
     shop.priceWriteFails = false;
     await getTick();
-    expect(shop.variantPrice).toBeGreaterThan(22); // repariert
+    expect(shop.variantPrice).toBeLessThan(22); // repariert
   });
 });
 
@@ -446,7 +446,7 @@ describe("Bestands-Anomalie: halten statt raten", () => {
     expect(await r.json()).toMatchObject({ status: "anomaly" });
     expect(shop.stateWrites).toBe(0);
     expect(shop.priceWrites).toBe(0);
-    expect(shop.variantPrice).toBe(22); // KEIN Sprung an den Deckel
+    expect(shop.variantPrice).toBe(22); // KEIN Sturz auf den Boden
   });
 
   it("?rebaseline=1 löst es bewusst auf — Kurs bleibt, Baseline zieht nach", async () => {
@@ -485,7 +485,8 @@ describe("Verkaufszahl aus dem Ticket-System statt aus dem Bestand", () => {
 
   it("beim Start werden Alt-Tickets als Baseline UND die Quelle eingefroren", async () => {
     // 24 Tickets aus der Evey-Zeit. Ohne Baseline läse die Börse sie als frische
-    // Verkäufe und risse den Kurs sofort hoch — bestraft würde, wer FRÜH gekauft hat.
+    // Verkäufe und stürzte den Kurs sofort Richtung Boden — sie verschenkte
+    // Community-Rabatt für Käufe, die vor ihr lagen.
     shop.state = null;
     tickets.gueltigeTickets = 24;
 
@@ -503,10 +504,10 @@ describe("Verkaufszahl aus dem Ticket-System statt aus dem Bestand", () => {
 
     await getTick();
     expect(shop.state!.soldCount).toBe(3);
-    expect(shop.variantPrice).toBeCloseTo(22 * Math.pow(1.01, 3), 1);
+    expect(shop.variantPrice).toBe(22 - 3 * C.saleDropEuro); // Zeit-Anteil in der Rundung weg
   });
 
-  it("ein Storno senkt den Kurs — auch OHNE Rückbuchung ins Lager", async () => {
+  it("ein Storno hebt den Kurs — auch OHNE Rückbuchung ins Lager", async () => {
     // Das kann die Bestands-Quelle prinzipiell nicht: Ohne Restock bliebe das
     // Ticket dort für immer als verkauft gezählt. Das Ticket-System weiß es besser.
     shop.state = { ...shop.state!, quelle: "tickets", startTickets: 0, soldCount: 5 };
@@ -519,17 +520,18 @@ describe("Verkaufszahl aus dem Ticket-System statt aus dem Bestand", () => {
   });
 
   it("der Cutoff (Bestand → 0 bei Türöffnung) löst KEINEN Ausverkauf aus", async () => {
-    // Das Ticket-System nullt bei Türöffnung den Bestand. Früher hätte die Börse
-    // das als 250 Verkäufe gelesen — Kurs am Deckel, beim eigenen Konzert.
+    // Das Ticket-System nullt bei Türöffnung den Bestand. Läse die Börse das
+    // als 250 Verkäufe, stünde der Kurs beim eigenen Konzert am Boden — die
+    // Parodie würde sich selbst das Ticket schenken.
     shop.state = { ...shop.state!, quelle: "tickets", startTickets: 0, soldCount: 10 };
     shop.inventory = 0; // Cutoff hat zugeschlagen
     tickets.gueltigeTickets = 10; // in Wahrheit: unverändert 10 Tickets
 
     await getTick();
     expect(shop.state!.soldCount).toBe(10); // kein Sprung auf 250
-    // Der Kurs bleibt der von 10 Verkäufen (~24,30 €) — NICHT der Deckel.
-    expect(shop.variantPrice).toBeLessThan(C.capEuro);
-    expect(shop.variantPrice).toBeCloseTo(22 * Math.pow(1.01, 10), 0);
+    // Der Kurs bleibt der von 10 Verkäufen (12,00 €) — NICHT der Boden.
+    expect(shop.variantPrice).toBeGreaterThan(C.floorEuro);
+    expect(shop.variantPrice).toBe(22 - 10 * C.saleDropEuro);
   });
 
   it("schweigt das Ticket-System, wird NUR gedriftet — kein Rückfall auf den Bestand", async () => {
@@ -557,7 +559,7 @@ describe("Kaputter Zustand im Metafield", () => {
   it("wird nie in einen Preis übersetzt", async () => {
     // Jemand hat das Metafield im Admin von Hand verbogen
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    shop.state = { ...shop.state!, driftMultiplier: null as any };
+    shop.state = { ...shop.state!, soldCount: null as any };
     const r = await getTick();
     expect(await r.json()).toMatchObject({ status: "error" });
     expect(shop.priceWrites).toBe(0); // kein "NaN" in den Shop
@@ -584,7 +586,7 @@ describe("Audit-Runde 4 — die Naht zur Ticket-Quelle", () => {
 
   it("?start=1 wird VERWEIGERT, wenn das Ticket-System konfiguriert ist, aber schweigt", async () => {
     // Sonst würde startTickets=0 eingefroren — und sobald das System antwortet,
-    // zählten alle Alt-Tickets als frische Verkäufe (Kurs an den Deckel).
+    // zählten alle Alt-Tickets als frische Verkäufe (Kurs stürzte an den Boden).
     shop.state = null;
     tickets = { scharf: true, tot: true };
 
@@ -603,7 +605,7 @@ describe("Audit-Runde 4 — die Naht zur Ticket-Quelle", () => {
     expect(shop.state).toBeNull();
   });
 
-  it("Storno eines ALT-Tickets senkt den Kurs, statt die Börse einzufrieren", async () => {
+  it("Storno eines ALT-Tickets hebt den Kurs, statt die Börse einzufrieren", async () => {
     // Früher: totalSold=-1 → InventoryAnomalyError → Dauer-409 bei jedem Cron,
     // und ?rebaseline=1 (zieht nur startInventory) konnte es nie auflösen.
     shop.state = { ...shop.state!, quelle: "tickets", startTickets: 50 };
@@ -613,9 +615,9 @@ describe("Audit-Runde 4 — die Naht zur Ticket-Quelle", () => {
     expect(r.status).toBe(200);
     expect(shop.state!.soldCount).toBe(-1);
     expect(shop.state!.history.at(-1)).toMatchObject({ event: "refund", qty: 1 });
-    expect(shop.variantPrice).toBeLessThan(22);
+    expect(shop.variantPrice).toBeGreaterThan(22);
 
-    // und der nächste Verkauf hebt den Kurs exakt zurück — keine Ratsche
+    // und der nächste Verkauf senkt den Kurs exakt zurück — keine Ratsche
     tickets.gueltigeTickets = 50;
     await getTick();
     expect(shop.state!.soldCount).toBe(0);
@@ -632,7 +634,7 @@ describe("Audit-Runde 4 — die Naht zur Ticket-Quelle", () => {
     expect(json.quelle).toBe("bestand");
     expect(json.hinweis).toMatch(/nur explizit/);
     expect(shop.state!.soldCount).toBe(0); // NICHT 50
-    expect(shop.variantPrice).toBeLessThanOrEqual(22);
+    expect(shop.variantPrice).toBeGreaterThanOrEqual(22);
   });
 
   it("Ticket-Zustand + entfernte Envs → Fehler im Body, KEIN stiller Wechsel auf den Bestand", async () => {
@@ -747,7 +749,7 @@ describe("Audit-Runde 4b — ?reconcile=<sprünge>: echte Sprünge bestätigen (
 
     const r = await getTick("?reconcile=50");
     expect(await r.json()).toMatchObject({ status: "reconciled", soldCount: 50 });
-    expect(shop.variantPrice).toBe(C.capEuro); // 50 Verkäufe → Deckel
+    expect(shop.variantPrice).toBe(C.floorEuro); // 50 Verkäufe → Boden
   });
 
   it("bestätigt wird eine ZAHL, kein Zeitpunkt — bewegter Bestand → erneut 409", async () => {
