@@ -96,14 +96,21 @@ export async function GET(request: NextRequest) {
   //    falschen Preis — und niemand merkte es. Eine frische Divergenz heilt
   //    der nächste Tick binnen 5 Minuten; bleibt sie, gehört sie gemeldet.
   //
-  //    Verglichen wird zum ZEITPUNKT DES LETZTEN TICKS, nicht zu jetzt: Der
-  //    abgeleitete Kurs kriecht zwischen den Ticks weiter (+~4 Cent/h) — zu
-  //    `now` gerechnet, meldete die Ampel bei jedem 10-Cent-Rundungssprung
-  //    eine falsche Divergenz, bis der nächste Cron den Shop nachzieht.
-  const sollPreis = shopPrice(priceOf(state, new Date(state.lastTickAt)));
-  if (currentPriceEuro !== sollPreis) {
+  //    Geprüft wird ein FENSTER, kein Punkt: Der abgeleitete Kurs kriecht
+  //    zwischen den Ticks weiter (+~4 Cent/h), und auch ein Webhook darf
+  //    zwischen zwei Cron-Läufen einen Preis mit SEINER Request-Zeit
+  //    geschrieben haben. Jeder legitime Write liegt also zwischen dem Kurs
+  //    zum letzten Tick und dem Kurs zu jetzt (der Zeit-Anteil wächst
+  //    monoton). Nur ein Shop-Preis AUSSERHALB dieses Fensters ist eine
+  //    echte Divergenz — ein Punkt-Vergleich meldete bei jedem
+  //    10-Cent-Rundungssprung einen Fehlalarm.
+  const preisAmAnker = shopPrice(priceOf(state, new Date(state.lastTickAt)));
+  const preisJetzt = shopPrice(priceOf(state, now));
+  const fensterMin = Math.min(preisAmAnker, preisJetzt);
+  const fensterMax = Math.max(preisAmAnker, preisJetzt);
+  if (currentPriceEuro < fensterMin || currentPriceEuro > fensterMax) {
     probleme.push(
-      `Preis-Divergenz: Shop verlangt ${currentPriceEuro} €, der Kurs sagt ${sollPreis} €`
+      `Preis-Divergenz: Shop verlangt ${currentPriceEuro} €, der Kurs sagt ${fensterMin}–${fensterMax} €`
     );
   }
 
@@ -141,7 +148,7 @@ export async function GET(request: NextRequest) {
   }
   return NextResponse.json({
     status: "ok",
-    price: sollPreis,
+    price: preisJetzt,
     shopPrice: currentPriceEuro,
     soldCount: state.soldCount,
     quelle: state.quelle,

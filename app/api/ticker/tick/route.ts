@@ -223,7 +223,9 @@ async function runTick(
     return NextResponse.json({
       status: "beendet",
       reason: "Türöffnung erreicht — die Börse ist geschlossen, der Preis bleibt stehen.",
-      price: state ? shopPrice(priceOf(state, now)) : currentPriceEuro,
+      // Der ECHTE Shop-Preis: Geschrieben wird hier nichts mehr, der
+      // abgeleitete Kurs zu `now` kann also vom Checkout abweichen.
+      price: currentPriceEuro > 0 || !state ? currentPriceEuro : shopPrice(priceOf(state, now)),
     });
   }
 

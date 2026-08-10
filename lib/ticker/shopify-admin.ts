@@ -263,7 +263,11 @@ export async function writeTicker(
   // ein anderer ist — und den Preis dann auf den JETZT gültigen nachziehen.
   const danach = await readTicker();
   if (!danach.state) return;
-  const sollPreis = shopPrice(priceOf(danach.state, now));
+  // FRISCHE Zeit, nicht das Request-`now` von oben: Zwischen Schreiben und
+  // Abgleich kann ein anderer Schreiber einen ZEITLICH neueren Preis gesetzt
+  // haben. Mit der alten Zeit gerechnet, würde der Abgleich dessen korrekten
+  // Preis wieder zurückdrehen — er soll den JETZT gültigen durchsetzen.
+  const sollPreis = shopPrice(priceOf(danach.state, new Date()));
   if (danach.currentPriceEuro !== sollPreis) {
     console.warn(
       `[ticker] Preis-Abgleich: Shop ${danach.currentPriceEuro} € → ${sollPreis} €`

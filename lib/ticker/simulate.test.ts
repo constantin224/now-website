@@ -12,6 +12,7 @@ function simulate(salesPerDay: number) {
   let s = initState(C.startPriceEuro, inv, START);
   let maxBytes = 0;
   let ende = START;
+  let capAbStunde: number | null = null; // erste Stunde, in der der Kurs am Deckel steht
   const everyH = salesPerDay > 0 ? Math.max(1, Math.round(24 / salesPerDay)) : 0;
 
   for (let h = 1; h <= DAYS * 24; h++) {
@@ -21,11 +22,19 @@ function simulate(salesPerDay: number) {
     s = tick(s, inv, now);
     s = { ...s, history: pruneHistory(s.history, now) };
 
-    expect(priceOf(s, now)).toBeGreaterThanOrEqual(C.floorEuro);
-    expect(priceOf(s, now)).toBeLessThanOrEqual(C.capEuro);
+    const p = priceOf(s, now);
+    expect(p).toBeGreaterThanOrEqual(C.floorEuro);
+    expect(p).toBeLessThanOrEqual(C.capEuro);
+    if (capAbStunde === null && p === C.capEuro) capAbStunde = h;
     maxBytes = Math.max(maxBytes, JSON.stringify(s).length);
   }
-  return { price: shopPrice(priceOf(s, ende)), sold: s.soldCount, maxBytes, state: s };
+  return {
+    price: shopPrice(priceOf(s, ende)),
+    sold: s.soldCount,
+    maxBytes,
+    capAbStunde,
+    state: s,
+  };
 }
 
 describe("Simulation: 96 Tage bis zum Gig", () => {
@@ -33,8 +42,10 @@ describe("Simulation: 96 Tage bis zum Gig", () => {
     const r = simulate(0);
     expect(r.price).toBe(C.capEuro); // 96 Tage Flaute → Deckel, klar
     expect(r.sold).toBe(0);
-    // Deckel-Erreichen: (30 − 22) / 1 €/Tag = 8 Tage — nie früher
-    expect((C.capEuro - C.startPriceEuro) / C.riseEuroPerDay).toBeGreaterThanOrEqual(8);
+    // Gemessen an der SIMULATION, nicht an der Config-Arithmetik: Eine Engine,
+    // die schon am ersten Tick auf 30 € spränge, muss hier scheitern.
+    expect(r.capAbStunde).not.toBeNull();
+    expect(r.capAbStunde!).toBeGreaterThanOrEqual(8 * 24);
   });
 
   it("Gleichgewicht: 1 Verkauf/Tag hält den Kurs beim Start ±1 €", () => {

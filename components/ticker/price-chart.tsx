@@ -331,7 +331,9 @@ export function PriceChart({ history: raw, erfolg, floorEuro, locale, labels }: 
               {hvDelta !== null && hvDelta !== 0 && (
                 <span
                   className={`ml-2 text-xs uppercase tracking-wide tabular-nums ${
-                    hvDelta > 0 ? "text-market-up" : "text-market-down"
+                    // Gedrehte Semantik wie die Kurs-Linie: fallendes Delta
+                    // (= jemand hat gekauft) ist der Erfolg und wird grün.
+                    hvDelta < 0 ? "text-market-up" : "text-market-down"
                   }`}
                 >
                   {hvDelta > 0 ? "+" : "−"}
