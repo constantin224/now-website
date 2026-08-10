@@ -386,6 +386,13 @@ describe("Testbestellungen bewegen den Kurs wirklich nicht", () => {
     // unbrauchbare Mengen fliegen weiterhin sofort
     expect(() => ignoreTestTickets(s, "t-null", 0)).toThrow(/Menge/);
     expect(() => ignoreTestTickets(s, "t-frac", 1.5)).toThrow(/Menge/);
+
+    // und der Unterlauf-Guard wirft OHNE Zustandsänderung, statt einen
+    // selbst-unlesbaren startInventory zu schreiben (parseState-Grenze ±1 Mio)
+    const amRand = { ...s, startInventory: -1_000_000 };
+    expect(() => ignoreTestTickets(amRand, "t-unter", 5)).toThrow(/Lesbarkeits-Grenze/);
+    expect(amRand.startInventory).toBe(-1_000_000);
+    expect(hasSeenOrder(amRand, "t-unter")).toBe(false);
   });
 });
 

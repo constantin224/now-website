@@ -168,8 +168,11 @@ async function handleOrder(orderId: string, tickets: number, isTest: boolean) {
   // wie jede echte Bestellung, und der Cron würde sie sonst als Verkauf zählen.
   // VOR dem Tracking-Check: Die Neutralisierung braucht den Bestand nicht.
   if (isTest) {
-    // Kann nicht scheitern: readOrder garantiert 1..1000 Tickets, und die
-    // Grenz-Behandlung faltet Überläufe algebraisch auf (siehe Engine).
+    // readOrder garantiert 1..1000 Tickets, Überläufe faltet die Engine
+    // algebraisch auf. Werfen kann nur noch der startInventory-Unterlauf-Guard
+    // (bräuchte >1 Mio Fake-Testtickets MIT gültigem HMAC-Secret) — der fällt
+    // bewusst in den generischen 500-Pfad: fail-closed, nichts geschrieben;
+    // die Bestands-Anomalie des nächsten Cron holt ohnehin einen Menschen.
     const neutralisiert = ignoreTestTickets(state, orderId, tickets);
     // mitAbgleich=false: Shopify erwartet die Webhook-Antwort in ~5 s, sonst löscht
     // es irgendwann das Abo. Jeder gesparte Roundtrip zählt. Der Cron gleicht ab.
