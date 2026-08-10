@@ -15,8 +15,14 @@ export function mockTicker(now: Date = new Date()): {
   let inventory = 250;
   let state = initState(22, inventory, start);
 
-  // Verkaufs-Fahrplan (Stunde nach Start): Woche 1 gut, dann Flaute, zuletzt Nachzügler
-  const sales = new Set([20, 45, 70, 95, 140, 300, 460, 470, 480, 495]);
+  // Verkaufs-Fahrplan (Stunde nach Start): Woche 1 kauft die Community den Preis
+  // runter, Woche 2 Flaute (Kurs kriecht hoch), Woche 3 Endspurt. So zeigt die
+  // Preview beide Richtungen, statt am Deckel oder Boden zu kleben.
+  const sales = new Set([
+    6, 20, 30, 45, 60, 70, 95, 110, 140, 155, // Woche 1: 10 Käufe → Kurs fällt
+    300, 340, // Woche 2: fast Flaute → Kurs steigt wieder
+    380, 400, 420, 440, 460, 470, 480, 495, // Woche 3: Endspurt
+  ]);
 
   for (let h = 1; h <= 21 * 24; h++) {
     if (sales.has(h)) inventory -= 1;
