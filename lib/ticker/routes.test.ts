@@ -758,6 +758,15 @@ describe("Audit-Runde 4 — die Naht zur Ticket-Quelle", () => {
     expect(qstashPublishes).toHaveLength(0); // Turbo kam gar nicht erst dran
   });
 
+  it("träge Shopify-API + TESTbestellung → 500 (Retry rettet die Neutralisierung)", async () => {
+    // Ein 200 hieße: kein Shopify-Retry, Neutralisierung evtl. verloren, der
+    // Cron zählte den Test-Bestandsabgang im Notpfad als echten Verkauf.
+    vi.stubEnv("WEBHOOK_DEADLINE_MS", "80");
+    shopifyLangsamMs = 400;
+    const r = await postWebhook(orderBody({ id: 50, tickets: 1, test: true }));
+    expect(r.status).toBe(500);
+  });
+
   it("aufgebrauchtes Antwort-Budget überspringt den Turbo komplett", async () => {
     // Direkt gegen die Turbo-Funktion: Budget unter der Mindestschwelle —
     // kein einziger Publish, Shopifys Antwortfenster bleibt unangetastet.

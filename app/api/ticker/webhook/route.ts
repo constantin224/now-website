@@ -108,20 +108,26 @@ export async function POST(request: NextRequest) {
   // GESAMT-DEADLINE über der kompletten Verarbeitung: Shopify erwartet die
   // Antwort in ~5 s und löscht Abos nach anhaltenden Überschreitungen — aber
   // readTicker allein darf (kalter Token + hängende API) bis zu 20 s brauchen.
-  // Läuft die Deadline ab, antworten wir 200 mit Fallback-Hinweis: Im
-  // Ticket-Modus geht dabei NICHTS verloren (der Webhook bucht ohnehin
-  // nicht), im Bestands-Modus zieht der 5-min-Cron den Verkauf nach.
+  // Läuft die Deadline ab, antworten wir mit Fallback: Verkäufe bekommen 200
+  // (im Ticket-Modus bucht der Webhook ohnehin nichts, sonst zieht der Cron
+  // nach — nichts geht verloren). TESTBESTELLUNGEN bekommen 500: Ihre
+  // Neutralisierung darf im Bestands-Notpfad nicht verloren gehen (der Cron
+  // zählte den Test-Bestandsabgang sonst als echten Verkauf) — der
+  // Shopify-Retry gibt ihr eine neue Chance, und `recentOrders` verhindert
+  // eine Doppel-Neutralisierung, falls der erste Lauf doch durchkam.
   const deadlineMs = Number(process.env.WEBHOOK_DEADLINE_MS ?? "4000");
   let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<NextResponse>((resolve) => {
     deadlineTimer = setTimeout(
       () =>
         resolve(
-          NextResponse.json({
-            ok: true,
-            status: "langsam",
-            note: "Shopify antwortet träge — der Cron zieht den Verkauf in ≤5 min nach",
-          })
+          order.isTest
+            ? NextResponse.json({ error: "timeout — retry erwünscht" }, { status: 500 })
+            : NextResponse.json({
+                ok: true,
+                status: "langsam",
+                note: "Shopify antwortet träge — der Cron zieht den Verkauf nach",
+              })
         ),
       deadlineMs
     );
