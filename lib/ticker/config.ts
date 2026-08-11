@@ -81,6 +81,21 @@ export const TICKER_CONFIG = {
   // ist Absicht: Ein voll gelaufenes Metafield würde die Börse einfrieren.
   metafieldMaxBytes: 50_000,
 
+  // ---- Kauf-Turbo ----
+  // Der Webhook publiziert bei jeder ECHTEN Ticket-Bestellung verzögerte
+  // Einzel-Messages an QStash: erst den Ledger-Pass des Ticket-Systems, dann
+  // zwei Börsen-Ticks. So ist der Preis ~90 s nach dem Kauf aktuell, ohne die
+  // Cron-Grundlast (*/5, Free-Limit) anzuheben — ~3 Messages pro Verkauf.
+  // Ziele = DIESELBEN URLs wie die bestehenden QStash-Schedules (bewährt).
+  // Der zweite Börsen-Tick ist das Netz, falls der Ledger-Pass den ersten
+  // knapp verpasst; der */5-Cron bleibt ohnehin der Fallback.
+  turboZiele: [
+    { url: "https://tonherd-tickets.vercel.app/api/cron", delay: "10s", secretEnv: "TICKETS_CRON_SECRET" },
+    { url: "https://now-music.at/api/ticker/tick", delay: "75s", secretEnv: "CRON_SECRET" },
+    { url: "https://now-music.at/api/ticker/tick", delay: "180s", secretEnv: "CRON_SECRET" },
+  ],
+  qstashPublishBase: "https://qstash-eu-central-1.upstash.io/v2/publish",
+
   gigDateIso: "2026-10-17T19:00:00+02:00",
   shopProductUrl:
     "https://shop.tonherd.at/products/17-10-2026-now-album-prasentation",

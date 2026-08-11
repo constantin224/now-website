@@ -12,6 +12,7 @@ import {
   tick,
 } from "@/lib/ticker/engine";
 import { tickerEnabled } from "@/lib/ticker/guards";
+import { feuerTurboTicks } from "@/lib/ticker/turbo";
 import { verifyShopifyHmac } from "@/lib/ticker/hmac";
 import {
   readTicker,
@@ -205,10 +206,17 @@ async function handleOrder(orderId: string, tickets: number, isTest: boolean) {
   // siehe Handoff/Go-Live) — schlimmstenfalls also ~10 Minuten nach dem Kauf
   // (Ticket-System-Ledger 5 min + Börsen-Tick 5 min). Für die Parodie egal.
   if (state.quelle === "tickets") {
+    // KAUF-TURBO: Der Webhook bucht weiterhin nichts (Blocker 21) — er bittet
+    // die idempotenten Cron-Pfade per verzögerter QStash-Message um frühere
+    // Läufe (Ledger +10 s, Börse +75 s/+180 s). Fehler sind folgenlos, der
+    // 5-min-Cron bleibt der Fallback. Synchron mit hartem Timeout: bleibt
+    // weit unter Shopifys ~5-s-Antwortbudget.
+    const turbo = await feuerTurboTicks();
     return NextResponse.json({
       ok: true,
-      note: "Ticket-System ist die Quelle — der nächste Cron zieht den Verkauf nach",
+      note: "Ticket-System ist die Quelle — Turbo-Ticks angestoßen, der Cron zieht den Verkauf nach",
       tickets,
+      turbo,
     });
   }
 

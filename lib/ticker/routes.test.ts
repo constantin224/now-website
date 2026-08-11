@@ -41,10 +41,24 @@ let tickets: {
   tot?: boolean;
 };
 
+let qstashPublishes: { url: string; headers: Record<string, string> }[] = [];
+let qstashDown = false;
+
 function fakeFetch(url: string | URL, init?: RequestInit): Promise<Response> {
   const body = String(init?.body ?? "");
   const json = (o: unknown) =>
     Promise.resolve(new Response(JSON.stringify(o), { status: 200 }));
+
+  if (String(url).includes("qstash")) {
+    if (qstashDown) return Promise.reject(new Error("QStash nicht erreichbar"));
+    qstashPublishes.push({
+      url: String(url),
+      headers: Object.fromEntries(
+        Object.entries((init?.headers ?? {}) as Record<string, string>)
+      ),
+    });
+    return json({ messageId: `msg-${qstashPublishes.length}` });
+  }
 
   if (String(url).includes("/api/verkaufszahl")) {
     if (tickets.tot) return Promise.reject(new Error("Ticket-System nicht erreichbar"));
@@ -177,6 +191,11 @@ beforeEach(() => {
   vi.stubEnv("SHOPIFY_WEBHOOK_SECRET", SECRET);
   vi.stubEnv("CRON_SECRET", CRON_SECRET);
   vi.stubEnv("MONITOR_SECRET", MONITOR_SECRET);
+  // Kauf-Turbo: im Standard konfiguriert, damit der Ticket-Modus ihn feuert
+  vi.stubEnv("QSTASH_TOKEN", "qstash-token-test");
+  vi.stubEnv("TICKETS_CRON_SECRET", "tickets-cron-geheim");
+  qstashPublishes = [];
+  qstashDown = false;
   // Standard: KEIN Ticket-System konfiguriert → die bestehenden Tests prüfen
   // weiterhin den Bestands-Notpfad.
   vi.stubEnv("TICKETS_BASE_URL", "");
@@ -649,17 +668,59 @@ describe("Audit-Runde 4 — die Naht zur Ticket-Quelle", () => {
     expect(shop.stateWrites).toBe(0);
   });
 
-  it("der Webhook bucht im Ticket-Modus KEINE Verkäufe (der Cron zieht nach)", async () => {
+  it("der Webhook bucht im Ticket-Modus KEINE Verkäufe — er feuert die Turbo-Ticks", async () => {
     // Sonst: Bestands-Mathe kann mehr als die Bestellmenge übernehmen, und
     // Cron + Webhook zählen dieselbe Bestellung vorübergehend doppelt.
     shop.state = { ...shop.state!, quelle: "tickets" };
     shop.inventory = 245; // Bestand ist aus fremden Gründen gefallen
 
     const r = await postWebhook(orderBody({ id: 41, tickets: 2 }));
-    expect(await r.json()).toMatchObject({ ok: true, tickets: 2 });
+    expect(await r.json()).toMatchObject({ ok: true, tickets: 2, turbo: { gefeuert: 3 } });
     expect(shop.stateWrites).toBe(0); // kein Schreibvorgang
     expect(shop.state!.soldCount).toBe(0);
     expect(shop.variantPrice).toBe(22);
+
+    // Genau die drei konfigurierten verzögerten Läufe: erst der Ledger-Pass
+    // des Ticket-Systems, dann zwei Börsen-Ticks — jeweils mit dem RICHTIGEN
+    // weitergereichten Secret.
+    expect(qstashPublishes).toHaveLength(3);
+    const [ledger, tick1, tick2] = qstashPublishes;
+    expect(ledger.url).toContain("tonherd-tickets.vercel.app/api/cron");
+    expect(ledger.headers["Upstash-Delay"]).toBe("10s");
+    expect(ledger.headers["Upstash-Forward-Authorization"]).toBe("Bearer tickets-cron-geheim");
+    expect(tick1.url).toContain("now-music.at/api/ticker/tick");
+    expect(tick1.headers["Upstash-Delay"]).toBe("75s");
+    expect(tick1.headers["Upstash-Forward-Authorization"]).toBe(`Bearer ${CRON_SECRET}`);
+    expect(tick2.headers["Upstash-Delay"]).toBe("180s");
+    expect(qstashPublishes.every((p) => p.headers["Upstash-Method"] === "GET")).toBe(true);
+  });
+
+  it("QStash-Ausfall macht den Webhook NICHT kaputt (Fallback ist der Cron)", async () => {
+    shop.state = { ...shop.state!, quelle: "tickets" };
+    qstashDown = true;
+    const r = await postWebhook(orderBody({ id: 43, tickets: 1 }));
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ ok: true, turbo: { gefeuert: 0 } });
+  });
+
+  it("ohne QSTASH_TOKEN einfach kein Turbo — keine Fehler, keine Publishes", async () => {
+    vi.stubEnv("QSTASH_TOKEN", "");
+    shop.state = { ...shop.state!, quelle: "tickets" };
+    const r = await postWebhook(orderBody({ id: 44, tickets: 1 }));
+    expect(r.status).toBe(200);
+    expect(qstashPublishes).toHaveLength(0);
+  });
+
+  it("Testbestellungen feuern KEINEN Turbo (sie bewegen den Kurs nie)", async () => {
+    shop.state = { ...shop.state!, quelle: "tickets" };
+    await postWebhook(orderBody({ id: 45, tickets: 2, test: true }));
+    expect(qstashPublishes).toHaveLength(0);
+  });
+
+  it("im Bestands-Modus kein Turbo — dort schreibt der Webhook selbst", async () => {
+    await postWebhook(orderBody({ id: 46, tickets: 1 })); // Standard-Setup = bestand
+    expect(qstashPublishes).toHaveLength(0);
+    expect(shop.state!.soldCount).toBe(1); // der direkte Buchungspfad lebt
   });
 
   it("Testbestellung im Ticket-Modus: KEIN ignoredTickets — das Ledger zählt sie nicht", async () => {
