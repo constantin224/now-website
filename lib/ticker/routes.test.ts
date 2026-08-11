@@ -711,6 +711,38 @@ describe("Audit-Runde 4 — die Naht zur Ticket-Quelle", () => {
     expect(qstashPublishes).toHaveLength(0);
   });
 
+  it("Doppelzustellung im Ticket-Modus: QStash-Dedup-IDs sind identisch", async () => {
+    // Der Ticket-Modus schreibt nichts — auch keinen recentOrders-Eintrag.
+    // Eine erneute Shopify-Zustellung feuert also erneut. Verstärkung
+    // verhindert die Deduplication-Id: pro Bestellung+Ziel identisch, QStash
+    // verwirft die Dubletten selbst.
+    shop.state = { ...shop.state!, quelle: "tickets" };
+    const body = orderBody({ id: 47, tickets: 1 });
+    await postWebhook(body);
+    await postWebhook(body); // identische erneute Zustellung
+    expect(qstashPublishes).toHaveLength(6);
+    const ids = qstashPublishes.map((p) => p.headers["Upstash-Deduplication-Id"]);
+    expect(new Set(ids).size).toBe(3); // 2. Runde = exakt dieselben drei IDs
+    expect(ids[0]).toBe("turbo-47-0");
+  });
+
+  it("nur TICKETS_CRON_SECRET fehlt → Ledger übersprungen, Börsen-Ticks feuern", async () => {
+    vi.stubEnv("TICKETS_CRON_SECRET", "");
+    shop.state = { ...shop.state!, quelle: "tickets" };
+    const r = await postWebhook(orderBody({ id: 48, tickets: 1 }));
+    expect(await r.json()).toMatchObject({ turbo: { gefeuert: 2, uebersprungen: 1 } });
+    expect(qstashPublishes.every((p) => p.url.includes("now-music.at"))).toBe(true);
+  });
+
+  it("aufgebrauchtes Antwort-Budget überspringt den Turbo komplett", async () => {
+    // Direkt gegen die Turbo-Funktion: Budget unter der Mindestschwelle —
+    // kein einziger Publish, Shopifys Antwortfenster bleibt unangetastet.
+    const { feuerTurboTicks } = await import("@/lib/ticker/turbo");
+    const r = await feuerTurboTicks("999", 100);
+    expect(r).toEqual({ gefeuert: 0, uebersprungen: 3 });
+    expect(qstashPublishes).toHaveLength(0);
+  });
+
   it("Testbestellungen feuern KEINEN Turbo (sie bewegen den Kurs nie)", async () => {
     shop.state = { ...shop.state!, quelle: "tickets" };
     await postWebhook(orderBody({ id: 45, tickets: 2, test: true }));

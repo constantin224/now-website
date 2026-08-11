@@ -38,19 +38,20 @@ echo "Secrets da."
 
 # ---------- 1. Envs in now-website ----------
 schritt "1/4 Vercel-Envs (now-website)"
-VORHANDEN=$(vercel env ls production 2>/dev/null) || fehler "vercel env ls"
-env_setzen() {
+# WERTE erzwingen, nicht nur Existenz: Ein altes SHOPIFY_WEBHOOK_SECRET würde
+# sonst stehen bleiben — das frisch angelegte Abo signierte dann mit dem
+# App-Secret, die Route prüfte den Alt-Wert → Dauer-401 bis zur Abo-Löschung.
+env_erzwingen() {
   local name="$1" wert="$2"
-  if echo "$VORHANDEN" | grep -q " $name "; then echo "$name: schon da"; else
-    printf '%s' "$wert" | vercel env add "$name" production >/dev/null 2>&1 || fehler "env add $name"
-    echo "$name: gesetzt"
-  fi
+  vercel env rm "$name" production --yes >/dev/null 2>&1 || true
+  printf '%s' "$wert" | vercel env add "$name" production >/dev/null 2>&1 || fehler "env add $name"
+  echo "$name: gesetzt (Wert erzwungen)"
 }
-env_setzen QSTASH_TOKEN "$QTK"
-env_setzen TICKETS_CRON_SECRET "$TCS"
+env_erzwingen QSTASH_TOKEN "$QTK"
+env_erzwingen TICKETS_CRON_SECRET "$TCS"
 # Shopify signiert per API angelegte Webhooks mit dem CLIENT-SECRET der
 # anlegenden App — genau das prüft die Route als SHOPIFY_WEBHOOK_SECRET.
-env_setzen SHOPIFY_WEBHOOK_SECRET "$SCS"
+env_erzwingen SHOPIFY_WEBHOOK_SECRET "$SCS"
 
 # ---------- 2. Deploy ----------
 schritt "2/4 Deploy (vercel --prod)"
@@ -68,8 +69,14 @@ VORHANDENE=$(curl -sf "https://$STORE/admin/api/$API_VERSION/graphql.json" \
   -H @"$HDIR/tok" -H "Content-Type: application/json" \
   -d '{"query":"{ webhookSubscriptions(first: 20, topics: [ORDERS_CREATE]) { nodes { id endpoint { ... on WebhookHttpEndpoint { callbackUrl } } } } }"}') || fehler "Abo-Abfrage"
 
-if printf '%s' "$VORHANDENE" | grep -q "$SITE/api/ticker/webhook"; then
-  echo "Abo existiert schon — übersprungen"
+ABO_DA=$(printf '%s' "$VORHANDENE" | SITE="$SITE" python3 -c '
+import json, os, sys
+d = json.load(sys.stdin)
+urls = [n["endpoint"].get("callbackUrl") for n in d["data"]["webhookSubscriptions"]["nodes"]]
+print("ja" if os.environ["SITE"] + "/api/ticker/webhook" in urls else "nein")
+')
+if [ "$ABO_DA" = "ja" ]; then
+  echo "Abo existiert schon (exakte URL) — übersprungen"
 else
   ANTWORT=$(curl -sf "https://$STORE/admin/api/$API_VERSION/graphql.json" \
     -H @"$HDIR/tok" -H "Content-Type: application/json" \
@@ -80,11 +87,17 @@ fi
 
 # ---------- 4. Verify ----------
 schritt "4/4 Verifikation"
-curl -sf "https://$STORE/admin/api/$API_VERSION/graphql.json" \
+FINAL=$(curl -sf "https://$STORE/admin/api/$API_VERSION/graphql.json" \
   -H @"$HDIR/tok" -H "Content-Type: application/json" \
   -d '{"query":"{ webhookSubscriptions(first: 20, topics: [ORDERS_CREATE]) { nodes { endpoint { ... on WebhookHttpEndpoint { callbackUrl } } } } }"}' \
-  | grep -o "$SITE/api/ticker/webhook" | head -1 || fehler "Abo nach Anlage nicht gefunden"
-echo "Abo verifiziert."
+  | SITE="$SITE" python3 -c '
+import json, os, sys
+d = json.load(sys.stdin)
+urls = [n["endpoint"].get("callbackUrl") for n in d["data"]["webhookSubscriptions"]["nodes"]]
+print("ja" if os.environ["SITE"] + "/api/ticker/webhook" in urls else "nein")
+')
+[ "$FINAL" = "ja" ] || fehler "Abo nach Anlage nicht gefunden (exakte URL)"
+echo "Abo verifiziert (exakte URL)."
 
 cat <<'NACHSPIEL'
 

@@ -209,9 +209,11 @@ async function handleOrder(orderId: string, tickets: number, isTest: boolean) {
     // KAUF-TURBO: Der Webhook bucht weiterhin nichts (Blocker 21) — er bittet
     // die idempotenten Cron-Pfade per verzögerter QStash-Message um frühere
     // Läufe (Ledger +10 s, Börse +75 s/+180 s). Fehler sind folgenlos, der
-    // 5-min-Cron bleibt der Fallback. Synchron mit hartem Timeout: bleibt
-    // weit unter Shopifys ~5-s-Antwortbudget.
-    const turbo = await feuerTurboTicks();
+    // 5-min-Cron bleibt der Fallback. Synchron, aber mit REQUEST-Budget:
+    // Was readTicker (kalter Token: mehrere Sekunden möglich) schon
+    // verbraucht hat, wird abgezogen — Shopifys ~5-s-Antwortfenster reißt nie.
+    const budgetMs = 4_000 - (Date.now() - now.getTime());
+    const turbo = await feuerTurboTicks(orderId, budgetMs);
     return NextResponse.json({
       ok: true,
       note: "Ticket-System ist die Quelle — Turbo-Ticks angestoßen, der Cron zieht den Verkauf nach",
