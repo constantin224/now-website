@@ -1,17 +1,15 @@
 # Ticket-Börse — Handoff
 
-**Stand: 2026-08-10** · alles auf `main` · Tests/Build/tsc grün (Zahlen siehe unten) · **Preismodell seit 10.08. GEDREHT: Community-Pricing** (Spec: `docs/superpowers/specs/2026-08-10-boerse-community-pricing-design.md`)
-**Die Börse LÄUFT NOCH NICHT — aber der Go-Live ist fertig vorbereitet.** Der Ticketpreis steht unverändert auf 22,00 € (live verifiziert 06.08.).
+**Stand: 2026-08-11 spät** · alles auf `main` + gepusht · 140/140 Tests, Build/tsc/Lint grün · **Preismodell seit 10.08.: Community-Pricing** (Spec: `docs/superpowers/specs/2026-08-10-boerse-community-pricing-design.md`)
 
-> ## GO-LIVE = EIN SCRIPT: `./scripts/boerse-golive.sh`
+> ## 🚀 DIE BÖRSE IST LIVE (seit 11.08. ~14:09)
 >
-> Vorbereitet am 06.08. (Details unten in der Go-Live-Sektion, Erledigtes abgehakt):
-> - Evey-Ablösung ist DURCH (27.07.), Wien 17.10. verkauft übers eigene Ticket-System — der alte Blocker ist weg.
-> - 3 von 6 Vercel-Envs gesetzt (`TICKER_ENABLED`, `TICKETS_BASE_URL`, `SHOPIFY_ADMIN_CLIENT_ID`); die 3 Secret-Envs setzt das Script (der Permission-Classifier blockt Keychain→Vercel-Pipes für Claude).
-> - Neues Nur-Lese-Secret im Schlüsselbund: `now-boerse-monitor-secret` (für `/api/ticker/status` + Apps-Script-Wächter).
-> - 4 neue Parodie-Sektionen committet (Live-Betrachter, Trust-Badges, Bewertungen-Parodie, Countdown-Note) — Codex-reviewt.
-> - ⚠️ **Wien MUSS vor dem Start manuell gearmt werden** (macht das Script): Auto-Arming des Ticket-Systems greift erst doors−12h (17.10. früh). Bis dahin liefert `/api/verkaufszahl` `scharf:false` → `?start=1` würde 503 verweigern, und die Börse bliebe im nur-drift-Modus (Verkäufe bewegten den Kurs nie).
-> - Nach dem Script bleibt EIN Handgriff: Apps-Script-Property `BOERSE_MONITOR_SECRET` setzen (Anleitung druckt das Script am Ende).
+> - Go-Live via `./scripts/boerse-golive.sh` (67 s, alle 9 Schritte sauber): Baseline **28 Alt-Tickets**, `quelle: tickets`, Start 22,00 €, QStash-Schedule `scd_69AA2q822WkqRKTdpZsHWFECP7ge` (*/5).
+> - **Erster echter Kauf real bewiesen** (11.08. mittags): 22,00 → 21,00 € in 8 min, sale-Punkt im Chart, Shopify + Seite synchron. Ein Storno höbe exakt zurück.
+> - **Wächter aktiv** (Apps-Script „Tonherd Tickets Waechter", Property `BOERSE_MONITOR_SECRET` gesetzt, `pruefe` still) — mailt an system@tonherd.com bei allem außer Grün. `TICKER_EXPECTED_RUNNING=1`: „disabled" ist seit dem Go-Live eine Alarm-Lage, kein Ruhezustand.
+> - **Kauf-Turbo LIVE** (11.08. ~22:40, Shopify-Abo `gid://shopify/WebhookSubscription/2492050014539` via `scripts/boerse-turbo-setup.sh`): echte Käufe werden in **~90 s** eingepreist (§Kauf-Turbo). Fallback bleibt der */5-Cron.
+> - Chart zoomt seit 11.08. auf die Daten (Boden-Linie erscheint erst bei Annäherung); Hero-Reduced-Motion-Fallback = Crowd-Foto.
+> - Not-Aus-Reihenfolge unverändert (§Notfall-Rollback); der Ampel-Alarm beim bewussten Not-Aus ist gewollt.
 >
 > ## Für den nächsten Chat: DAS HIER ZUERST
 >
@@ -35,11 +33,11 @@ Die Seite `/de/tickets` + `/en/tickets` zeigt den Kurs, den Chart und die Parodi
 
 | | |
 |---|---|
-| Code | `main` |
-| Tests | 131/131 (Engine + Routen gegen einen gefälschten Shopify-Server + 96-Tage-Simulation) · Naht real verifiziert: Generalprobe 16.07. BESTANDEN (vor dem Go-Live erneut laufen lassen — sie prüft seit 10.08. das additive Modell) |
-| In Shopify | **kein** `ticker.state`-Metafield, Preis unverändert **22,00 €** |
-| Läuft | **nein** — und auch nach einem Deploy passiert nichts, bis jemand `?start=1` auslöst **und** `TICKER_ENABLED=1` gesetzt ist |
-| Wartet auf | die Evey-Ablösung durch das eigene Ticket-System (`project_tonherd_tickets`) |
+| Code | `main`, gepusht |
+| Tests | 140/140 (Engine + Routen gegen gefälschten Shopify-Server + 96-Tage-Simulation + Turbo) · Naht real bewiesen: Generalprobe 16.07. + Live-Kauf 11.08. |
+| In Shopify | `ticker.state`-Metafield LIVE, Preis dynamisch (Start 22,00 €) · Webhook-Abo orders/create aktiv |
+| Läuft | **JA, seit 11.08.** — Kette real bewiesen (Kauf → 21,00 €, Chart, Wächter) |
+| Betrieb | QStash */5 + Kauf-Turbo (~90 s) · Ampel `/api/ticker/status` · Wächter-Mail an system@tonherd.com |
 
 ---
 
