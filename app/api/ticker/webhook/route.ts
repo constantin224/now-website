@@ -105,9 +105,41 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, ignoriert: "Bestellung ohne gültige ID" });
   }
 
+  // GESAMT-DEADLINE über der kompletten Verarbeitung: Shopify erwartet die
+  // Antwort in ~5 s und löscht Abos nach anhaltenden Überschreitungen — aber
+  // readTicker allein darf (kalter Token + hängende API) bis zu 20 s brauchen.
+  // Läuft die Deadline ab, antworten wir 200 mit Fallback-Hinweis: Im
+  // Ticket-Modus geht dabei NICHTS verloren (der Webhook bucht ohnehin
+  // nicht), im Bestands-Modus zieht der 5-min-Cron den Verkauf nach.
+  const deadlineMs = Number(process.env.WEBHOOK_DEADLINE_MS ?? "4000");
+  let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<NextResponse>((resolve) => {
+    deadlineTimer = setTimeout(
+      () =>
+        resolve(
+          NextResponse.json({
+            ok: true,
+            status: "langsam",
+            note: "Shopify antwortet träge — der Cron zieht den Verkauf in ≤5 min nach",
+          })
+        ),
+      deadlineMs
+    );
+  });
+  try {
+    return await Promise.race([
+      verarbeiteBestellung(order.id, order.tickets, order.isTest),
+      deadline,
+    ]);
+  } finally {
+    clearTimeout(deadlineTimer);
+  }
+}
+
+async function verarbeiteBestellung(orderId: string, tickets: number, isTest: boolean) {
   for (let versuch = 0; versuch < 3; versuch++) {
     try {
-      return await handleOrder(order.id, order.tickets, order.isTest);
+      return await handleOrder(orderId, tickets, isTest);
     } catch (err) {
       if (err instanceof TickerConflictError && versuch < 2) {
         console.warn("[ticker/webhook] Zustand war veraltet — lese neu");

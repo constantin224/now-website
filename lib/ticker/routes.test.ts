@@ -43,11 +43,22 @@ let tickets: {
 
 let qstashPublishes: { url: string; headers: Record<string, string> }[] = [];
 let qstashDown = false;
+let shopifyLangsamMs = 0;
 
 function fakeFetch(url: string | URL, init?: RequestInit): Promise<Response> {
   const body = String(init?.body ?? "");
   const json = (o: unknown) =>
     Promise.resolve(new Response(JSON.stringify(o), { status: 200 }));
+
+  if (shopifyLangsamMs > 0 && body.includes("query TickerRead")) {
+    const delay = shopifyLangsamMs;
+    return new Promise((resolve) =>
+      setTimeout(
+        () => resolve(new Response(JSON.stringify({ data: {} }), { status: 200 })),
+        delay
+      )
+    );
+  }
 
   if (String(url).includes("qstash")) {
     if (qstashDown) return Promise.reject(new Error("QStash nicht erreichbar"));
@@ -196,6 +207,7 @@ beforeEach(() => {
   vi.stubEnv("TICKETS_CRON_SECRET", "tickets-cron-geheim");
   qstashPublishes = [];
   qstashDown = false;
+  shopifyLangsamMs = 0;
   // Standard: KEIN Ticket-System konfiguriert → die bestehenden Tests prüfen
   // weiterhin den Bestands-Notpfad.
   vi.stubEnv("TICKETS_BASE_URL", "");
@@ -732,6 +744,18 @@ describe("Audit-Runde 4 — die Naht zur Ticket-Quelle", () => {
     const r = await postWebhook(orderBody({ id: 48, tickets: 1 }));
     expect(await r.json()).toMatchObject({ turbo: { gefeuert: 2, uebersprungen: 1 } });
     expect(qstashPublishes.every((p) => p.url.includes("now-music.at"))).toBe(true);
+  });
+
+  it("träge Shopify-API: Webhook antwortet trotzdem rechtzeitig 200 (Deadline)", async () => {
+    // readTicker darf mit kaltem Token bis ~20 s hängen — Shopify löscht Abos
+    // nach anhaltend späten Antworten. Die Gesamt-Deadline antwortet vorher
+    // mit 200; der Cron zieht den Verkauf nach, nichts geht verloren.
+    vi.stubEnv("WEBHOOK_DEADLINE_MS", "80");
+    shopifyLangsamMs = 400;
+    const r = await postWebhook(orderBody({ id: 49, tickets: 1 }));
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ ok: true, status: "langsam" });
+    expect(qstashPublishes).toHaveLength(0); // Turbo kam gar nicht erst dran
   });
 
   it("aufgebrauchtes Antwort-Budget überspringt den Turbo komplett", async () => {
