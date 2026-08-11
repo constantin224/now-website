@@ -132,11 +132,13 @@ export function HeroVideo({ locale }: { locale: Locale }) {
           </video>
         )}
 
-        {/* Reduced-Motion-Fallback */}
+        {/* Reduced-Motion-Fallback — das Video-Poster (Crowd-Foto), NICHT das
+            Album-Artwork: Das trägt selbst einen NOW.-Stempel, und mit dem
+            weißen Seiten-Logo darüber ergab das ein Doppel-Logo. */}
         {prefersReducedMotion && (
           <Image
-            src="/album-cover-out.jpg"
-            alt="Now. Band"
+            src="/video-poster.jpg"
+            alt="Now. live"
             fill
             priority
             className="object-cover"
