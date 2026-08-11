@@ -82,8 +82,21 @@ export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: P
     const ih = H - PAD.top - PAD.bottom;
     const prices = history.map((p) => p.price);
     const dataMax = Math.max(...prices);
-    const yMin = Math.max(0, floorEuro - 0.5);
-    const yMax = dataMax * 1.08;
+    const dataMin = Math.min(...prices);
+    // Y-Achse ZOOMT AUF DIE DATEN statt immer bis zum Boden zu spannen:
+    // Beim Kurs um 21–22 € läge sonst der ganze untere Chart leer und der
+    // 1-€-Community-Sprung wäre eine kaum sichtbare Stufe. Mindestspanne
+    // 5 €, damit die Cent-Drifts des Zeit-Anteils flach bleiben (1 € Sprung
+    // = 20 % der Höhe). Die Boden-Linie kommt automatisch ins Bild, sobald
+    // der Kurs ihr nahekommt (yMin klemmt nie unter floor − 0,5).
+    let yMin = dataMin - 0.75;
+    let yMax = dataMax + 0.75;
+    const fehlt = 5 - (yMax - yMin);
+    if (fehlt > 0) {
+      yMin -= fehlt / 2;
+      yMax += fehlt / 2;
+    }
+    yMin = Math.max(yMin, floorEuro - 0.5);
     const t0 = new Date(history[0].t).getTime();
     const t1 = new Date(history[history.length - 1].t).getTime();
     const tSpan = Math.max(t1 - t0, 1);
@@ -105,6 +118,8 @@ export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: P
   const gradId =
     trend === "down" ? "tickerAreaUp" : trend === "up" ? "tickerAreaDown" : "tickerAreaFlat";
   const gridSteps = [0.25, 0.5, 0.75, 1].map((f) => yMin + f * (yMax - yMin));
+  // Boden-Linie nur zeichnen, wenn der Boden im sichtbaren Ausschnitt liegt
+  const zeigeBoden = floorEuro >= yMin;
   const floorY = y(floorEuro);
   const linePath = linePathOf(pts);
   const areaPath = `${linePath} L ${(W - PAD.right).toFixed(1)} ${(PAD.top + ih).toFixed(1)} L ${PAD.left.toFixed(1)} ${(PAD.top + ih).toFixed(1)} Z`;
@@ -197,26 +212,31 @@ export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: P
           </g>
         ))}
 
-        {/* Boden-Linie — der lächerliche Ernst des Marktes */}
-        <line
-          x1={PAD.left}
-          x2={W - PAD.right}
-          y1={floorY}
-          y2={floorY}
-          stroke={DOWN}
-          strokeOpacity="0.5"
-          strokeWidth="1"
-          strokeDasharray="5 5"
-        />
-        <text
-          x={W - PAD.right}
-          y={floorY - 7}
-          textAnchor="end"
-          fontSize="13"
-          fill={INK_MUTED}
-        >
-          {labels.floor.replace("{price}", fmt(floorEuro))}
-        </text>
+        {/* Boden-Linie — der lächerliche Ernst des Marktes. Erscheint erst,
+            wenn die Community den Kurs in ihre Nähe gekauft hat. */}
+        {zeigeBoden && (
+          <>
+            <line
+              x1={PAD.left}
+              x2={W - PAD.right}
+              y1={floorY}
+              y2={floorY}
+              stroke={DOWN}
+              strokeOpacity="0.5"
+              strokeWidth="1"
+              strokeDasharray="5 5"
+            />
+            <text
+              x={W - PAD.right}
+              y={floorY - 7}
+              textAnchor="end"
+              fontSize="13"
+              fill={INK_MUTED}
+            >
+              {labels.floor.replace("{price}", fmt(floorEuro))}
+            </text>
+          </>
+        )}
 
         {/* Fläche + weiche Kurs-Linie (zeichnet sich beim Reveal ein) */}
         <path d={areaPath} fill={`url(#${gradId})`} />
