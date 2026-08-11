@@ -148,6 +148,34 @@ Im Bestands-Notpfad bewusst geblieben (Restrisiko): Zählt der Cron einen Verkau
 
 ---
 
+## Kauf-Turbo (seit 11.08. abends)
+
+Der Webhook (Shopify-Abo `orders/create` → `/api/ticker/webhook`, angelegt
+via `scripts/boerse-turbo-setup.sh`) publiziert bei jeder ECHTEN
+Ticket-Bestellung im Ticket-Modus drei **verzögerte QStash-Messages**:
+Ledger-Pass des Ticket-Systems +10 s, Börsen-Tick +75 s und +180 s (Netz).
+**Preis ~90 s nach Kauf statt bis zu 10 min** — ohne die Cron-Grundlast
+anzuheben (~3 Messages pro Verkauf, QStash bleibt Free).
+
+Leitplanken (`lib/ticker/turbo.ts` + Webhook):
+- **Nur Beschleuniger, nie Tragwerk**: Der Webhook bucht weiterhin NICHTS
+  (Blocker 21); er bittet die idempotenten Cron-Pfade um frühere Läufe. Der
+  5-min-Cron bleibt der Fallback — fällt der Turbo aus, wird alles nur
+  wieder so langsam wie vorher.
+- **Antwort-Budget**: Gesamt-Deadline `WEBHOOK_DEADLINE_MS` (4 s) über der
+  kompletten Verarbeitung — readTicker kann mit kaltem Token sonst allein
+  Shopifys ~5-s-Fenster reißen (Abo-Lösch-Mechanik!). Bei Ablauf: Verkäufe
+  200 + Fallback-Hinweis, TESTbestellungen 500 (Retry rettet die
+  Neutralisierung im Bestands-Notpfad; recentOrders verhindert Doppelung).
+- **`Upstash-Deduplication-Id` = `turbo-<orderId>-<zielIndex>`** —
+  Shopify-Doppelzustellungen verstärken nichts, QStash verwirft Dubletten.
+- Envs: `QSTASH_TOKEN`, `TICKETS_CRON_SECRET` (CRON_SECRET des
+  Ticket-Systems), `SHOPIFY_WEBHOOK_SECRET` (= Client-Secret der Admin-App —
+  Shopify signiert per API angelegte Abos damit). Fehlen sie: Turbo
+  schlicht aus, kein Fehler.
+
+---
+
 ## Schutzschichten
 
 | Schutz | Wirkung |
