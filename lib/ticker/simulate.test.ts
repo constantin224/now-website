@@ -38,14 +38,17 @@ function simulate(salesPerDay: number) {
 }
 
 describe("Simulation: 96 Tage bis zum Gig", () => {
-  it("totale Flaute: Kurs steigt, erreicht den Deckel aber frühestens nach 8 Tagen", () => {
+  it("totale Flaute: Kurs steigt, erreicht den Deckel aber nicht sofort", () => {
     const r = simulate(0);
     expect(r.price).toBe(C.capEuro); // 96 Tage Flaute → Deckel, klar
     expect(r.sold).toBe(0);
     // Gemessen an der SIMULATION, nicht an der Config-Arithmetik: Eine Engine,
-    // die schon am ersten Tick auf 30 € spränge, muss hier scheitern.
+    // die schon am ersten Tick auf den Deckel spränge, muss hier scheitern.
+    // Erwartete Dauer aus der Config abgeleitet, damit der Test eine
+    // Deckel-Änderung überlebt (Distanz ÷ Anstieg pro Tag).
+    const flauteTageBisDeckel = (C.capEuro - C.startPriceEuro) / C.riseEuroPerDay;
     expect(r.capAbStunde).not.toBeNull();
-    expect(r.capAbStunde!).toBeGreaterThanOrEqual(8 * 24);
+    expect(r.capAbStunde!).toBeGreaterThanOrEqual(flauteTageBisDeckel * 24);
   });
 
   it("Gleichgewicht: 1 Verkauf/Tag hält den Kurs beim Start ±1 €", () => {

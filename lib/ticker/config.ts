@@ -21,7 +21,7 @@ export const TICKER_CONFIG = {
   // GLEICHGEWICHT: 1 Verkauf/Tag hält den Kurs exakt still. Mehr → er fällt
   // Richtung Boden (die Community "kauft den Preis runter"), weniger → er
   // steigt Richtung Deckel. Vom START: 14 Netto-Verkäufe bis zum Boden und
-  // 8 Flaute-Tage bis zum Deckel (vom Deckel aus wären es maximal 22 bis
+  // 3 Flaute-Tage bis zum Deckel (vom Deckel aus wären es maximal 17 bis
   // zum Boden — der Zeit-Anteil verschiebt die Distanz laufend).
   saleDropEuro: 1.0,
 
@@ -37,7 +37,10 @@ export const TICKER_CONFIG = {
   riseEuroPerDay: 1.0,
 
   floorEuro: 8.0, // Boden — lächerlich niedrig, aber nicht gratis
-  capEuro: 30.0, // Deckel — Flaute macht teurer, aber nie Konzern-Abzocke
+  // Deckel — Flaute macht teurer, aber nie Konzern-Abzocke. 18.08. von 30 auf
+  // 25 gesenkt: Der Kurs kletterte real Richtung 30, das strafte statt zu
+  // spielen — die Börse soll Tickets GÜNSTIGER machen, nicht teurer.
+  capEuro: 25.0,
 
   // Sicherheitsklemme gegen Inventar-Pannen — gilt NUR für den Cron, der
   // Verkäufe aus dem Bestand ableitet. Ein absurder Sturz kommt dort nicht von
