@@ -38,8 +38,8 @@
   "shows": {
     "title": "Shows",
     "description": "Live-Termine und Konzerte von Now. — Pop-Rock-Band aus Wien. Tickets und Booking-Infos.",
-    "upcoming": "Upcoming Shows",
-    "past": "Past Shows",
+    "upcoming": "Kommende Shows",
+    "past": "Vergangene Shows",
     "tickets": "Tickets",
     "free_entry": "Free Entry",
     "played": "Played",
@@ -47,7 +47,12 @@
     "booking_cta": "Für Booking-Anfragen:",
     "booking_label": "Booking:",
     "booking_email": "booking@now-music.at",
-    "tickerBanner": "Wien 17.10.: Ticketpreis wird live vom Markt bestimmt — aktueller Kurs auf der Ticket-Börse →"
+    "tickerBanner": "Wien 17.10.: Ticketpreis wird live vom Markt bestimmt — aktueller Kurs auf der Ticket-Börse →",
+    "tickets_soon": "Tickets folgen",
+    "rsvp": "Ich komme (RSVP)",
+    "follow": "Auf Bandsintown folgen",
+    "follow_hint": "Bandsintown-Follower bekommen neue Termine automatisch — auch in Spotify.",
+    "load_error": "Termine konnten gerade nicht geladen werden. Alle Shows auf"
   },
   "press": {
     "title": "Press / EPK",

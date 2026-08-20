@@ -47,7 +47,12 @@
     "booking_cta": "For booking inquiries:",
     "booking_label": "Booking:",
     "booking_email": "booking@now-music.at",
-    "tickerBanner": "Vienna Oct 17: ticket price is set live by the market — see the current rate →"
+    "tickerBanner": "Vienna Oct 17: ticket price is set live by the market — see the current rate →",
+    "tickets_soon": "Tickets soon",
+    "rsvp": "I'm going (RSVP)",
+    "follow": "Follow on Bandsintown",
+    "follow_hint": "Bandsintown followers get new dates automatically — including on Spotify.",
+    "load_error": "Dates could not be loaded right now. All shows on"
   },
   "press": {
     "title": "Press / EPK",

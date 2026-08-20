@@ -1,69 +1,26 @@
 import type { Metadata } from "next";
 import { getMessages, type Locale } from "@/lib/i18n";
 import { localeMetadata } from "@/lib/seo";
-import BandsintownWidget from "@/components/bandsintown-widget";
+import { fetchShows, resolveShow, type BandsintownEvent } from "@/lib/shows";
+import { ShowList } from "@/components/show-list";
 import { ScrollReveal } from "@/components/scroll-reveal";
 
-// Bandsintown Events serverseitig fetchen für JSON-LD
-async function fetchEvents() {
-  try {
-    const res = await fetch(
-      "https://rest.bandsintown.com/artists/id_3443904/events?app_id=1b7edb13c859c0b3491ebd6957a9326b",
-      { next: { revalidate: 3600 } } // 1h Cache
-    );
-    if (!res.ok) return [];
-    return await res.json();
-  } catch {
-    return [];
-  }
-}
+const SITE = "https://now-music.at";
 
-interface BandsintownEvent {
-  title?: string;
-  datetime: string;
-  ends_at?: string;
-  description?: string;
-  url: string;
-  free?: boolean;
-  venue?: {
-    name?: string;
-    street_address?: string;
-    city?: string;
-    postal_code?: string;
-    country?: string;
-    latitude?: number;
-    longitude?: number;
-  };
-  offers?: { price?: number; currency?: string }[];
-  artist?: { image_url?: string };
-}
-
-// MusicEvent JSON-LD generieren mit vollständigen offers
-function buildEventsJsonLd(events: BandsintownEvent[]) {
+// MusicEvent JSON-LD — Offer-URL zeigt auf den echten Ticketshop (Override > Bandsintown)
+function buildEventsJsonLd(events: BandsintownEvent[], locale: Locale) {
   return events.map((event) => {
-    const offer: Record<string, string> = {
-      "@type": "Offer",
-      url: event.url,
-      availability: "https://schema.org/InStock",
-    };
-
-    // Preis aus Bandsintown-Offers übernehmen, sonst Default setzen
-    if (event.offers && event.offers.length > 0 && event.offers[0].price) {
-      offer.price = String(event.offers[0].price);
-      offer.priceCurrency = event.offers[0].currency || "EUR";
-    } else if (event.free) {
-      offer.price = "0";
-      offer.priceCurrency = "EUR";
-    } else {
-      // Google verlangt price/priceCurrency — Ticket-URL verweist auf Details
-      offer.price = "0";
-      offer.priceCurrency = "EUR";
-    }
+    const show = resolveShow(event, locale);
+    const offerUrl = show.ticketUrl
+      ? show.ticketUrl.startsWith("/")
+        ? `${SITE}${show.ticketUrl}`
+        : show.ticketUrl
+      : show.eventUrl;
 
     return {
       "@context": "https://schema.org",
       "@type": "MusicEvent",
-      name: event.title || `Now. Live – ${event.venue?.name || ""}`,
+      name: event.title || `Now. Live – ${show.venue}`,
       startDate: event.datetime,
       ...(event.ends_at && { endDate: event.ends_at }),
       ...(event.description && { description: event.description }),
@@ -71,34 +28,37 @@ function buildEventsJsonLd(events: BandsintownEvent[]) {
       eventStatus: "https://schema.org/EventScheduled",
       location: {
         "@type": "Place",
-        name: event.venue?.name || "",
+        name: show.venue || event.venue?.name || "",
         address: {
           "@type": "PostalAddress",
           streetAddress: event.venue?.street_address || "",
-          addressLocality: event.venue?.city || "",
+          addressLocality: show.city || event.venue?.city || "",
           postalCode: event.venue?.postal_code || "",
           addressCountry: event.venue?.country || "Austria",
         },
         ...(event.venue?.latitude && {
           geo: {
             "@type": "GeoCoordinates",
-            latitude: event.venue.latitude,
-            longitude: event.venue.longitude,
+            latitude: Number(event.venue.latitude),
+            longitude: Number(event.venue.longitude),
           },
         }),
       },
-      performer: {
-        "@type": "MusicGroup",
-        name: "Now.",
-        url: "https://now-music.at",
-      },
-      organizer: {
-        "@type": "Organization",
-        name: "Now.",
-        url: "https://now-music.at",
-      },
-      offers: [offer],
-      image: event.artist?.image_url || "https://now-music.at/og-image.jpg",
+      performer: { "@type": "MusicGroup", name: "Now.", url: SITE },
+      organizer: { "@type": "Organization", name: "Now.", url: SITE },
+      offers: [
+        {
+          "@type": "Offer",
+          url: offerUrl,
+          availability: show.ticketUrl
+            ? "https://schema.org/InStock"
+            : "https://schema.org/PreOrder",
+          // Google verlangt price/priceCurrency; 0 = kein fixer Preis bekannt
+          price: "0",
+          priceCurrency: "EUR",
+        },
+      ],
+      image: event.artist?.image_url || `${SITE}/og-image.jpg`,
     };
   });
 }
@@ -122,10 +82,11 @@ export default async function ShowsPage({
 }: {
   params: Promise<{ locale: string }>;
 }) {
-  const { locale } = await params;
-  const t = getMessages(locale as Locale);
-  const events = await fetchEvents();
-  const eventsJsonLd = buildEventsJsonLd(events);
+  const { locale: rawLocale } = await params;
+  const locale = rawLocale as Locale;
+  const t = getMessages(locale);
+  const { upcoming, past, failed } = await fetchShows();
+  const eventsJsonLd = buildEventsJsonLd(upcoming, locale);
 
   return (
     <>
@@ -137,39 +98,39 @@ export default async function ShowsPage({
         />
       )}
       <section className="pt-28 md:pt-36 pb-[var(--spacing-section)] px-6">
-      <div className="max-w-4xl mx-auto">
-        {/* H1 — visuell als Section Label */}
-        <h1 className="font-heading font-light text-terracotta uppercase tracking-[0.2em] text-2xl md:text-3xl text-center mb-12">
-          {t.shows.title}
-        </h1>
+        <div className="max-w-4xl mx-auto">
+          {/* H1 — visuell als Section Label */}
+          <h1 className="font-heading font-light text-terracotta uppercase tracking-[0.2em] text-2xl md:text-3xl text-center mb-12">
+            {t.shows.title}
+          </h1>
 
-        {/* Hinweis-Banner zur Ticket-Börse — dezent, aber auffindbar */}
-        <a
-          href={`/${locale}/tickets`}
-          className="block border border-line rounded-lg px-5 py-3 text-sm text-sand/70 hover:text-terracotta hover:border-terracotta/30 transition-colors mb-10"
-        >
-          {t.shows.tickerBanner}
-        </a>
+          {/* Hinweis-Banner zur Ticket-Börse — dezent, aber auffindbar */}
+          <a
+            href={`/${locale}/tickets`}
+            className="block border border-line rounded-lg px-5 py-3 text-sm text-sand/70 hover:text-terracotta hover:border-terracotta/30 transition-colors mb-10"
+          >
+            {t.shows.tickerBanner}
+          </a>
 
-        {/* Bandsintown Widget — automatisch synchronisiert */}
-        <ScrollReveal className="min-h-[200px]">
-          <BandsintownWidget />
-        </ScrollReveal>
+          {/* Show-Liste — Bandsintown-Daten, eigenes Rendering */}
+          <ScrollReveal className="min-h-[200px]">
+            <ShowList upcoming={upcoming} past={past} failed={failed} locale={locale} />
+          </ScrollReveal>
 
-        {/* Booking CTA */}
-        <ScrollReveal className="text-center mt-[var(--spacing-block)] pt-12">
-          <p className="text-sand/40 text-sm">
-            {t.shows.booking_label}{" "}
-            <a
-              href="mailto:andreas@oton-agentur.at"
-              className="text-terracotta hover:text-terracotta/80 transition-colors"
-            >
-              andreas@oton-agentur.at
-            </a>
-          </p>
-        </ScrollReveal>
-      </div>
-    </section>
+          {/* Booking CTA */}
+          <ScrollReveal className="text-center mt-[var(--spacing-block)] pt-12">
+            <p className="text-sand/40 text-sm">
+              {t.shows.booking_label}{" "}
+              <a
+                href="mailto:andreas@oton-agentur.at"
+                className="text-terracotta hover:text-terracotta/80 transition-colors"
+              >
+                andreas@oton-agentur.at
+              </a>
+            </p>
+          </ScrollReveal>
+        </div>
+      </section>
     </>
   );
 }
