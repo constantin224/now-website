@@ -135,7 +135,7 @@
     "closingLine": "Dynamic Pricing endet am 17. Oktober. Danach gibt es die Abendkassa — Fixpreis, wie im Mittelalter.",
     "heroTagline": "Dynamic Pricing wie bei den Superstars — nur in die andere Richtung.",
     "live": "LIVE",
-    "nextDrop": "Der Preis sinkt, wenn jemand kauft. Sonst steigt er — 1 € pro Tag, schleichend.",
+    "nextDrop": "Der Preis sinkt, wenn jemand kauft. Sonst steigt er — 1 € pro Tag, schleichend. Nie unter {floor}, nie über {cap}.",
     "share": "Kurs teilen",
     "shared": "Link kopiert",
     "shareText": "Das NOW.-Ticket steht gerade bei {price}. Dynamic Pricing wie bei den Superstars — nur in die andere Richtung:",

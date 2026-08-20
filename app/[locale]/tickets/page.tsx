@@ -245,7 +245,10 @@ export default async function TicketsPage({
             {t.heroTagline}
           </p>
           <p className="text-sm text-sand/50 mt-3 animate-fade-in-delay">
-            {t.nextDrop}
+            {/* Spanne aus der Config — Deckel/Boden stehen nie hart im Text */}
+            {t.nextDrop
+              .replace("{floor}", euro(C.floorEuro))
+              .replace("{cap}", euro(C.capEuro))}
           </p>
 
           {/* Kauf-Fokus: CTA direkt im Hero */}
