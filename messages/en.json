@@ -72,7 +72,13 @@
     "description": "Merch and music from Now. — T-shirts, CDs and more",
     "view": "View Product",
     "empty": "No products available at the moment.",
-    "checkout_hint": "Checkout & shipping via shop.tonherd.at"
+    "checkout_hint": "Checkout & shipping via shop.tonherd.at",
+    "preorder_label": "Pre-order",
+    "release_on": "out",
+    "out_now_label": "New album",
+    "preorder_desc": "The second album — 12 songs. Download delivered by e-mail on release day, CD ships at release, vinyl at the start of the tour in October.",
+    "preorder_cta": "Pre-order now",
+    "out_now_cta": "Order now"
   },
   "tickets": {
     "metaTitle": "Tickets — Official Ticket Platform | Now.",

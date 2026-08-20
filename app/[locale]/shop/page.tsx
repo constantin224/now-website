@@ -5,6 +5,8 @@ import { localeMetadata } from "@/lib/seo";
 import { getNowProducts, formatPrice, type ShopifyProduct } from "@/lib/shopify";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { ShoppingBag } from "lucide-react";
+import { PreorderHero } from "@/components/preorder-hero";
+import { albumPreorder } from "@/data/preorder";
 
 // Seite wird stündlich automatisch aktualisiert (ISR)
 export const revalidate = 3600;
@@ -50,7 +52,8 @@ export default async function ShopPage({
 }) {
   const { locale } = await params;
   const t = getMessages(locale as Locale);
-  const products = await getNowProducts();
+  // Album-Preorder hat eine eigene Karte oben — im Raster nicht doppelt zeigen
+  const products = (await getNowProducts()).filter((p) => p.handle !== albumPreorder.handle);
 
   return (
     <section className="pt-28 md:pt-36 pb-[var(--spacing-section)] px-6">
@@ -59,6 +62,9 @@ export default async function ShopPage({
         <h1 className="font-heading font-light text-terracotta uppercase tracking-[0.2em] text-2xl md:text-3xl text-center mb-16">
           {t.shop.title}
         </h1>
+
+        {/* Album-Preorder — immer sichtbar, unabhängig von der Shopify-Collection */}
+        <PreorderHero locale={locale as Locale} />
 
         {products.length === 0 ? (
           <p className="text-sand/45 text-center">{t.shop.empty}</p>

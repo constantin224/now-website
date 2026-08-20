@@ -72,7 +72,13 @@
     "description": "Merch und Musik von Now. — T-Shirts, CDs und mehr",
     "view": "Zum Produkt",
     "empty": "Aktuell keine Produkte verfügbar.",
-    "checkout_hint": "Checkout & Versand über shop.tonherd.at"
+    "checkout_hint": "Checkout & Versand über shop.tonherd.at",
+    "preorder_label": "Preorder",
+    "release_on": "VÖ",
+    "out_now_label": "Neues Album",
+    "preorder_desc": "Das zweite Album — 12 Songs. Download am Releasetag per E-Mail, CD zum Release, Vinyl zum Tourstart im Oktober.",
+    "preorder_cta": "Jetzt vorbestellen",
+    "out_now_cta": "Jetzt bestellen"
   },
   "tickets": {
     "metaTitle": "Tickets — Offizielle Ticket-Plattform | Now.",
