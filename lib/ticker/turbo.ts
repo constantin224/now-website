@@ -48,8 +48,15 @@ export async function feuerTurboTicks(
       uebersprungen++;
       return;
     }
+    // Ledger-Pass: die Bestell-ID mitgeben, damit das Ticket-System GENAU diese
+    // Bestellung per ID nachzieht (kein gedrosselter Voll-Abgleich, kein
+    // Suchindex). QStash reicht den Query-String des Ziels durch — live geprüft
+    // 02.09. (Log-Eintrag DELIVERED mit `?…` in der Ziel-URL).
+    const zielUrl = ziel.mitBestellId
+      ? `${ziel.url}?order=${encodeURIComponent(orderId)}`
+      : ziel.url;
     try {
-      const res = await fetch(`${C.qstashPublishBase}/${ziel.url}`, {
+      const res = await fetch(`${C.qstashPublishBase}/${zielUrl}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

@@ -97,10 +97,18 @@ export const TICKER_CONFIG = {
   // Ziele = DIESELBEN URLs wie die bestehenden QStash-Schedules (bewährt).
   // Der zweite Börsen-Tick ist das Netz, falls der Ledger-Pass den ersten
   // knapp verpasst; der */5-Cron bleibt ohnehin der Fallback.
+  //
+  // `mitBestellId` (seit 02.09.): Der Ledger-Pass bekommt `?order=<Bestell-ID>`
+  // angehängt und zieht GENAU diese Bestellung per ID nach. Vorher bat er nur
+  // um einen normalen Cron-Pass — dessen Shopify-Abgleich ist auf alle 10 min
+  // gedrosselt und sprang über, wenn kurz davor schon einer lief: zwei Käufe
+  // 3 min auseinander (#1426 → #1427), der zweite blieb bis zum nächsten
+  // fälligen Abgleich unsichtbar, Kurs erst 13 min später. Per ID gibt es
+  // weder Drossel noch nachhinkenden Suchindex (`order(id:)` liest direkt).
   turboZiele: [
-    { url: "https://tonherd-tickets.vercel.app/api/cron", delay: "10s", secretEnv: "TICKETS_CRON_SECRET" },
-    { url: "https://now-music.at/api/ticker/tick", delay: "75s", secretEnv: "CRON_SECRET" },
-    { url: "https://now-music.at/api/ticker/tick", delay: "180s", secretEnv: "CRON_SECRET" },
+    { url: "https://tonherd-tickets.vercel.app/api/cron", delay: "10s", secretEnv: "TICKETS_CRON_SECRET", mitBestellId: true },
+    { url: "https://now-music.at/api/ticker/tick", delay: "75s", secretEnv: "CRON_SECRET", mitBestellId: false },
+    { url: "https://now-music.at/api/ticker/tick", delay: "180s", secretEnv: "CRON_SECRET", mitBestellId: false },
   ],
   qstashPublishBase: "https://qstash-eu-central-1.upstash.io/v2/publish",
 

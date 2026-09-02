@@ -695,14 +695,20 @@ describe("Audit-Runde 4 — die Naht zur Ticket-Quelle", () => {
     expect(shop.variantPrice).toBe(22);
 
     // Genau die drei konfigurierten verzögerten Läufe: erst der Ledger-Pass
-    // des Ticket-Systems, dann zwei Börsen-Ticks — jeweils mit dem RICHTIGEN
+    // des Ticket-Systems — MIT der Bestell-ID (`?order=<id>`), damit er genau
+    // diese Bestellung per ID nachzieht statt den gedrosselten Voll-Abgleich
+    // zu bemühen (Befund 02.09.: zweiter Kauf 3 min nach dem ersten blieb
+    // 13 min unsichtbar) — dann zwei Börsen-Ticks, jeweils mit dem RICHTIGEN
     // weitergereichten Secret.
     expect(qstashPublishes).toHaveLength(3);
     const [ledger, tick1, tick2] = qstashPublishes;
-    expect(ledger.url).toContain("tonherd-tickets.vercel.app/api/cron");
+    expect(ledger.url).toBe(
+      "https://qstash-eu-central-1.upstash.io/v2/publish/https://tonherd-tickets.vercel.app/api/cron?order=41"
+    );
     expect(ledger.headers["Upstash-Delay"]).toBe("10s");
     expect(ledger.headers["Upstash-Forward-Authorization"]).toBe("Bearer tickets-cron-geheim");
-    expect(tick1.url).toContain("now-music.at/api/ticker/tick");
+    expect(tick1.url).toBe("https://qstash-eu-central-1.upstash.io/v2/publish/https://now-music.at/api/ticker/tick");
+    expect(tick2.url).toBe("https://qstash-eu-central-1.upstash.io/v2/publish/https://now-music.at/api/ticker/tick");
     expect(tick1.headers["Upstash-Delay"]).toBe("75s");
     expect(tick1.headers["Upstash-Forward-Authorization"]).toBe(`Bearer ${CRON_SECRET}`);
     expect(tick2.headers["Upstash-Delay"]).toBe("180s");
