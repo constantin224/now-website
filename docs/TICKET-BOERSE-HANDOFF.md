@@ -1,12 +1,13 @@
 # Ticket-Börse — Handoff
 
-**Stand: 2026-08-11 spät** · alles auf `main` + gepusht · 140/140 Tests, Build/tsc/Lint grün · **Preismodell seit 10.08.: Community-Pricing** (Spec: `docs/superpowers/specs/2026-08-10-boerse-community-pricing-design.md`)
+**Stand: 2026-09-02 früh** · alles auf `main` + gepusht · 186/186 Tests, Build/tsc/Lint grün · **seit 02.09.: Sättigung an Deckel+Boden, Kauf-Stufen im Chart, Kauf-Turbo erstmals wirklich aktiv** (§Sättigung, §Kauf-Turbo Befund) · **Preismodell seit 10.08.: Community-Pricing** (Spec: `docs/superpowers/specs/2026-08-10-boerse-community-pricing-design.md`)
 
 > ## 🚀 DIE BÖRSE IST LIVE (seit 11.08. ~14:09)
 >
 > - Go-Live via `./scripts/boerse-golive.sh` (67 s, alle 9 Schritte sauber): Baseline **28 Alt-Tickets**, `quelle: tickets`, Start 22,00 €, QStash-Schedule `scd_69AA2q822WkqRKTdpZsHWFECP7ge` (*/5).
 > - **Erster echter Kauf real bewiesen** (11.08. mittags): 22,00 → 21,00 € in 8 min, sale-Punkt im Chart, Shopify + Seite synchron. Ein Storno höbe exakt zurück.
 > - **Wächter aktiv** (Apps-Script „Tonherd Tickets Waechter", Property `BOERSE_MONITOR_SECRET` gesetzt, `pruefe` still) — mailt an system@tonherd.com bei allem außer Grün. `TICKER_EXPECTED_RUNNING=1`: „disabled" ist seit dem Go-Live eine Alarm-Lage, kein Ruhezustand.
+> - ⚠️ **02.09.: Der Turbo war vom 11.08. bis 02.09. TOT** (Webhook 401 — Shopify signiert mit dem ältesten Client-Secret, wir prüften nur das neue; der „Beweis" vom 11.08. war der Cron). Seit 02.09. 08:03 real belegt (§Kauf-Turbo Befund). Ursprünglicher Eintrag:
 > - **Kauf-Turbo LIVE** (11.08. ~22:40, Shopify-Abo `gid://shopify/WebhookSubscription/2492050014539` via `scripts/boerse-turbo-setup.sh`): echte Käufe werden in **~90 s** eingepreist (§Kauf-Turbo). Fallback bleibt der */5-Cron.
 > - Chart zoomt seit 11.08. auf die Daten (Boden-Linie erscheint erst bei Annäherung); Hero-Reduced-Motion-Fallback = Crowd-Foto.
 > - Not-Aus-Reihenfolge unverändert (§Notfall-Rollback); der Ampel-Alarm beim bewussten Not-Aus ist gewollt.
@@ -346,6 +347,9 @@ Den Preis allein zurückzustellen **reicht nicht** — der nächste Tick übersc
 
 | | |
 |---|---|
+| 🟡 **Altes Client-Secret widerrufen** | 02.09.: App „Claude Code Admin" hat zwei Secrets; Webhook prüft beide (`SHOPIFY_WEBHOOK_SECRET_ALT`). Widerruf von „Alt" im Dev Dashboard = Constantin, irreversibel, nur wenn nichts anderes damit authentifiziert (lokal nichts gefunden). Danach `_ALT`-Env entfernen. Ohne Widerruf läuft alles. |
+| 🟡 **Erster Kauf mit 90-s-Sprung** | Mechanik am 02.09. per Shopify-Retry belegt (200 → 3 QStash-Messages → Ticks). Beim nächsten frischen Kauf: Vercel-Log 200, QStash-Messages, Sale-Event ≈ 90 s nach Bestellzeit — dann Haken dran. |
+| 🟡 **Reel-Skript v4** | `tonherd-instagram/analysis/reel-skript-ticket-boerse.md` (31.08.) erwähnt evtl. den Deckel-Überhang — gegenlesen, Mechanik ist jetzt wie versprochen. |
 | 🟢 **Go-Live** | **vorbereitet (06.08.)** — Evey-Ablösung ist durch (27.07.); Ausführung = `./scripts/boerse-golive.sh` + Apps-Script-Property. ⚠️ Schritt „Ticket-System scharfschalten" heißt heute konkret: **Wien manuell armen** — das Auto-Arming des Ticket-Systems (seit 18.07., `lib/veranstalter-sync.ts`) greift erst doors−12h; bis dahin liefert `/api/verkaufszahl` `scharf:false`, der Start würde 503 verweigern. Das Script erledigt das. |
 | 🟢 **Testbestellungen im Ledger** | **erledigt (18.07.)** — `entitlementsForOrder` schließt `test:true` global aus; `ignoredTickets` im Ticket-Modus obsolet. |
 | 🟢 **Endpunkt mergen** | **erledigt (18.07.)** — `/api/verkaufszahl` ist gemergt + live (Codex fand beim Merge 2 Bugs: `used` ist HASH → hlen; `__leer__`-Sentinel zählte mit). |
