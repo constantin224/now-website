@@ -4,14 +4,22 @@ import crypto from "node:crypto";
 export function verifyShopifyHmac(
   rawBody: string,
   hmacHeader: string | null,
-  secret: string
+  /**
+   * Ein Secret — oder MEHRERE, von denen eines passen muss. Grund (Befund
+   * 02.09.): Shopify signiert Webhooks mit dem ÄLTESTEN nicht widerrufenen
+   * Client-Secret der App. Nach einer Rotation (zwei Secrets im Dev Dashboard)
+   * signiert also weiter das alte, während der Token-Flow schon das neue
+   * nimmt — genau daran scheiterte der Kauf-Turbo drei Wochen lang mit 401.
+   * Beide zu akzeptieren macht die Route gegen den Rotationszustand immun.
+   */
+  secret: string | readonly string[]
 ): boolean {
   if (!hmacHeader) return false;
-  const digest = crypto
-    .createHmac("sha256", secret)
-    .update(rawBody, "utf8")
-    .digest("base64");
-  const a = Buffer.from(digest);
+  const secrets = (typeof secret === "string" ? [secret] : secret).filter(Boolean);
   const b = Buffer.from(hmacHeader);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  return secrets.some((s) => {
+    const digest = crypto.createHmac("sha256", s).update(rawBody, "utf8").digest("base64");
+    const a = Buffer.from(digest);
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  });
 }

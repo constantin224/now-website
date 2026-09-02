@@ -20,4 +20,12 @@ describe("verifyShopifyHmac", () => {
   it("lehnt fehlenden Header ab", () => {
     expect(verifyShopifyHmac(body, null, secret)).toBe(false);
   });
+
+  it("akzeptiert eines von mehreren Secrets (Rotation: Shopify signiert mit dem ältesten)", () => {
+    expect(verifyShopifyHmac(body, valid, ["neues-secret", secret])).toBe(true);
+    expect(verifyShopifyHmac(body, valid, [secret, "neues-secret"])).toBe(true);
+    expect(verifyShopifyHmac(body, valid, ["neues-secret", "noch-eins"])).toBe(false);
+    expect(verifyShopifyHmac(body, valid, [])).toBe(false);
+    expect(verifyShopifyHmac(body, valid, ["", secret])).toBe(true); // leere Werte werden ignoriert
+  });
 });

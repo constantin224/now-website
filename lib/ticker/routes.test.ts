@@ -163,9 +163,9 @@ function orderBody(opts: { id: number; tickets: number; test?: boolean }) {
   });
 }
 
-async function postWebhook(body: string) {
+async function postWebhook(body: string, secret = SECRET) {
   const { POST } = await import("@/app/api/ticker/webhook/route");
-  const hmac = createHmac("sha256", SECRET).update(body, "utf8").digest("base64");
+  const hmac = createHmac("sha256", secret).update(body, "utf8").digest("base64");
   const req = new Request("https://now-music.at/api/ticker/webhook", {
     method: "POST",
     headers: { "x-shopify-hmac-sha256": hmac },
@@ -201,6 +201,7 @@ beforeEach(() => {
   vi.stubEnv("TICKER_ENABLED", "1");
   vi.stubEnv("TICKER_MOCK", "");
   vi.stubEnv("SHOPIFY_WEBHOOK_SECRET", SECRET);
+  vi.stubEnv("SHOPIFY_WEBHOOK_SECRET_ALT", ""); // Standard: kein Zweit-Secret
   vi.stubEnv("CRON_SECRET", CRON_SECRET);
   vi.stubEnv("MONITOR_SECRET", MONITOR_SECRET);
   // Kauf-Turbo: im Standard konfiguriert, damit der Ticket-Modus ihn feuert
@@ -1129,5 +1130,23 @@ describe("02.09. — ?nachtrag=1: den Alt-Zustand ins Sättigungsmodell heben", 
     const r3 = await getTick();
     expect(await r3.json()).toMatchObject({ status: "ok", price: C.capEuro - 1, soldCount: 10 });
     expect(shop.variantPrice).toBe(C.capEuro - 1);
+  });
+});
+
+describe("02.09. — Webhook akzeptiert beide Client-Secrets (Rotation im Dev Dashboard)", () => {
+  // Befund: Shopify signiert mit dem ÄLTESTEN nicht widerrufenen Secret. Vercel
+  // hatte nur das neue → jeder echte Webhook 401, der Kauf-Turbo feuerte nie.
+  it("mit SHOPIFY_WEBHOOK_SECRET_ALT signierte Zustellung → 200, sonst 401", async () => {
+    const body = orderBody({ id: 4242, tickets: 0 }); // ticketfrei: keine Nebenwirkung
+    const ohneAlt = await postWebhook(body, "altes-secret");
+    expect(ohneAlt.status).toBe(401);
+
+    vi.stubEnv("SHOPIFY_WEBHOOK_SECRET_ALT", "altes-secret");
+    const mitAlt = await postWebhook(body, "altes-secret");
+    expect(mitAlt.status).toBe(200);
+    const mitNeu = await postWebhook(body, SECRET);
+    expect(mitNeu.status).toBe(200);
+    const falsch = await postWebhook(body, "ganz-anders");
+    expect(falsch.status).toBe(401);
   });
 });

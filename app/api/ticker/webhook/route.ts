@@ -83,9 +83,13 @@ function readOrder(rawBody: string): OrderInfo {
 
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
-  const secret = process.env.SHOPIFY_WEBHOOK_SECRET;
+  // Beide Client-Secrets der App akzeptieren (Rotation im Dev Dashboard):
+  // Shopify signiert mit dem ÄLTESTEN nicht widerrufenen Secret — siehe
+  // lib/ticker/hmac.ts. Ohne _ALT war der Webhook seit der Rotation 401.
+  const secrets = [process.env.SHOPIFY_WEBHOOK_SECRET, process.env.SHOPIFY_WEBHOOK_SECRET_ALT]
+    .filter((s): s is string => Boolean(s));
   const hmac = request.headers.get("x-shopify-hmac-sha256");
-  if (!secret || !verifyShopifyHmac(rawBody, hmac, secret)) {
+  if (secrets.length === 0 || !verifyShopifyHmac(rawBody, hmac, secrets)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (!tickerEnabled()) {
