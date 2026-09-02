@@ -194,5 +194,8 @@ export async function GET(request: NextRequest) {
     soldCount: state.soldCount,
     quelle: state.quelle,
     lastTickAt: state.lastTickAt,
+    // Alt-Zustand von vor der Sättigung (02.09.)? Dann fehlt noch `?nachtrag=1`.
+    // Kein Alarm — die Börse läuft; nur ein Hinweis für den Operator.
+    nachtragOffen: state.saettigungEuro === null,
   });
 }

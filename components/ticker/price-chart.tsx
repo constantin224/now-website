@@ -80,7 +80,9 @@ export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: P
         : raw;
     const iw = W - PAD.left - PAD.right;
     const ih = H - PAD.top - PAD.bottom;
-    const prices = history.map((p) => p.price);
+    // `von` (Kurs vor einem Kauf) gehört mit in die Y-Spanne — sonst ragte die
+    // Stufe über den Rand.
+    const prices = history.flatMap((p) => (p.von !== undefined ? [p.price, p.von] : [p.price]));
     const dataMax = Math.max(...prices);
     const dataMin = Math.min(...prices);
     // Y-Achse ZOOMT AUF DIE DATEN statt immer bis zum Boden zu spannen:
@@ -100,19 +102,29 @@ export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: P
     const t0 = new Date(history[0].t).getTime();
     const t1 = new Date(history[history.length - 1].t).getTime();
     const tSpan = Math.max(t1 - t0, 1);
+    const yOf = (v: number) => PAD.top + (1 - (v - yMin) / (yMax - yMin)) * ih;
     const pts = history.map((p) => ({
       x: PAD.left + ((new Date(p.t).getTime() - t0) / tSpan) * iw,
-      y: PAD.top + (1 - (p.price - yMin) / (yMax - yMin)) * ih,
+      y: yOf(p.price),
       p,
     }));
-    return { iw, ih, yMin, yMax, pts };
+    // Die LINIE bekommt vor jedem Kauf/Storno einen Zwischenpunkt auf dem
+    // Kurs davor (`von`): senkrechte Stufe im Kauf-Moment. Am Deckel liegt der
+    // letzte echte Punkt sonst tagelang zurück, und aus dem Kauf würde eine
+    // schleichende Schräge. Hover/Tooltip arbeiten weiter auf den echten Punkten.
+    const linePts = pts.flatMap((q) =>
+      q.p.von !== undefined && q.p.von !== q.p.price
+        ? [{ x: q.x, y: yOf(q.p.von) }, { x: q.x, y: q.y }]
+        : [{ x: q.x, y: q.y }]
+    );
+    return { iw, ih, yMin, yMax, pts, linePts };
   }, [raw, floorEuro]);
 
   // Am Launch-Tag existiert nur EIN Punkt — dann eine flache Linie zeigen,
   // statt den Chart ganz verschwinden zu lassen.
   if (raw.length === 0) return null;
 
-  const { ih, yMin, yMax, pts } = geo;
+  const { ih, yMin, yMax, pts, linePts } = geo;
   const y = (v: number) => PAD.top + (1 - (v - yMin) / (yMax - yMin)) * ih;
   const color = trend === "down" ? UP : trend === "up" ? DOWN : FLAT;
   const gradId =
@@ -121,7 +133,7 @@ export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: P
   // Boden-Linie nur zeichnen, wenn der Boden im sichtbaren Ausschnitt liegt
   const zeigeBoden = floorEuro >= yMin;
   const floorY = y(floorEuro);
-  const linePath = linePathOf(pts);
+  const linePath = linePathOf(linePts);
   const areaPath = `${linePath} L ${(W - PAD.right).toFixed(1)} ${(PAD.top + ih).toFixed(1)} L ${PAD.left.toFixed(1)} ${(PAD.top + ih).toFixed(1)} Z`;
   const last = pts[pts.length - 1];
   // ATH/ATL direkt am Chart annotieren
@@ -138,7 +150,9 @@ export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: P
     let bestD = Infinity;
     for (let i = 0; i < pts.length; i++) {
       const d = Math.abs(pts[i].x - px);
-      if (d < bestD) {
+      // Gleichstand (Drift und Kauf im selben Tick = gleiches x): das
+      // EREIGNIS gewinnt — sonst wäre der Kauf-Tooltip nie erreichbar.
+      if (d < bestD || (d === bestD && pts[i].p.event !== "drift")) {
         bestD = d;
         best = i;
       }
@@ -147,11 +161,14 @@ export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: P
   }
 
   const hv = hover !== null ? pts[hover] : null;
-  // Delta zum Vorgänger-Punkt: macht jeden Punkt zur Mini-Story (Kauf/Flaute)
+  // Delta: bei Kauf/Storno gegen den Kurs UNMITTELBAR davor (`von`) — sonst
+  // gegen den Vorgänger-Punkt. Macht jeden Punkt zur Mini-Story (Kauf/Flaute).
   const hvDelta =
-    hover !== null && hover > 0
-      ? pts[hover].p.price - pts[hover - 1].p.price
-      : null;
+    hv && hv.p.von !== undefined
+      ? hv.p.price - hv.p.von
+      : hover !== null && hover > 0
+        ? pts[hover].p.price - pts[hover - 1].p.price
+        : null;
   const hvDate = hv
     ? new Date(hv.p.t).toLocaleDateString(locale === "en" ? "en-GB" : "de-AT", {
         day: "numeric",

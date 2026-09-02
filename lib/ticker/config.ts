@@ -30,10 +30,15 @@ export const TICKER_CONFIG = {
   // additiven Modell wäre sie ohnehin ein Fremdkörper: Der Zeit-Anteil hängt
   // ausschließlich an startAtIso, kein Ereignis kann ihn pausieren.
 
-  // +1 €/Tag, KONTINUIERLICH (~4,2 Cent/Stunde) — kein Mitternachts-Sprung,
-  // der Chart tickt mit jedem 5-Minuten-Cron sichtbar weiter. Der Zeit-Anteil
-  // ist aus startAtIso ABGELEITET (siehe engine.ts) — die Cron-Kadenz
-  // beeinflusst die Kurve nicht.
+  // +1 €/Tag, KONTINUIERLICH (~4,2 Cent/Stunde) — kein Mitternachts-Sprung.
+  // Der Zeit-Anteil ist aus startAtIso ABGELEITET (siehe engine.ts) — die
+  // Cron-Kadenz beeinflusst die Kurve nicht. Chart-Punkte entstehen nur bei
+  // einer 10-Cent-Bewegung des Shop-Preises (Byte-Budget, siehe applyZeit).
+  //
+  // SÄTTIGUNG (02.09.): An Deckel und Boden verpufft der Überschuss (Feld
+  // `saettigungEuro` im Zustand) — der rohe Kurs bleibt exakt am Rand. Sonst
+  // lief er am Deckel tagelang weiter hoch, und Käufe am Deckel bewegten den
+  // sichtbaren Preis um 0 € (Befund 31.08./02.09., drei Kaufwellen unsichtbar).
   riseEuroPerDay: 1.0,
 
   floorEuro: 8.0, // Boden — lächerlich niedrig, aber nicht gratis

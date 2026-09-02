@@ -32,6 +32,13 @@ export interface HistoryPoint {
   price: number; // interner Kurs (gerundet auf 4 Stellen)
   event: TickerEvent;
   qty?: number; // wie viele Tickets dieses Ereignis umfasst (nur bei sale/refund)
+  /**
+   * Der Kurs UNMITTELBAR VOR diesem Ereignis (nur bei sale/refund). Der Chart
+   * zeichnet damit eine senkrechte Stufe im Kauf-Moment. Ohne dieses Feld
+   * verband er den Kauf mit dem letzten Punkt davor — am Deckel liegt der
+   * tagelang zurück, und aus dem Kauf wurde eine schleichende Schräge.
+   */
+  von?: number;
 }
 
 /**
@@ -80,6 +87,26 @@ export interface TickerState {
   lastTickAt: string; // ISO — Betriebs-Anker: Ampel-Herzschlag + Zeitfenster der Verkaufsgrenze
   recentOrders: string[]; // bereits verarbeitete Bestellungen (Doppel-Webhooks)
   history: HistoryPoint[];
+  /**
+   * SÄTTIGUNG (seit 02.09.): Was an Deckel oder Boden verpufft ist, in Euro —
+   * wird vom rohen Kurs abgezogen, damit der rohe Kurs nie über den Deckel
+   * bzw. unter den Boden läuft. Positiv = am Deckel geschluckte Flaute,
+   * negativ = am Boden geschluckte Käufe.
+   *
+   * Warum: Der rohe Kurs `22 − Verkäufe + Tage` lief am Deckel ungebremst
+   * weiter (31.08.: Tag 17, 7 Verkäufe → roh 32 €, Klemme 25). Käufe senkten
+   * ihn zwar, aber unsichtbar unter der Klemme — drei Kaufwellen am Deckel
+   * bewegten den sichtbaren Preis um 0 €. Mit der Sättigung bleibt roh EXAKT
+   * am Rand: Der nächste Kauf am Deckel ist sofort 1 € tiefer, die nächste
+   * Flaute am Boden sofort 1 €/Tag höher zu sehen.
+   *
+   * `null` = Alt-Zustand aus der Zeit VOR der Sättigung (Feld fehlt im
+   * Metafield). Er rechnet weiter wie früher, bis der Operator ihn per
+   * `?nachtrag=1` nachgerechnet hat (siehe `nachtrag`). Nicht automatisch: Die
+   * Nachrechnung liest die alten Preise als Zeugen des Verkaufsstands — das geht
+   * nur, solange KEIN Punkt schon im neuen Modell geschrieben wurde.
+   */
+  saettigungEuro: number | null;
 }
 
 /**
@@ -127,6 +154,15 @@ const round4 = (n: number) => Math.round(n * 10_000) / 10_000;
  * Shopify schicken. Lieber laut scheitern als still Unsinn verkaufen.
  */
 export function priceOf(state: TickerState, now: Date): number {
+  return clamp(rohOf(state, now));
+}
+
+/**
+ * Der UNGEKLEMMTE Kurs — Startpreis − Käufe + Zeit − Sättigung. Zwischen zwei
+ * Ticks darf er den Rand um die paar Cent überschreiten, die seit dem letzten
+ * Tick angelaufen sind; `applySaettigung` holt ihn beim nächsten Tick zurück.
+ */
+function rohOf(state: TickerState, now: Date): number {
   // Uhr vor dem Börsenstart (Rücksprung, verbogener Zustand): Zeit-Anteil 0,
   // nie negativ — sonst fiele der Kurs unter das, was die Verkäufe hergeben.
   const tage = Math.max(
@@ -134,11 +170,14 @@ export function priceOf(state: TickerState, now: Date): number {
     (now.getTime() - new Date(state.startAtIso).getTime()) / 86_400_000
   );
   const roh =
-    state.startPrice - C.saleDropEuro * state.soldCount + C.riseEuroPerDay * tage;
+    state.startPrice -
+    C.saleDropEuro * state.soldCount +
+    C.riseEuroPerDay * tage -
+    (state.saettigungEuro ?? 0);
   if (Number.isNaN(roh)) {
     throw new Error("Börsen-Zustand ergibt keinen Preis (NaN)");
   }
-  return clamp(roh);
+  return roh;
 }
 
 // Shop-Preis: geklemmt + auf 10 Cent gerundet (krumme Preise sind Absicht)
@@ -171,6 +210,7 @@ export function initState(
     lastTickAt: t,
     recentOrders: [],
     history: [{ t, price: round4(price), event: "init" }],
+    saettigungEuro: 0,
   };
 }
 
@@ -253,7 +293,17 @@ export function parseState(
       typeof h.qty === "number" && Number.isInteger(h.qty) && h.qty > 0
         ? h.qty
         : undefined;
-    return { t: h.t, price: h.price, event: h.event as TickerEvent, ...(qty ? { qty } : {}) };
+    // `von` (Kurs vor dem Ereignis) ist reine Chart-Information — ein
+    // unbrauchbarer Wert fliegt still raus, statt den Zustand zu sperren.
+    const von =
+      typeof h.von === "number" && Number.isFinite(h.von) && h.von > 0 ? h.von : undefined;
+    return {
+      t: h.t,
+      price: h.price,
+      event: h.event as TickerEvent,
+      ...(qty ? { qty } : {}),
+      ...(von ? { von } : {}),
+    };
   });
 
   const lastTickAt = iso("lastTickAt");
@@ -302,6 +352,13 @@ export function parseState(
       .filter((x): x is string => typeof x === "string" && /^\d{1,25}$/.test(x))
       .slice(-C.recentOrdersMax),
     history: cleanHistory,
+    // Fehlend oder null = Alt-Zustand von vor der Sättigung (02.09.) — rechnet
+    // weiter wie früher, bis `?nachtrag=1` ihn hebt. Ein vorhandener, aber
+    // unbrauchbarer Wert wird abgewiesen (er ginge direkt in den Preis).
+    saettigungEuro:
+      s.saettigungEuro === undefined || s.saettigungEuro === null
+        ? null
+        : num("saettigungEuro", -1_000_000, 1_000_000),
   };
 }
 
@@ -362,8 +419,31 @@ export function tick(
     (now.getTime() - new Date(state.lastTickAt).getTime()) / 3_600_000
   );
 
-  const mitZeit = advanceAnchor ? applyZeit(state, now) : state;
-  return applyInventory(mitZeit, currentInventory, now, trustedSales, stundenSeitTick);
+  // Sättigung ZUERST — vor den Verkäufen dieses Ticks. Sonst schluckte sie den
+  // Kauf gleich mit (roh 31 − 2 = 29 → „auf 25 zurück" = Kauf unsichtbar).
+  // Läuft auch im Webhook-Pfad: Sie rührt lastTickAt nicht an.
+  const gesaettigt = applySaettigung(state, now);
+  const mitZeit = advanceAnchor ? applyZeit(gesaettigt, now) : gesaettigt;
+  const mitVerkauf = applyInventory(mitZeit, currentInventory, now, trustedSales, stundenSeitTick);
+  // … und DANACH noch einmal: Ein Kauf unter den Boden (oder Storno über den
+  // Deckel) hinterlässt sonst bis zum nächsten Tick einen Unterhang — fällt der
+  // Cron aus, verschluckte der nächste Lauf die ganze inzwischen angelaufene
+  // Zeit (roh 6 → einen Tag später 7 → „zurück auf 8" statt 9). Die Nachher-
+  // Sättigung räumt nur den Rest weg, den das Ereignis selbst erzeugt hat.
+  return mitVerkauf === mitZeit ? mitVerkauf : applySaettigung(mitVerkauf, now);
+}
+
+/**
+ * Schritt 0: Den Überhang über dem Deckel bzw. den Unterhang unter dem Boden
+ * in `saettigungEuro` verbuchen — der rohe Kurs steht danach EXAKT am Rand.
+ * Alt-Zustände (null) bleiben unberührt, bis sie per `nachtrag` gehoben sind.
+ */
+function applySaettigung(state: TickerState, now: Date): TickerState {
+  if (state.saettigungEuro === null) return state;
+  const roh = rohOf(state, now);
+  const rand = roh > C.capEuro ? C.capEuro : roh < C.floorEuro ? C.floorEuro : null;
+  if (rand === null) return state;
+  return { ...state, saettigungEuro: state.saettigungEuro + (roh - rand) };
 }
 
 /**
@@ -388,7 +468,13 @@ function applyZeit(state: TickerState, now: Date): TickerState {
   const next: TickerState = { ...state, lastTickAt: now.toISOString() };
   const price = round4(priceOf(next, now));
   const letzter = next.history[next.history.length - 1];
-  if (price === letzter.price) return next; // nichts bewegt — kein Punkt
+  // Ein Punkt nur, wenn sich der SHOP-Preis (10-Cent-Raster) bewegt hat. Der
+  // 4-Stellen-Kurs ändert sich mit JEDEM 5-Minuten-Tick um 0,35 Cent — das
+  // wären 288 Punkte pro Tag, und das Byte-Budget des Metafields opferte dafür
+  // die ältesten Punkte samt den alten Käufen (genau so verschwand 14.–19.08.
+  // aus dem Chart). Auf dem 10-Cent-Raster sind es 10 Punkte pro Euro Rampe;
+  // die Linie bleibt gerade, die Käufe bleiben im Chart.
+  if (shopPrice(price) === shopPrice(letzter.price)) return next;
 
   return {
     ...next,
@@ -514,6 +600,8 @@ function applyInventory(
         // Die MENGE mitschreiben — sonst zählt die Seite "1 verkauft",
         // wenn jemand sechs Tickets in einer Bestellung nimmt.
         qty: Math.abs(newSales),
+        // Der Kurs VOR dem Ereignis — die senkrechte Stufe im Chart.
+        von: round4(priceOf(state, now)),
       },
     ],
   };
@@ -607,8 +695,14 @@ export function pruneHistory(history: HistoryPoint[], now: Date): HistoryPoint[]
   const rasterMs = C.historySparseHours * 3_600_000;
   let lastKeptSlot = -Infinity;
 
-  let pruned = history.filter((p, i) => {
+  const pruned = history.filter((p, i) => {
     if (i === 0) return true; // Startpunkt bleibt immer
+    // Ereignisse (Kauf, Storno, Rebaseline) SIND der Chart — sie werden nie
+    // ausgedünnt, nur Drift. Ein Kauf, der nach einer Woche aus dem Chart
+    // fällt, wäre das Gegenteil von „dein Kauf bleibt sichtbar". Der
+    // Byte-Schutz greift weiter unten (kappen/prepareForWrite) — und opfert
+    // auch dort erst Drift, dann Ereignisse.
+    if (p.event !== "drift") return true;
     const t = new Date(p.t).getTime();
     if (t >= denseCutoff) return true; // junge Punkte bleiben vollständig
     const slot = Math.floor(t / rasterMs);
@@ -617,10 +711,28 @@ export function pruneHistory(history: HistoryPoint[], now: Date): HistoryPoint[]
     return true;
   });
 
-  if (pruned.length > C.historyMaxPoints) {
-    pruned = [pruned[0], ...pruned.slice(-(C.historyMaxPoints - 1))];
-  }
-  return pruned;
+  return kappen(pruned, C.historyMaxPoints);
+}
+
+/** Den ältesten opferbaren Punkt entfernen: erst alte Drift-Punkte, dann alte Ereignisse. Der Startpunkt bleibt. */
+function ohneAeltesten(history: HistoryPoint[]): HistoryPoint[] {
+  let idx = history.findIndex((p, i) => i > 0 && p.event === "drift");
+  if (idx < 0) idx = 1;
+  return [...history.slice(0, idx), ...history.slice(idx + 1)];
+}
+
+/** Auf höchstens `max` Punkte kürzen — Drift zuerst, Ereignisse zuletzt. */
+function kappen(history: HistoryPoint[], max: number): HistoryPoint[] {
+  if (history.length <= max) return history;
+  const zuViel = history.length - max;
+  const driftIdx = history
+    .map((p, i) => (i > 0 && p.event === "drift" ? i : -1))
+    .filter((i) => i > 0)
+    .slice(0, zuViel);
+  const raus = new Set(driftIdx);
+  const ohneDrift = history.filter((_, i) => !raus.has(i));
+  if (ohneDrift.length <= max) return ohneDrift;
+  return [ohneDrift[0], ...ohneDrift.slice(-(max - 1))];
 }
 
 const byteLength = (o: unknown) =>
@@ -644,9 +756,10 @@ export function prepareForWrite(state: TickerState, now: Date): TickerState {
   if (byteLength(s) <= C.metafieldMaxBytes) return s;
 
   // Stufe 1: älteste History-Punkte opfern (der Startpunkt bleibt — Nullpunkt
-  // des Charts). Ein magerer Chart ist verkraftbar.
+  // des Charts) — erst Drift, dann Ereignisse. Ein magerer Chart ist
+  // verkraftbar; ein Chart ohne die Käufe wäre der falsche Chart.
   while (byteLength(s) > C.metafieldMaxBytes && s.history.length > 2) {
-    s = { ...s, history: [s.history[0], ...s.history.slice(2)] };
+    s = { ...s, history: ohneAeltesten(s.history) };
   }
   // Stufe 2: Bestell-IDs kürzen. Erst hier, denn sie schützen vor
   // Doppelzählung — sie zu opfern ist teurer als ein kurzer Chart.
@@ -663,4 +776,155 @@ export function prepareForWrite(state: TickerState, now: Date): TickerState {
     );
   }
   return s;
+}
+
+// ---------------------------------------------------------------------------
+// Nachtrag (02.09.): einen Alt-Zustand ins Sättigungsmodell heben
+// ---------------------------------------------------------------------------
+
+export class NachtragError extends Error {
+  constructor(
+    /** "bereits" = schon im Sättigungsmodell (400); "unklar" = Historie nicht eindeutig (409) */
+    readonly code: "bereits" | "unklar",
+    message: string
+  ) {
+    super(message);
+    this.name = "NachtragError";
+  }
+}
+
+/**
+ * Die Historie eines ALT-Zustands (saettigungEuro null) so nachrechnen, als
+ * hätte die Sättigung von Anfang an gegolten — und den Zustand ins neue Modell
+ * heben. Einmalig, per Hebel `?nachtrag=1`, nie automatisch.
+ *
+ * Warum überhaupt: Am 02.09. stand die Börse seit 21.08. am Deckel, drei
+ * Kaufwellen (26.08., 28.08., 01.09.) hatten den sichtbaren Preis nicht bewegt.
+ * Constantin: Die Käufe sollen rückwirkend zählen UND im Chart stehen.
+ *
+ * Wie: (1) Aus jedem alten Punkt den Verkaufsstand rekonstruieren — Punkte
+ * INNERHALB der Spanne verraten ihn exakt (alter Preis = roh, kein Abzug),
+ * am Rand zählen nur die Mengen der sale/refund-Ereignisse. Das fängt auch
+ * Alt-Verkäufe, deren Punkt das 6h-Raster geopfert hat. (2) Die Zeit von vorn
+ * abspielen: Rampe +riseEuroPerDay bis zum Deckel (dort ein Knickpunkt), Kauf
+ * −saleDropEuro pro Ticket mit Stufe (`von`), Sättigung an beiden Rändern.
+ * (3) `saettigungEuro` so setzen, dass `priceOf` JETZT genau den abgespielten
+ * Kurs ergibt. Vor der ersten Sättigung bleibt jeder Punkt unverändert.
+ *
+ * Geht die Historie nicht auf (Verkaufsstand ≠ soldCount, krummer Stand),
+ * wird NICHT geraten: NachtragError, nichts geschrieben.
+ */
+export function nachtrag(state: TickerState, now: Date): TickerState {
+  if (state.saettigungEuro !== null) {
+    throw new NachtragError(
+      "bereits",
+      "Zustand läuft bereits im Sättigungsmodell — es gibt nichts nachzutragen."
+    );
+  }
+  const TAG = 86_400_000;
+  const EPS = 1e-6;
+  const t0 = new Date(state.startAtIso).getTime();
+  const tageBis = (ms: number) => Math.max(0, (ms - t0) / TAG);
+
+  // (1) Verkaufsstand je Punkt
+  const stand: number[] = [];
+  let s = 0;
+  state.history.forEach((p, i) => {
+    if (p.event === "sale") s += p.qty ?? 1;
+    else if (p.event === "refund") s -= p.qty ?? 1;
+    const innen = p.price > C.floorEuro + EPS && p.price < C.capEuro - EPS;
+    if (innen) {
+      const ausPreis =
+        (state.startPrice + C.riseEuroPerDay * tageBis(new Date(p.t).getTime()) - p.price) /
+        C.saleDropEuro;
+      const r = Math.round(ausPreis);
+      if (Math.abs(ausPreis - r) > 0.01) {
+        throw new NachtragError(
+          "unklar",
+          `History-Punkt ${i} (${p.t}, ${p.price} €) passt zu keinem ganzen Verkaufsstand (${ausPreis.toFixed(3)}).`
+        );
+      }
+      s = r;
+    }
+    stand.push(s);
+  });
+  if (s !== state.soldCount) {
+    throw new NachtragError(
+      "unklar",
+      `Verkaufs-Historie geht nicht auf: Historie ergibt ${s} Verkäufe, Zustand sagt ${state.soldCount}.`
+    );
+  }
+
+  // (2) Abspielen
+  const out: HistoryPoint[] = [];
+  let roh = state.startPrice;
+  let tPrev = t0;
+  let standPrev = 0;
+  // Rampe von tPrev bis tMs — erreicht sie den Deckel unterwegs, entsteht dort
+  // ein Knickpunkt (sonst zöge der Chart eine Schräge bis zum nächsten Punkt).
+  const rampe = (tMs: number) => {
+    const dTage = Math.max(0, (tMs - tPrev) / TAG);
+    const ziel = roh + C.riseEuroPerDay * dTage;
+    if (ziel > C.capEuro + EPS && roh < C.capEuro - EPS && C.riseEuroPerDay > 0) {
+      const tCap = tPrev + ((C.capEuro - roh) / C.riseEuroPerDay) * TAG;
+      if (tCap < tMs - 1000) {
+        out.push({ t: new Date(tCap).toISOString(), price: C.capEuro, event: "drift" });
+      }
+    }
+    roh = Math.min(C.capEuro, ziel);
+  };
+
+  state.history.forEach((p, i) => {
+    const tMs = new Date(p.t).getTime();
+    const delta = stand[i] - standPrev;
+    standPrev = stand[i];
+    const eventDelta =
+      p.event === "sale" ? (p.qty ?? 1) : p.event === "refund" ? -(p.qty ?? 1) : 0;
+
+    if (delta !== 0 && delta !== eventDelta) {
+      // Der Verkaufsstand kam aus dem PREIS, nicht aus dem Ereignis: Die
+      // Punkte davor sind geopfert (Byte-Budget/6h-Raster), WANN die Käufe
+      // fielen, ist unbekannt. Der alte Preis wird als Wahrheit übernommen,
+      // keine Rampe unterstellt (sie kreuzte sonst fälschlich den Deckel).
+      //
+      // ANNAHME (Codex-Review 02.09., Punkt 1): Das ist nur exakt, wenn die
+      // Rampe im verlorenen Intervall keinen Rand berührt hat — aus der
+      // Historie allein nicht beweisbar. Für den EINZIGEN Alt-Zustand, den es
+      // je gab (Live 02.09., Loch 14.–19.08.), ist es extern belegt: Der Deckel
+      // lag bis 18.08. 13:30 bei 30 €, und damals standen 3 Verkäufe bei Kurs
+      // 23 € (HANDOFF §Sättigung). Restunsicherheit (Codex RE-Review): der
+      // 4. Verkauf am 20.08. zwischen 06:00 und 12:00 UTC ist ebenfalls nur
+      // aus dem Preis bekannt — lag er nach ~11:04, wäre der Kurs um 12:00 um
+      // ≤ 3,9 Cent anders (im 10-Cent-Shopraster gleich) und der Knickpunkt am
+      // 21.08. um ≤ 56 min verschoben; beim Deckelkontakt danach vollständig
+      // ausgewaschen. Jeder Neustart erzeugt seither Zustände mit Sättigung —
+      // dieser Zweig wird nie wieder gebraucht.
+      // Exakt rechnen statt den 4-stellig gerundeten Preis zu übernehmen —
+      // sonst wandert der Rundungsfehler in jeden Punkt danach.
+      roh = state.startPrice - C.saleDropEuro * stand[i] + C.riseEuroPerDay * tageBis(tMs);
+      out.push(
+        eventDelta !== 0
+          ? { ...p, von: round4(clamp(p.price + C.saleDropEuro * eventDelta)) }
+          : p
+      );
+    } else {
+      rampe(tMs);
+      if (delta !== 0) {
+        const von = roh;
+        roh = Math.min(C.capEuro, Math.max(C.floorEuro, roh - C.saleDropEuro * delta));
+        out.push({ ...p, price: round4(roh), von: round4(von) });
+      } else if (Math.abs(round4(roh) - p.price) < EPS) {
+        out.push(p); // unverändert — vor der ersten Sättigung ist das jeder Punkt
+      } else {
+        out.push({ ...p, price: round4(roh) });
+      }
+    }
+    tPrev = tMs;
+  });
+  rampe(now.getTime());
+
+  // (3) priceOf(neu, now) muss genau `roh` ergeben
+  const rohUngesaettigt =
+    state.startPrice - C.saleDropEuro * state.soldCount + C.riseEuroPerDay * tageBis(now.getTime());
+  return { ...state, history: out, saettigungEuro: rohUngesaettigt - roh };
 }

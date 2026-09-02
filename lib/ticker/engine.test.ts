@@ -445,14 +445,14 @@ describe("Community-Pricing: additives Modell", () => {
     expect(priceOf(s, at(24))).toBe(23);
   });
 
-  it("Boden klebt: Kaufwelle drückt roh unter den Boden, Zeit muss erst aufholen", () => {
+  it("Boden klebt NICHT mehr (Sättigung 02.09.): der Kauf-Tick selbst schluckt den Unterhang, die Zeit hebt sofort", () => {
     let s = initState(22, INV, NOW);
-    s = tick(s, INV - 20, NOW, { advanceAnchor: false, trustedSales: 20 }); // roh 2 €
+    s = tick(s, INV - 20, NOW, { advanceAnchor: false, trustedSales: 20 }); // roh 2 € → Boden
     expect(priceOf(s, NOW)).toBe(C.floorEuro);
-    // 5 Tage später: roh 7 € — immer noch Boden
-    expect(priceOf(s, at(5 * 24))).toBe(C.floorEuro);
-    // 7 Tage später: roh 9 € — wieder über dem Boden
-    expect(priceOf(s, at(7 * 24))).toBe(9);
+    expect(s.saettigungEuro).toBeCloseTo(2 - C.floorEuro, 9); // −6 € verpufft, roh steht exakt am Boden
+    // Ab da +1 €/Tag — auch OHNE weiteren Tick (reine Funktion, kein Cron nötig)
+    expect(priceOf(s, at(24))).toBeCloseTo(C.floorEuro + 1, 9);
+    expect(priceOf(s, at(5 * 24))).toBeCloseTo(C.floorEuro + 5, 9);
   });
 
   it("negativer soldCount (Alt-Storno) hebt über den Startpreis, Deckel klemmt", () => {

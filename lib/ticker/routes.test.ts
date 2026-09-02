@@ -1,7 +1,8 @@
 import { createHmac } from "node:crypto";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TICKER_CONFIG as C } from "./config";
-import { initState, type TickerState } from "./engine";
+import { initState, parseState, type TickerState } from "./engine";
+import live from "./fixtures/boerse-live-2026-09-02.json";
 
 /**
  * Route-Tests gegen einen gefälschten Shopify-Server.
@@ -1031,5 +1032,102 @@ describe("Betriebsampel /api/ticker/status (für den externen Wächter)", () => 
     const r = await getStatus();
     expect(r.status).toBe(500);
     expect(await r.json()).toMatchObject({ status: "lese_fehler" });
+  });
+});
+
+describe("02.09. — ?nachtrag=1: den Alt-Zustand ins Sättigungsmodell heben", () => {
+  // Der echte Live-Zustand vom 02.09. früh: seit 21.08. am Deckel, drei Käufe
+  // ohne sichtbare Wirkung. Zeit eingefroren, damit die Erwartungen stehen.
+  const JETZT = new Date("2026-09-02T05:00:00Z");
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(JETZT);
+    // Bestands-Modus (Standard-Setup): Bestand passend zu soldCount 9 bei Baseline 250
+    shop.state = { ...parseState(JSON.stringify(live)), quelle: "bestand" };
+    shop.inventory = 250 - 9;
+    shop.variantPrice = 25;
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("hebt den Zustand, macht die Käufe zu Stufen und schreibt 23,30 € in den Shop", async () => {
+    expect(shop.state!.saettigungEuro).toBeNull();
+    const r = await getTick("?nachtrag=1");
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ status: "nachgetragen", price: 23.3 });
+    expect(shop.variantPrice).toBe(23.3);
+    expect(typeof shop.state!.saettigungEuro).toBe("number");
+    const kauf = shop.state!.history.find((p) => p.t === "2026-09-01T21:35:00.732Z");
+    expect(kauf).toMatchObject({ event: "sale", von: 25, price: 23 });
+  });
+
+  it("zweiter Aufruf → 200 bereits_nachgetragen, nichts geschrieben", async () => {
+    await getTick("?nachtrag=1");
+    const writes = shop.stateWrites;
+    const r = await getTick("?nachtrag=1");
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ status: "bereits_nachgetragen", price: 23.3 });
+    expect(shop.stateWrites).toBe(writes);
+  });
+
+  it("Teilfehler (Zustand geschrieben, Preis-Write gescheitert): die Wiederholung repariert den Preis (Codex Punkt 3)", async () => {
+    shop.priceWriteFails = true;
+    const r1 = await getTick("?nachtrag=1");
+    expect(r1.status).toBe(500); // manueller Hebel → ehrlicher Code
+    expect(typeof shop.state!.saettigungEuro).toBe("number"); // Zustand ist gehoben …
+    expect(shop.variantPrice).toBe(25); // … der Shop verlangt aber weiter 25 €
+    shop.priceWriteFails = false;
+    const r2 = await getTick("?nachtrag=1");
+    expect(await r2.json()).toMatchObject({ status: "bereits_nachgetragen", price: 23.3 });
+    expect(shop.variantPrice).toBe(23.3);
+  });
+
+  it("ein Kauf seit dem letzten Tick zählt im selben Request mit (Codex Punkt 5)", async () => {
+    shop.inventory -= 1; // Kauf, den noch kein Tick gesehen hat
+    const r = await getTick("?nachtrag=1");
+    expect(await r.json()).toMatchObject({ status: "nachgetragen", price: 22.3, soldCount: 10 });
+    expect(shop.variantPrice).toBe(22.3);
+  });
+
+  it("die Historie endet nach dem Hebel beim heutigen Kurs, nicht beim letzten Kauf (Codex Punkt 4)", async () => {
+    await getTick("?nachtrag=1");
+    const letzter = shop.state!.history.at(-1)!;
+    expect(letzter.event).toBe("drift");
+    expect(Math.round(letzter.price * 10) / 10).toBe(23.3);
+  });
+
+  it("mit anderen Hebeln kombiniert → 400, ohne Zustand → 400", async () => {
+    const r1 = await getTick("?nachtrag=1&rebaseline=1");
+    expect(r1.status).toBe(400);
+    expect(await r1.json()).toMatchObject({ status: "hebel_konflikt" });
+    shop.state = null;
+    const r2 = await getTick("?nachtrag=1");
+    expect(r2.status).toBe(400);
+    expect(await r2.json()).toMatchObject({ status: "hebel_ohne_zustand" });
+  });
+
+  it("die Ampel meldet den offenen Nachtrag — und ist danach normal grün", async () => {
+    const vorher = await getStatus();
+    expect(vorher.status).toBe(200);
+    expect(await vorher.json()).toMatchObject({ status: "ok", nachtragOffen: true, price: 25 });
+    await getTick("?nachtrag=1");
+    const nachher = await getStatus();
+    expect(nachher.status).toBe(200);
+    expect(await nachher.json()).toMatchObject({ status: "ok", nachtragOffen: false, price: 23.3 });
+  });
+
+  it("der normale Cron läuft danach weiter: zurück zum Deckel, und der nächste Kauf ist sichtbar", async () => {
+    await getTick("?nachtrag=1");
+    const r1 = await getTick();
+    expect(await r1.json()).toMatchObject({ status: "ok", price: 23.3 });
+
+    vi.setSystemTime(new Date(JETZT.getTime() + 2 * 24 * 3_600_000)); // 2 Tage Flaute
+    const r2 = await getTick();
+    expect(await r2.json()).toMatchObject({ status: "ok", price: C.capEuro });
+
+    shop.inventory -= 1; // ein Kauf
+    const r3 = await getTick();
+    expect(await r3.json()).toMatchObject({ status: "ok", price: C.capEuro - 1, soldCount: 10 });
+    expect(shop.variantPrice).toBe(C.capEuro - 1);
   });
 });

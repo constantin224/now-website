@@ -1,0 +1,76 @@
+{
+ "startPrice": 22,
+ "startInventory": 250,
+ "startTickets": 29,
+ "quelle": "tickets",
+ "soldCount": 9,
+ "ignoredTickets": 0,
+ "startAtIso": "2026-08-14T11:04:20.169Z",
+ "lastTickAt": "2026-09-02T04:50:00.740Z",
+ "recentOrders": [],
+ "history": [
+  {
+   "t": "2026-08-14T11:04:20.169Z",
+   "price": 22,
+   "event": "init"
+  },
+  {
+   "t": "2026-08-19T17:45:00.361Z",
+   "price": 24.2782,
+   "event": "drift"
+  },
+  {
+   "t": "2026-08-19T18:00:00.904Z",
+   "price": 24.2887,
+   "event": "drift"
+  },
+  {
+   "t": "2026-08-20T00:00:00.781Z",
+   "price": 24.5387,
+   "event": "drift"
+  },
+  {
+   "t": "2026-08-20T06:00:02.109Z",
+   "price": 24.7887,
+   "event": "drift"
+  },
+  {
+   "t": "2026-08-20T12:00:01.151Z",
+   "price": 24.0387,
+   "event": "drift"
+  },
+  {
+   "t": "2026-08-20T18:00:00.425Z",
+   "price": 24.2887,
+   "event": "drift"
+  },
+  {
+   "t": "2026-08-21T00:00:00.709Z",
+   "price": 24.5387,
+   "event": "drift"
+  },
+  {
+   "t": "2026-08-21T06:00:01.435Z",
+   "price": 24.7887,
+   "event": "drift"
+  },
+  {
+   "t": "2026-08-26T12:50:00.331Z",
+   "price": 25,
+   "event": "sale",
+   "qty": 1
+  },
+  {
+   "t": "2026-08-28T21:25:00.414Z",
+   "price": 25,
+   "event": "sale",
+   "qty": 2
+  },
+  {
+   "t": "2026-09-01T21:35:00.732Z",
+   "price": 25,
+   "event": "sale",
+   "qty": 2
+  }
+ ]
+}

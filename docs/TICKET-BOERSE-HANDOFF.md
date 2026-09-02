@@ -146,6 +146,24 @@ Im Bestands-Notpfad bewusst geblieben (Restrisiko): Zählt der Cron einen Verkau
 
 ---
 
+## Sättigung an Deckel und Boden (seit 02.09.)
+
+**Befund (31.08./02.09.):** Der rohe Kurs `22 − Verkäufe + Tage` lief am Deckel ungebremst weiter — 02.09. früh: Tag 18,7, 9 Verkäufe → roh 31,7 €, sichtbar 25 €. Käufe senkten roh, aber unsichtbar unter der Klemme: drei Kaufwellen am Deckel (26.08. 1×, 28.08. 2×, 01.09. 2×) bewegten den sichtbaren Preis um 0 €. Constantin meldete es am 02.09. („Käufe hatten keine Auswirkung"). Widerspricht dem Versprechen der Seite. Spiegelbild am Boden („Boden-Kleben") war bisher als Feature deklariert — Constantin 02.09.: **„Boden soll genauso funktionieren."**
+
+**Modell (engine.ts):** State-Feld `saettigungEuro` (Euro, vorzeichenbehaftet). `priceOf = clamp(22 − Verkäufe + Tage − saettigungEuro)`. `applySaettigung` läuft in `tick()` als Schritt 0 — VOR den Verkäufen desselben Ticks (sonst schluckte sie den Kauf mit) und auch im Webhook-Pfad (rührt `lastTickAt` nicht an): Liegt roh über dem Deckel/unter dem Boden, wandert der Überschuss ins Feld, roh steht danach exakt am Rand. Folge: Kauf am Deckel = sofort 24 €, Flaute am Boden = sofort +1 €/Tag. Zwischen zwei Ticks darf roh den Rand um die angelaufenen Cent überschreiten (≤ 0,35 Cent bei */5) — `clamp` deckt das, der nächste Tick holt es zurück. Drift bleibt 1 €/Tag (Constantin 02.09., Alternativen +1 €/Woche, +0,25 €/Tag, 0 wurden abgelehnt).
+
+**Alt-Zustand (`saettigungEuro: null`):** Ein Metafield ohne das Feld rechnet weiter wie vor dem 02.09. — bewusst KEIN Auto-Umstieg. Grund: Der Nachtrag liest die alten Preise als Zeugen des Verkaufsstands, das geht nur, solange kein Punkt schon im neuen Modell geschrieben wurde. Die Ampel meldet `nachtragOffen: true` (kein Alarm).
+
+**Hebel `?nachtrag=1`** (Bearer `CRON_SECRET`, wie die anderen Hebel; beide Modi): hebt den Alt-Zustand einmalig ins neue Modell und rechnet die Historie nach, als hätte die Sättigung immer gegolten — (1) Verkaufsstand je Punkt rekonstruieren (innerhalb der Spanne exakt aus dem alten Preis, am Rand aus `qty` der sale/refund-Punkte; fängt auch Alt-Verkäufe, deren Punkte geopfert wurden), (2) Zeit von vorn abspielen: Rampe bis zum Deckel mit Knickpunkt, Käufe als Stufen, Sättigung an beiden Rändern, (3) `saettigungEuro` so setzen, dass `priceOf` jetzt den abgespielten Kurs ergibt. Vor der ersten Sättigung bleibt jeder Punkt unverändert. Der Hebel hat KEINEN eigenen Schreibpfad: Er hebt den Zustand und lässt den normalen Tick darauf weiterlaufen — Quellenabgleich im selben Request (ein Kauf seit dem letzten Tick zählt sofort), Preis-Write, Drift-Endpunkt per 10-Cent-Regel. Antwort `200 nachgetragen` (+ `saettigungEuro`, `punkte`). Geht die Historie nicht auf → `409 nachtrag_unklar`, nichts geschrieben. **Wiederholung ist erwünscht und idempotent:** bereits gehobener Zustand → `200 bereits_nachgetragen`, der normale Tick repariert dabei einen zuvor gescheiterten Preis-Write (Teilfehler „Zustand geschrieben, Preis nicht"). Bestands-Anomalie beim Heben → 409 wie sonst, nichts Halbes geschrieben; erst Anomalie auflösen, dann erneut heben. Live-Historie vom 02.09. liegt als Fixture unter `lib/ticker/fixtures/` — der Test rechnet exakt den Live-Fall (Deckel erreicht 21.08. 11:04, Stufen 24/23/23, Kurs 02.09. 05:00 = 23,31 €).
+
+**Chart-Stufen (`von`):** sale/refund-Punkte tragen jetzt den Kurs unmittelbar davor. Der Chart zieht die Linie im Kauf-Moment senkrecht (am Deckel lag der letzte Punkt sonst tagelang zurück → schleichende Schräge) und rechnet das Tooltip-Delta gegen `von`.
+
+**Byte-Budget, zweiter Befund:** Die Historie hatte am 02.09. nur 12 Punkte, 14.–19.08. fehlten komplett. Ursache: `applyZeit` schrieb bei JEDER 4-Stellen-Änderung einen Drift-Punkt (288/Tag) → das 50-KB-Budget opferte laufend die ältesten Punkte — samt der Käufe. Seit 02.09.: Drift-Punkt nur bei 10-Cent-Bewegung des Shop-Preises (10 Punkte pro Euro Rampe, Linie bleibt gerade); `pruneHistory` dünnt nur noch Drift aus (Ereignisse bleiben), `kappen`/`prepareForWrite` opfern Drift vor Ereignissen. Ein Kauf fällt damit nicht mehr aus dem Chart, solange die Historie unter 500 Punkten/50 KB bleibt.
+
+**Codex-Review 02.09. (2 Runden, 6 Befunde, alle eingearbeitet):** (1) Rekonstruktion bei verlorenen Verkaufspunkten ist unterbestimmt — für den einzigen Alt-Zustand extern belegt (Deckel 30 € bis 18.08. 13:30, damals 3 Verkäufe bei 23 €); Restunsicherheit beim 4. Verkauf 20.08. ≤ 4 Cent / Knickpunkt ≤ 56 min, im Shopraster ohne Wirkung. (2) Sättigung läuft VOR und NACH den Verkäufen eines Ticks — sonst fraß ein Cron-Ausfall nach einer Kaufwelle die angelaufene Zeit. (3–5) Durchfall in den normalen Tick statt eigenem Schreibpfad (siehe oben). (6) Chart-Hover: bei gleichem x gewinnt das Ereignis vor dem Drift-Punkt.
+
+**Nicht rückgebaut werden darf:** Reihenfolge Sättigung → Zeit → Verkäufe → Sättigung; `null`-Semantik des Alt-Zustands; Ereignis-Schutz im Pruning; Hebel ohne eigenen Schreibpfad.
+
 ## Kauf-Turbo (seit 11.08. abends)
 
 Der Webhook (Shopify-Abo `orders/create` → `/api/ticker/webhook`, angelegt
@@ -222,10 +240,12 @@ lib/ticker/guards.ts         # tickerEnabled(), authorizeCron()
 lib/ticker/hmac.ts           # Webhook-Signaturprüfung
 lib/ticker/mock.ts           # Dev-Mock (nur mit TICKER_MOCK=1 + nicht-Prod)
 lib/ticker/engine.test.ts    # Engine-Verhalten
+lib/ticker/saettigung.test.ts # Sättigung Deckel/Boden, nachtrag (gegen die Live-Historie), von, Pruning
+lib/ticker/fixtures/         # echte Live-Zustände als Test-Fixtures
 lib/ticker/routes.test.ts    # ROUTEN gegen gefälschten Shopify-Server — hier hängen die
                              #   Blocker aus Runde 2 und 3 als Netz
 app/api/ticker/tick/route.ts     # Cron (QStash): Quelle wählen, Drift, ?start=1,
-                                 #   ?rebaseline=1, ?reconcile=<sprünge>; nie 5xx an den Scheduler
+                                 #   ?rebaseline=1, ?reconcile=<sprünge>, ?nachtrag=1; nie 5xx an den Scheduler
 app/api/ticker/status/route.ts   # Betriebsampel für den externen Wächter (nur lesen)
 app/api/ticker/webhook/route.ts  # orders/create: liest NUR Bestell-ID, Menge, Testflag
 app/[locale]/tickets/page.tsx    # die Seite (zeigt den LIVE-Shop-Preis)

@@ -6,6 +6,8 @@ import {
   bestandOhneAenderung,
   initState,
   InventoryAnomalyError,
+  nachtrag,
+  NachtragError,
   prepareForWrite,
   priceOf,
   rebaseline,
@@ -78,11 +80,20 @@ export async function GET(request: NextRequest) {
     }
     reconcileSprung = parseInt(reconcileRaw, 10);
   }
-  if (rebaselineRequested && reconcileSprung !== null) {
+  // ?nachtrag=1 — einmalig: Alt-Zustand (vor der Sättigung, 02.09.) ins
+  // Sättigungsmodell heben, Historie nachrechnen. Siehe engine.ts `nachtrag`.
+  const nachtragRequested = request.nextUrl.searchParams.get("nachtrag") === "1";
+
+  // Die Zustands-Hebel schließen einander aus — jeder tut etwas anderes mit
+  // demselben Zustand, zwei auf einmal wären nicht entscheidbar.
+  const zustandsHebel = [rebaselineRequested, reconcileSprung !== null, nachtragRequested].filter(
+    Boolean
+  ).length;
+  if (zustandsHebel > 1) {
     return NextResponse.json(
       {
         status: "hebel_konflikt",
-        hint: "rebaseline und reconcile schließen einander aus — entweder Korrektur ODER echter Sprung.",
+        hint: "Nur EIN Hebel pro Aufruf: rebaseline, reconcile oder nachtrag.",
       },
       { status: 400 }
     );
@@ -90,14 +101,13 @@ export async function GET(request: NextRequest) {
 
   // Nackter Scheduler-Lauf oder menschlicher Hebel? Entscheidet über die
   // HTTP-Codes im Fehlerfall (siehe Antwort-Politik oben).
-  const manuell =
-    startRequested || rebaselineRequested || reconcileSprung !== null;
+  const manuell = startRequested || zustandsHebel > 0;
 
   // Bei einem verlorenen Wettlauf (der Webhook war schneller) komplett neu lesen
   // und neu rechnen. Blind überschreiben würde dessen Verkauf löschen.
   for (let versuch = 0; versuch < 3; versuch++) {
     try {
-      return await runTick(startRequested, rebaselineRequested, reconcileSprung);
+      return await runTick(startRequested, rebaselineRequested, reconcileSprung, nachtragRequested);
     } catch (err) {
       if (err instanceof TickerConflictError && versuch < 2) {
         console.warn("[ticker/tick] Zustand war veraltet — lese neu");
@@ -155,14 +165,19 @@ export async function GET(request: NextRequest) {
 async function runTick(
   startRequested: boolean,
   rebaselineRequested: boolean,
-  reconcileSprung: number | null
+  reconcileSprung: number | null,
+  nachtragRequested: boolean
 ) {
   // Menschlicher Hebel? Dann ehrliche HTTP-Codes statt Scheduler-200
   // (siehe Antwort-Politik am GET-Handler).
-  const manuell = startRequested || rebaselineRequested || reconcileSprung !== null;
+  const manuell =
+    startRequested || rebaselineRequested || reconcileSprung !== null || nachtragRequested;
   const now = new Date();
-  const { state, currentPriceEuro, currentInventory, inventoryTracked, compareDigest } =
-    await readTicker();
+  const gelesen = await readTicker();
+  const { currentPriceEuro, currentInventory, inventoryTracked, compareDigest } = gelesen;
+  // `let`: ?nachtrag=1 hebt den Zustand und lässt den NORMALEN Tick darauf
+  // weiterlaufen (Quellenabgleich, Preis-Write, Endpunkt) — siehe unten.
+  let state = gelesen.state;
 
   // Die Verkaufszahl kommt, wenn möglich, aus dem Ticket-System (Bestell-Ledger)
   // statt aus dem Bestand. Siehe lib/ticker/tickets-quelle.ts.
@@ -171,11 +186,11 @@ async function runTick(
   if (!state && !startRequested) {
     // Hebel ohne Zustand: dem Operator ehrlich sagen, dass es nichts zu
     // hebeln gibt — nicht mit not_started/200 abspeisen.
-    if (rebaselineRequested || reconcileSprung !== null) {
+    if (rebaselineRequested || reconcileSprung !== null || nachtragRequested) {
       return NextResponse.json(
         {
           status: "hebel_ohne_zustand",
-          hint: "Die Börse läuft noch nicht — es gibt keinen Zustand, auf den rebaseline/reconcile wirken könnte.",
+          hint: "Die Börse läuft noch nicht — es gibt keinen Zustand, auf den rebaseline/reconcile/nachtrag wirken könnte.",
         },
         { status: 400 }
       );
@@ -268,6 +283,35 @@ async function runTick(
       // meldet ihn) — ein Mensch mit Hebel soll aber sehen, dass er wirkungslos war.
       { status: manuell ? 503 : 200 }
     );
+  }
+
+  // ---- ?nachtrag=1: Alt-Zustand ins Sättigungsmodell heben (einmalig) ----
+  // Gilt in BEIDEN Modi — rührt weder Quelle noch Verkaufszahl an, nur die
+  // Historie und das Sättigungs-Feld. Kein eigener Schreibpfad: Der gehobene
+  // Zustand läuft durch den NORMALEN Tick unten. Der gleicht im selben Request
+  // die Quelle ab (ein Kauf seit dem letzten Tick zählt sofort), schreibt den
+  // Preis und setzt den Endpunkt der Historie. Ist der Zustand schon gehoben
+  // (Wiederholung — etwa nach „Zustand geschrieben, Preis-Write gescheitert"),
+  // gibt es keinen 400, sondern denselben normalen Tick: Der repariert den
+  // Shop-Preis. (Codex-Review 02.09., Punkte 3–5.)
+  let nachtragStatus: "nachgetragen" | "bereits_nachgetragen" | null = null;
+  if (state && nachtragRequested) {
+    if (state.saettigungEuro === null) {
+      try {
+        state = nachtrag(state, now);
+      } catch (err) {
+        if (err instanceof NachtragError) {
+          return NextResponse.json(
+            { status: "nachtrag_unklar", hint: err.message },
+            { status: 409 }
+          );
+        }
+        throw err;
+      }
+      nachtragStatus = "nachgetragen";
+    } else {
+      nachtragStatus = "bereits_nachgetragen";
+    }
   }
 
   // ---- Die zwei menschlichen Hebel für Bestands-Anomalien (409) ----
@@ -400,7 +444,7 @@ async function runTick(
   const sollPreis = shopPrice(priceOf(next, now));
   const preisWeichtAb = currentPriceEuro !== sollPreis;
 
-  if (!state || next !== state || preisWeichtAb) {
+  if (!state || next !== state || preisWeichtAb || nachtragStatus === "nachgetragen") {
     await writeTicker(
       prepareForWrite(next, now),
       // Der LIVE-Preis aus dem Shop, nicht der aus dem Zustand abgeleitete.
@@ -413,7 +457,10 @@ async function runTick(
   }
 
   return NextResponse.json({
-    status: state ? "ok" : "started",
+    status: nachtragStatus ?? (state ? "ok" : "started"),
+    ...(nachtragStatus === "nachgetragen"
+      ? { saettigungEuro: next.saettigungEuro, punkte: next.history.length }
+      : {}),
     quelle,
     ...(hinweis ? { hinweis } : {}),
     price: sollPreis,
