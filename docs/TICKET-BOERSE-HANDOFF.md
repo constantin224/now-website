@@ -1,6 +1,6 @@
 # Ticket-Börse — Handoff
 
-**Stand: 2026-09-02 früh** · alles auf `main` + gepusht · 186/186 Tests, Build/tsc/Lint grün · **seit 02.09.: Sättigung an Deckel+Boden, Kauf-Stufen im Chart, Kauf-Turbo erstmals wirklich aktiv** (§Sättigung, §Kauf-Turbo Befund) · **Preismodell seit 10.08.: Community-Pricing** (Spec: `docs/superpowers/specs/2026-08-10-boerse-community-pricing-design.md`)
+**Stand: 2026-09-02 abends** · alles auf `main` + gepusht · 204/204 Tests, Build/tsc/Lint grün · **seit 02.09.: Sättigung an Deckel+Boden, Kauf-Stufen im Chart, Kauf-Turbo erstmals wirklich aktiv, abends ersetzt durch den Kauf-Nachlauf ohne QStash (Preis ~10–15 s nach Kauf)** (§Sättigung, §Kauf-Nachlauf) · **Preismodell seit 10.08.: Community-Pricing** (Spec: `docs/superpowers/specs/2026-08-10-boerse-community-pricing-design.md`)
 
 > ## 🚀 DIE BÖRSE IST LIVE (seit 11.08. ~14:09)
 >
@@ -9,6 +9,7 @@
 > - **Wächter aktiv** (Apps-Script „Tonherd Tickets Waechter", Property `BOERSE_MONITOR_SECRET` gesetzt, `pruefe` still) — mailt an system@tonherd.com bei allem außer Grün. `TICKER_EXPECTED_RUNNING=1`: „disabled" ist seit dem Go-Live eine Alarm-Lage, kein Ruhezustand.
 > - ⚠️ **02.09.: Der Turbo war vom 11.08. bis 02.09. TOT** (Webhook 401 — Shopify signiert mit dem ältesten Client-Secret, wir prüften nur das neue; der „Beweis" vom 11.08. war der Cron). Seit 02.09. 08:03 real belegt (§Kauf-Turbo Befund). Ursprünglicher Eintrag:
 > - **Kauf-Turbo LIVE** (11.08. ~22:40, Shopify-Abo `gid://shopify/WebhookSubscription/2492050014539` via `scripts/boerse-turbo-setup.sh`): echte Käufe werden in **~90 s** eingepreist (§Kauf-Turbo). Fallback bleibt der */5-Cron.
+> - **02.09. abends: Kauf-NACHLAUF ersetzt den QStash-Turbo** — der Webhook zieht die Kette nach seiner Antwort selbst nach (`after()`): Ledger-Pass mit Bestell-ID, dann Börsen-Tick. Preis **~10–15 s** nach dem Kauf, **null QStash-Messages** (§Kauf-Nachlauf). Dasselbe Shopify-Abo, dieselben Envs minus `QSTASH_TOKEN`.
 > - Chart zoomt seit 11.08. auf die Daten (Boden-Linie erscheint erst bei Annäherung); Hero-Reduced-Motion-Fallback = Crowd-Foto.
 > - Not-Aus-Reihenfolge unverändert (§Notfall-Rollback); der Ampel-Alarm beim bewussten Not-Aus ist gewollt.
 >
@@ -35,10 +36,10 @@ Die Seite `/de/tickets` + `/en/tickets` zeigt den Kurs, den Chart und die Parodi
 | | |
 |---|---|
 | Code | `main`, gepusht |
-| Tests | 140/140 (Engine + Routen gegen gefälschten Shopify-Server + 96-Tage-Simulation + Turbo) · Naht real bewiesen: Generalprobe 16.07. + Live-Kauf 11.08. |
+| Tests | 204/204 (Engine + Routen gegen gefälschten Shopify-Server + 96-Tage-Simulation + Nachlauf) · Naht real bewiesen: Generalprobe 16.07. + Live-Kauf 11.08. + Turbo-Order 02.09. |
 | In Shopify | `ticker.state`-Metafield LIVE, Preis dynamisch (Start 22,00 €) · Webhook-Abo orders/create aktiv |
 | Läuft | **JA, seit 11.08.** — Kette real bewiesen (Kauf → 21,00 €, Chart, Wächter) |
-| Betrieb | QStash */5 + Kauf-Turbo (~90 s) · Ampel `/api/ticker/status` · Wächter-Mail an system@tonherd.com |
+| Betrieb | QStash */5 + Kauf-Nachlauf (~10–15 s, ohne QStash) · Ampel `/api/ticker/status` · Wächter-Mail an system@tonherd.com |
 
 ---
 
@@ -167,36 +168,17 @@ Im Bestands-Notpfad bewusst geblieben (Restrisiko): Zählt der Cron einen Verkau
 
 **Nicht rückgebaut werden darf:** Reihenfolge Sättigung → Zeit → Verkäufe → Sättigung; `null`-Semantik des Alt-Zustands; Ereignis-Schutz im Pruning; Hebel ohne eigenen Schreibpfad.
 
-## Kauf-Turbo (seit 11.08. abends)
+## Kauf-Nachlauf (seit 02.09. abends) — davor Kauf-Turbo via QStash (11.08.–02.09.)
+
+**Heute:** Der Webhook (Shopify-Abo `orders/create` → `/api/ticker/webhook`, angelegt via `scripts/boerse-turbo-setup.sh`) antwortet Shopify sofort und zieht DANACH — Next.js `after()`, auf Vercel via waitUntil, `maxDuration = 60` — die Kette selbst nach (`lib/ticker/nachlauf.ts`): **5 s Vorlauf** (Zahlungsstatus setzen lassen — Karte/Shop Pay sind beim Anlegen schon „paid", PayPal manchmal erst Sekunden später) → **Ledger-Pass des Ticket-Systems MIT Bestell-ID** `…/api/cron?order=<id>` (Bearer `TICKETS_CRON_SECRET`, 8 s Timeout; zieht genau diese Bestellung per ID nach, kein gedrosselter Voll-Abgleich, kein Suchindex) → meldet die Antwort die Bestellung nicht als erledigt (`turboOrders` ohne `<pid>/<id>`), **8 s warten, EIN zweiter Versuch** → **Börsen-Tick** `…/api/ticker/tick` (Bearer `CRON_SECRET`, 15 s Timeout). Preis **~10–15 s nach dem Kauf**, **null QStash-Messages** (Free-Limit gehört allein den drei Schedules). Worst Case aller Timeouts 44 s < 60 s. Leitplanken wie beim Turbo: nur Beschleuniger, nie Tragwerk (Webhook bucht nichts, Blocker 21); alles idempotent (Doppelzustellung harmlos); Fehler nur geloggt (`[ticker/nachlauf]`), der 5-min-Cron beider Systeme bleibt der Fallback; **kein Retry über den Cron hinaus** (nach der Antwort gibt es niemanden mehr, der wiederholt — bewusst). Feuert die 4-s-Deadline des Webhooks zuerst (träges Shopify), wird der Nachlauf NICHT mehr eingeplant (`darfPlanen`): `after()` nach dem Antwortende läuft nicht zuverlässig — dann übernimmt der Cron, wie vorher beim Turbo. Nur im Ticket-Modus, nie für Testbestellungen, nie im Bestands-Modus (dort schreibt der Webhook selbst; ein früher Tick sähe den noch nicht fortgeschriebenen Bestand). Tests: `nachlauf.test.ts` (jeder Ausgang der Naht) + `routes.test.ts` (Webhook plant, Kette läuft nach der Antwort, Deadline-Pfad plant nicht). Warum der Umbau: QStash-Free-Quota (1000/Tag, ~672 durch die Schedules → bei 3 Turbo-Messages nur ~109 Käufe/Tag Luft) und die künstlichen Verzögerungen (+10/+75/+180 s), die nur nötig waren, damit die Messages sauber hintereinander liegen.
+
+**Historie (Turbo via QStash, 11.08.–02.09.):**
 
 > **🚨 BEFUND 02.09.: Der Turbo hat NIE gefeuert.** Vercel-Log: jeder Shopify-Aufruf von `/api/ticker/webhook` endet mit **401** (Retry-Muster 04:51/04:52/04:54/04:59/05:21 = Shopify-Wiederholungen), QStash-Log enthält in keinem Bestell-Fenster (26.08., 28.08., 01.09., 02.09.) eine Turbo-Message, Verzug Bestellung→Sale-Event real 7–14 min (Ledger-Cron + Börsen-Cron in Serie). Der „Beweis" vom 11.08. (Testkauf 22→21 € in 8 min) war der Cron, nicht der Turbo. **Ursache eingegrenzt:** Selbstsignierter POST mit dem Vercel-Secret → 200, falsches Secret → 401 ⇒ Route und Env sind korrekt, aber Shopify signiert mit einem ANDEREN Secret als `SHOPIFY_WEBHOOK_SECRET` (= Client-Secret `shpss_…`, identisch in now-website, tonherd-tickets und Keychain; der Token-Flow akzeptiert es weiter). Verdacht: zweites/rotiertes Client-Secret der Dev-Dashboard-App „Claude Code Admin" (Shopify signiert Webhooks mit dem aktuellen Secret, alte bleiben für Auth gültig). **Aufgeklärt (02.09., Dev Dashboard via Chrome):** Die App „Claude Code Admin" hat seit 9. Juni 2026 ZWEI Client-Secrets („Alt" 22:34, „Neu" 22:56). Keychain, now-website und tonherd-tickets halten „Neu" (Token-Flow läuft). Shopify-Doku: *„Shopify signs webhooks with your app's oldest unrevoked client secret"* → Webhooks sind mit „Alt" signiert → 401. **Fix (Commit `3796b75`):** `verifyShopifyHmac` nimmt eine Liste, die Route prüft `SHOPIFY_WEBHOOK_SECRET` UND `SHOPIFY_WEBHOOK_SECRET_ALT` (Vercel production, Wert = „Alt", per Kopieren-Button → Zwischenablage → `vercel env add`, nie im Chat). Immun gegen den Rotationszustand: heute signiert „Alt", nach einem Widerruf „Neu". **Live bewiesen 02.09. 08:03 MESZ:** Shopify wiederholte die Zustellung von Bestellung #1423 (Retry-Kette seit 07:33) → auf dem neuen Deploy `POST /api/ticker/webhook 200` → QStash 06:03:44 UTC drei Turbo-Messages → Ledger-Pass 06:03:55 (200), Börsen-Tick 06:05:00 (200), 06:06:46 (200). Delays 10/75/180 s stimmen. Kauf war bereits per Cron gebucht → Ticks idempotent, nichts doppelt. Selbstsignierter Test nach Deploy: ALT → 200, NEU → 200, falsch → 401. **Aufräumen (Constantin, irreversibel):** „Alt" im Dev Dashboard widerrufen, sobald sicher ist, dass nichts anderes damit authentifiziert (lokal nichts gefunden); danach `SHOPIFY_WEBHOOK_SECRET_ALT` entfernen.
 
 > **🚨 BEFUND 02.09. abends: Zweiter Kauf innerhalb von 10 Minuten blieb unsichtbar.** Constantin: „Birgit Hübler 2× hintereinander 1 Ticket, das 2. hat sich nicht auf den Kurs ausgewirkt." Zeitlinie (UTC): #1426 18:48:34 → Turbo-Ledger-Pass 18:48:58 → Börse 18:50:00 `sale qty 1` (15,89 → 14,89 €) ✓. #1427 18:51:36 → Turbo-Ledger-Pass 18:51:53 lief, **gleich aber nicht ab**: Die inkrementelle Reconciliation im Ticket-System-Cron (`lib/cutoff.ts`) ist auf **alle 10 Minuten gedrosselt** — 18:51:53 lag nur 3 min nach 18:48:58. Alle drei Börsen-Ticks danach (18:52:58, 18:54:43, 18:55:00) lasen 47. Erst der fällige Lauf 19:00:03 fand #1427 (48); der Börsen-Cron 19:00:00 lief 3 s DAVOR (47), der von 19:05:00 buchte: `soldCount 19`, 13,90 € — **13,5 min statt ~90 s.** Kein Fehler in der Börse selbst; die Naht war die Drossel im Ticket-System (der Turbo-Pass war bis dahin nur dann wirksam, wenn zufällig ≥10 min seit dem letzten Abgleich vergangen waren — bei #1425 um 18:35 war das der Fall, bei #1427 nicht). **Fix (beide Repos):** Der Ledger-Pass bekommt die **Bestell-ID** mit — `…/api/cron?order=<ID>` (Bearer-Auth wie immer) → `runCronPass(now, { orderId })` lädt GENAU diese Bestellung per `order(id:)` (liest den Datensatz direkt — kein gedrosselter Voll-Abgleich, kein nachhinkender Suchindex) und wendet sie mit demselben idempotenten `applyOrderToEvent` an wie Webhook und Reconciliation. Drossel, Cursor und Überlapp der Reconciliation bleiben unberührt (sie bleibt das Netz für alles andere); Kosten = ein `order(id:)`-Aufruf pro Kauf. Erste Fassung (Drossel-Bypass `?reconcile=1` + zweiter Ledger-Pass, 4 Messages) nach Codex-Review verworfen: Suchindex-Lücke blieb, Timing +60 s vs. +75 s wackelig, QStash-Free-Quota (Börsen-Cron + Ticket-Crons ≈ 672/1000 pro Tag) hätte bei 4 Messages nur ~80 Käufe/Tag getragen. Naht geprüft: QStash reicht den Query-String der Ziel-URL durch (Log-Eintrag `DELIVERED …/api/cron?…` → 200). Tests: `cutoff.test.ts` + `cron-route.test.ts` (Ticket-System), `routes.test.ts` (hier: Ledger-URL trägt `?order=<id>`).
 
-Der Webhook (Shopify-Abo `orders/create` → `/api/ticker/webhook`, angelegt
-via `scripts/boerse-turbo-setup.sh`) publiziert bei jeder ECHTEN
-Ticket-Bestellung im Ticket-Modus drei **verzögerte QStash-Messages**:
-Ledger-Pass des Ticket-Systems `?order=<Bestell-ID>` +10 s, Börsen-Tick
-+75 s und +180 s (Netz).
-**Preis ~90 s nach Kauf statt bis zu 10 min** — ohne die Cron-Grundlast
-anzuheben (~3 Messages pro Verkauf, QStash bleibt Free).
-
-Leitplanken (`lib/ticker/turbo.ts` + Webhook):
-- **Nur Beschleuniger, nie Tragwerk**: Der Webhook bucht weiterhin NICHTS
-  (Blocker 21); er bittet die idempotenten Cron-Pfade um frühere Läufe. Der
-  5-min-Cron bleibt der Fallback — fällt der Turbo aus, wird alles nur
-  wieder so langsam wie vorher.
-- **Antwort-Budget**: Gesamt-Deadline `WEBHOOK_DEADLINE_MS` (4 s) über der
-  kompletten Verarbeitung — readTicker kann mit kaltem Token sonst allein
-  Shopifys ~5-s-Fenster reißen (Abo-Lösch-Mechanik!). Bei Ablauf: Verkäufe
-  200 + Fallback-Hinweis, TESTbestellungen 500 (Retry rettet die
-  Neutralisierung im Bestands-Notpfad; recentOrders verhindert Doppelung).
-- **`Upstash-Deduplication-Id` = `turbo-<orderId>-<zielIndex>`** —
-  Shopify-Doppelzustellungen verstärken nichts, QStash verwirft Dubletten.
-- Envs: `QSTASH_TOKEN`, `TICKETS_CRON_SECRET` (CRON_SECRET des
-  Ticket-Systems), `SHOPIFY_WEBHOOK_SECRET` (= Client-Secret der Admin-App —
-  Shopify signiert per API angelegte Abos damit). Fehlen sie: Turbo
-  schlicht aus, kein Fehler.
+Der Turbo publizierte bei jeder ECHTEN Ticket-Bestellung im Ticket-Modus drei verzögerte QStash-Messages (Ledger-Pass +10 s, zuletzt mit `?order=<id>`; Börsen-Tick +75 s und +180 s), mit `Upstash-Deduplication-Id = turbo-<orderId>-<zielIndex>` gegen Doppelzustellung und einem Antwort-Budget innerhalb der 4-s-Deadline. Envs damals: `QSTASH_TOKEN`, `TICKETS_CRON_SECRET`, `SHOPIFY_WEBHOOK_SECRET`. Abgelöst 02.09. abends durch den Nachlauf (oben); `QSTASH_TOKEN` braucht die App seither nicht mehr (Setup-Script setzt ihn noch, harmlos).
 
 ---
 
@@ -255,7 +237,9 @@ lib/ticker/routes.test.ts    # ROUTEN gegen gefälschten Shopify-Server — hier
 app/api/ticker/tick/route.ts     # Cron (QStash): Quelle wählen, Drift, ?start=1,
                                  #   ?rebaseline=1, ?reconcile=<sprünge>, ?nachtrag=1; nie 5xx an den Scheduler
 app/api/ticker/status/route.ts   # Betriebsampel für den externen Wächter (nur lesen)
-app/api/ticker/webhook/route.ts  # orders/create: liest NUR Bestell-ID, Menge, Testflag
+app/api/ticker/webhook/route.ts  # orders/create: liest NUR Bestell-ID, Menge, Testflag; plant den Nachlauf
+lib/ticker/nachlauf.ts           # Kauf-Nachlauf nach der Antwort: Ledger-Pass ?order=<id> → Börsen-Tick
+lib/ticker/nachlauf.test.ts      # jeder Ausgang der Naht (bestätigt, 2. Versuch, tot, Secret fehlt, Zeiten)
 app/[locale]/tickets/page.tsx    # die Seite (zeigt den LIVE-Shop-Preis)
 lib/ticker/chart-days.ts     # Tagesansicht für den Chart (Tagesende-Kurs, Tickets/Tag)
 components/ticker/*.tsx          # price-chart (Tagesansicht), price-hero, ticker-tape, countdown,
@@ -355,8 +339,9 @@ Den Preis allein zurückzustellen **reicht nicht** — der nächste Tick übersc
 |---|---|
 | 🟡 **Altes Client-Secret widerrufen** | 02.09.: App „Claude Code Admin" hat zwei Secrets; Webhook prüft beide (`SHOPIFY_WEBHOOK_SECRET_ALT`). Widerruf von „Alt" im Dev Dashboard = Constantin, irreversibel, nur wenn nichts anderes damit authentifiziert (lokal nichts gefunden). Danach `_ALT`-Env entfernen. Ohne Widerruf läuft alles. |
 | 🟢 **Erster Kauf mit 90-s-Sprung** | **erledigt (02.09. abends)** — #1425 bestellt 18:35:21 UTC → Sale-Event 18:36:42 = **81 s**. Danach der Drossel-Befund (§Kauf-Turbo, zweiter Kauf in <10 min) — Fix: Ledger-Pass bekommt `?order=<ID>`, Ticket-System zieht die Bestellung per ID nach. |
-| 🟡 **Turbo-Order-Fix live beweisen** | Nach Deploy beider Repos: nächster Doppelkauf innerhalb von 10 min → zweiter Sale-Punkt ≈ 90 s nach Bestellzeit. Bis dahin: QStash-Log `…/api/cron?order=<id>` DELIVERED 200, Ticket-System-Log `Cron: Turbo-Order <id> sofort nachziehen`. |
-| 🟡 **QStash-Quota** | Free-Limit 1000 Messages/Tag, davon ~672 durch die drei Schedules (Börse */5, Tickets */5, Sync */15). 3 Turbo-Messages pro Kauf ⇒ ~109 Käufe/Tag Luft. Bei einem Ansturm (Ankündigung, letzte Tage) vorher auf QStash-Pay-as-you-go wechseln oder Turbo abschalten (`QSTASH_TOKEN` in now-website leeren — der Cron bleibt). |
+| 🟢 **Turbo-Order live bewiesen** | 02.09.: #1429 (2 Tickets) bestellt 19:41:08 UTC → Ticket-System `standVon` 19:41:23 (Turbo-Pass mit ID, +15 s) → Börse `sale qty 2` 19:42:28 (Tick +75 s), 11,90 → 9,90 € — **80 s**. |
+| 🟡 **Nachlauf live beweisen** | Nach Deploy: nächster Kauf → Vercel-Log `[ticker/nachlauf] Bestellung <id>: {"ledger":"erledigt","ledgerVersuche":1,"tick":"ok",…}`, Sale-Punkt ~10–15 s nach Bestellzeit. Zweiter Kauf innerhalb von 10 min genauso. |
+| 🟢 **QStash-Quota** | **entschärft (02.09. abends)** — der Nachlauf braucht keine QStash-Messages mehr; die drei Schedules (~672/Tag) bleiben allein unter dem Free-Limit von 1000. Optional weiter senken: Börsen-Cron */10 statt */5 (Preis hängt an der Uhr, nicht am Takt) und Sync */30. Pay-as-you-go (~1 $/100k) bleibt das Netz. |
 | 🟡 **Reel-Skript v4** | `tonherd-instagram/analysis/reel-skript-ticket-boerse.md` (31.08.) erwähnt evtl. den Deckel-Überhang — gegenlesen, Mechanik ist jetzt wie versprochen. |
 | 🟢 **Go-Live** | **vorbereitet (06.08.)** — Evey-Ablösung ist durch (27.07.); Ausführung = `./scripts/boerse-golive.sh` + Apps-Script-Property. ⚠️ Schritt „Ticket-System scharfschalten" heißt heute konkret: **Wien manuell armen** — das Auto-Arming des Ticket-Systems (seit 18.07., `lib/veranstalter-sync.ts`) greift erst doors−12h; bis dahin liefert `/api/verkaufszahl` `scharf:false`, der Start würde 503 verweigern. Das Script erledigt das. |
 | 🟢 **Testbestellungen im Ledger** | **erledigt (18.07.)** — `entitlementsForOrder` schließt `test:true` global aus; `ignoredTickets` im Ticket-Modus obsolet. |

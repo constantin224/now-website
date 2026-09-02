@@ -4,6 +4,17 @@ import { TICKER_CONFIG as C } from "./config";
 import { initState, parseState, type TickerState } from "./engine";
 import live from "./fixtures/boerse-live-2026-09-02.json";
 
+// `after()` (Next.js) braucht einen Request-Kontext, den es beim direkten Aufruf
+// der Route-Handler nicht gibt. Der Mock sammelt die eingeplanten Nachläufe;
+// die Tests führen sie gezielt aus (siehe nachlaufAusfuehren).
+const geplant = vi.hoisted(() => ({ nachlaeufe: [] as (() => unknown)[] }));
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: (fn: () => unknown) => {
+    geplant.nachlaeufe.push(fn);
+  },
+}));
+
 /**
  * Route-Tests gegen einen gefälschten Shopify-Server.
  *
@@ -42,9 +53,24 @@ let tickets: {
   tot?: boolean;
 };
 
-let qstashPublishes: { url: string; headers: Record<string, string> }[] = [];
-let qstashDown = false;
+/** Aufrufe des Kauf-Nachlaufs (Ledger-Pass des Ticket-Systems, Börsen-Tick). */
+let nachlaufCalls: { url: string; auth: string | null }[] = [];
+let ledgerDown = false;
+/** Ticket-System bestätigt die Bestellung (turboOrdersMitTicket enthält `<pid>/<orderId>`)? false = Zahlung pending (Grabstein). */
+let ledgerBestaetigt = true;
 let shopifyLangsamMs = 0;
+
+/** Die eingeplanten Nachläufe ausführen — Wartezeiten (Vorlauf/Wiederholung) per Fake-Timer überspringen. */
+async function nachlaufAusfuehren() {
+  vi.useFakeTimers();
+  try {
+    const laeufe = geplant.nachlaeufe.splice(0).map((fn) => fn());
+    await vi.runAllTimersAsync();
+    await Promise.all(laeufe);
+  } finally {
+    vi.useRealTimers();
+  }
+}
 
 function fakeFetch(url: string | URL, init?: RequestInit): Promise<Response> {
   const body = String(init?.body ?? "");
@@ -61,15 +87,27 @@ function fakeFetch(url: string | URL, init?: RequestInit): Promise<Response> {
     );
   }
 
-  if (String(url).includes("qstash")) {
-    if (qstashDown) return Promise.reject(new Error("QStash nicht erreichbar"));
-    qstashPublishes.push({
-      url: String(url),
-      headers: Object.fromEntries(
-        Object.entries((init?.headers ?? {}) as Record<string, string>)
-      ),
+  // Kauf-Nachlauf: Ledger-Pass des Ticket-Systems (mit Bestell-ID) …
+  if (String(url).includes("/api/cron")) {
+    const auth = ((init?.headers ?? {}) as Record<string, string>)["Authorization"] ?? null;
+    nachlaufCalls.push({ url: String(url), auth });
+    if (ledgerDown) return Promise.reject(new Error("Ticket-System nicht erreichbar"));
+    const order = new URL(String(url)).searchParams.get("order");
+    const pid = C.productGid.split("/").pop();
+    // Echte Antwortform des Ticket-Systems: turboOrders = erledigt (auch Grabstein bei pending),
+    // turboOrdersMitTicket = trägt jetzt ein gültiges Ticket (DAS ist die Bestätigung).
+    return json({
+      status: "ok",
+      turboOrders: order ? [`${pid}/${order}`] : [],
+      turboOrdersMitTicket: ledgerBestaetigt && order ? [`${pid}/${order}`] : [],
+      errors: [],
     });
-    return json({ messageId: `msg-${qstashPublishes.length}` });
+  }
+  // … und der Börsen-Tick (Cron-Pfad, hier nur als Aufruf protokolliert)
+  if (String(url).includes("/api/ticker/tick")) {
+    const auth = ((init?.headers ?? {}) as Record<string, string>)["Authorization"] ?? null;
+    nachlaufCalls.push({ url: String(url), auth });
+    return json({ status: "ok" });
   }
 
   if (String(url).includes("/api/verkaufszahl")) {
@@ -204,11 +242,12 @@ beforeEach(() => {
   vi.stubEnv("SHOPIFY_WEBHOOK_SECRET_ALT", ""); // Standard: kein Zweit-Secret
   vi.stubEnv("CRON_SECRET", CRON_SECRET);
   vi.stubEnv("MONITOR_SECRET", MONITOR_SECRET);
-  // Kauf-Turbo: im Standard konfiguriert, damit der Ticket-Modus ihn feuert
-  vi.stubEnv("QSTASH_TOKEN", "qstash-token-test");
+  // Kauf-Nachlauf: im Standard konfiguriert, damit der Ticket-Modus ihn einplant
   vi.stubEnv("TICKETS_CRON_SECRET", "tickets-cron-geheim");
-  qstashPublishes = [];
-  qstashDown = false;
+  nachlaufCalls = [];
+  ledgerDown = false;
+  ledgerBestaetigt = true;
+  geplant.nachlaeufe.length = 0;
   shopifyLangsamMs = 0;
   // Standard: KEIN Ticket-System konfiguriert → die bestehenden Tests prüfen
   // weiterhin den Bestands-Notpfad.
@@ -682,88 +721,101 @@ describe("Audit-Runde 4 — die Naht zur Ticket-Quelle", () => {
     expect(shop.stateWrites).toBe(0);
   });
 
-  it("der Webhook bucht im Ticket-Modus KEINE Verkäufe — er feuert die Turbo-Ticks", async () => {
+  it("der Webhook bucht im Ticket-Modus KEINE Verkäufe — er plant den Kauf-Nachlauf ein", async () => {
     // Sonst: Bestands-Mathe kann mehr als die Bestellmenge übernehmen, und
     // Cron + Webhook zählen dieselbe Bestellung vorübergehend doppelt.
     shop.state = { ...shop.state!, quelle: "tickets" };
     shop.inventory = 245; // Bestand ist aus fremden Gründen gefallen
 
     const r = await postWebhook(orderBody({ id: 41, tickets: 2 }));
-    expect(await r.json()).toMatchObject({ ok: true, tickets: 2, turbo: { gefeuert: 3 } });
+    expect(await r.json()).toMatchObject({ ok: true, tickets: 2, nachlauf: "geplant" });
     expect(shop.stateWrites).toBe(0); // kein Schreibvorgang
     expect(shop.state!.soldCount).toBe(0);
     expect(shop.variantPrice).toBe(22);
+    // Zum Antwortzeitpunkt ist NICHTS gelaufen — die Kette kommt erst nach der Antwort.
+    expect(nachlaufCalls).toHaveLength(0);
+    expect(geplant.nachlaeufe).toHaveLength(1);
 
-    // Genau die drei konfigurierten verzögerten Läufe: erst der Ledger-Pass
-    // des Ticket-Systems — MIT der Bestell-ID (`?order=<id>`), damit er genau
-    // diese Bestellung per ID nachzieht statt den gedrosselten Voll-Abgleich
-    // zu bemühen (Befund 02.09.: zweiter Kauf 3 min nach dem ersten blieb
-    // 13 min unsichtbar) — dann zwei Börsen-Ticks, jeweils mit dem RICHTIGEN
-    // weitergereichten Secret.
-    expect(qstashPublishes).toHaveLength(3);
-    const [ledger, tick1, tick2] = qstashPublishes;
-    expect(ledger.url).toBe(
-      "https://qstash-eu-central-1.upstash.io/v2/publish/https://tonherd-tickets.vercel.app/api/cron?order=41"
-    );
-    expect(ledger.headers["Upstash-Delay"]).toBe("10s");
-    expect(ledger.headers["Upstash-Forward-Authorization"]).toBe("Bearer tickets-cron-geheim");
-    expect(tick1.url).toBe("https://qstash-eu-central-1.upstash.io/v2/publish/https://now-music.at/api/ticker/tick");
-    expect(tick2.url).toBe("https://qstash-eu-central-1.upstash.io/v2/publish/https://now-music.at/api/ticker/tick");
-    expect(tick1.headers["Upstash-Delay"]).toBe("75s");
-    expect(tick1.headers["Upstash-Forward-Authorization"]).toBe(`Bearer ${CRON_SECRET}`);
-    expect(tick2.headers["Upstash-Delay"]).toBe("180s");
-    expect(qstashPublishes.every((p) => p.headers["Upstash-Method"] === "GET")).toBe(true);
+    // Nach der Antwort: erst der Ledger-Pass des Ticket-Systems — MIT der
+    // Bestell-ID (`?order=<id>`), damit er genau diese Bestellung per ID
+    // nachzieht statt den gedrosselten Voll-Abgleich zu bemühen (Befund
+    // 02.09.: zweiter Kauf 3 min nach dem ersten blieb 13 min unsichtbar) —
+    // dann der Börsen-Tick, jeweils mit dem RICHTIGEN Secret.
+    await nachlaufAusfuehren();
+    expect(nachlaufCalls).toEqual([
+      { url: "https://tonherd-tickets.vercel.app/api/cron?order=41", auth: "Bearer tickets-cron-geheim" },
+      { url: "https://now-music.at/api/ticker/tick", auth: `Bearer ${CRON_SECRET}` },
+    ]);
   });
 
-  it("QStash-Ausfall macht den Webhook NICHT kaputt (Fallback ist der Cron)", async () => {
+  it("Ledger bestätigt erst beim zweiten Versuch (Zahlung noch pending) → ein Wiederholungsversuch, dann Tick", async () => {
     shop.state = { ...shop.state!, quelle: "tickets" };
-    qstashDown = true;
+    ledgerBestaetigt = false;
+    await postWebhook(orderBody({ id: 42, tickets: 1 }));
+    // Nach dem ersten Versuch „bezahlt" — der zweite bestätigt.
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockImplementation((url, init) => {
+      if (String(url).includes("/api/cron")) ledgerBestaetigt = nachlaufCalls.length >= 1;
+      return fakeFetch(url as string, init);
+    });
+    await nachlaufAusfuehren();
+    expect(nachlaufCalls.map((c) => c.url)).toEqual([
+      "https://tonherd-tickets.vercel.app/api/cron?order=42",
+      "https://tonherd-tickets.vercel.app/api/cron?order=42",
+      "https://now-music.at/api/ticker/tick",
+    ]);
+  });
+
+  it("Ticket-System nicht erreichbar → Webhook bleibt 200, Nachlauf wirft nicht, Tick läuft trotzdem (Cron bleibt das Netz)", async () => {
+    shop.state = { ...shop.state!, quelle: "tickets" };
+    ledgerDown = true;
     const r = await postWebhook(orderBody({ id: 43, tickets: 1 }));
     expect(r.status).toBe(200);
-    expect(await r.json()).toMatchObject({ ok: true, turbo: { gefeuert: 0 } });
+    expect(await r.json()).toMatchObject({ ok: true, nachlauf: "geplant" });
+    await expect(nachlaufAusfuehren()).resolves.toBeUndefined();
+    // zwei Ledger-Versuche (beide gescheitert), dann der Tick
+    expect(nachlaufCalls.map((c) => c.url)).toEqual([
+      "https://tonherd-tickets.vercel.app/api/cron?order=43",
+      "https://tonherd-tickets.vercel.app/api/cron?order=43",
+      "https://now-music.at/api/ticker/tick",
+    ]);
   });
 
-  it("ohne QSTASH_TOKEN einfach kein Turbo — keine Fehler, keine Publishes", async () => {
-    vi.stubEnv("QSTASH_TOKEN", "");
+  it("nur TICKETS_CRON_SECRET fehlt → Ledger übersprungen, Börsen-Tick läuft", async () => {
+    vi.stubEnv("TICKETS_CRON_SECRET", "");
     shop.state = { ...shop.state!, quelle: "tickets" };
-    const r = await postWebhook(orderBody({ id: 44, tickets: 1 }));
-    expect(r.status).toBe(200);
-    expect(qstashPublishes).toHaveLength(0);
+    await postWebhook(orderBody({ id: 48, tickets: 1 }));
+    await nachlaufAusfuehren();
+    expect(nachlaufCalls.map((c) => c.url)).toEqual(["https://now-music.at/api/ticker/tick"]);
   });
 
-  it("Doppelzustellung im Ticket-Modus: QStash-Dedup-IDs sind identisch", async () => {
+  it("Doppelzustellung im Ticket-Modus: jede Zustellung plant einen Nachlauf — harmlos, beide Pfade sind idempotent", async () => {
     // Der Ticket-Modus schreibt nichts — auch keinen recentOrders-Eintrag.
-    // Eine erneute Shopify-Zustellung feuert also erneut. Verstärkung
-    // verhindert die Deduplication-Id: pro Bestellung+Ziel identisch, QStash
-    // verwirft die Dubletten selbst.
+    // Eine erneute Shopify-Zustellung plant also erneut; Ledger-Apply und
+    // Tick sind idempotent (dieselbe Bestellung zählt nie doppelt).
     shop.state = { ...shop.state!, quelle: "tickets" };
     const body = orderBody({ id: 47, tickets: 1 });
     await postWebhook(body);
     await postWebhook(body); // identische erneute Zustellung
-    expect(qstashPublishes).toHaveLength(6);
-    const ids = qstashPublishes.map((p) => p.headers["Upstash-Deduplication-Id"]);
-    expect(new Set(ids).size).toBe(3); // 2. Runde = exakt dieselben drei IDs
-    expect(ids[0]).toBe("turbo-47-0");
+    expect(geplant.nachlaeufe).toHaveLength(2);
+    expect(shop.stateWrites).toBe(0);
   });
 
-  it("nur TICKETS_CRON_SECRET fehlt → Ledger übersprungen, Börsen-Ticks feuern", async () => {
-    vi.stubEnv("TICKETS_CRON_SECRET", "");
-    shop.state = { ...shop.state!, quelle: "tickets" };
-    const r = await postWebhook(orderBody({ id: 48, tickets: 1 }));
-    expect(await r.json()).toMatchObject({ turbo: { gefeuert: 2, uebersprungen: 1 } });
-    expect(qstashPublishes.every((p) => p.url.includes("now-music.at"))).toBe(true);
-  });
-
-  it("träge Shopify-API: Webhook antwortet trotzdem rechtzeitig 200 (Deadline)", async () => {
+  it("träge Shopify-API: Webhook antwortet trotzdem rechtzeitig 200 (Deadline) — KEIN Nachlauf nach der Antwort", async () => {
     // readTicker darf mit kaltem Token bis ~20 s hängen — Shopify löscht Abos
     // nach anhaltend späten Antworten. Die Gesamt-Deadline antwortet vorher
     // mit 200; der Cron zieht den Verkauf nach, nichts geht verloren.
+    // after() NACH dem Antwortende läuft nicht zuverlässig → wird dann nicht
+    // mehr eingeplant (darfPlanen), der Cron übernimmt.
     vi.stubEnv("WEBHOOK_DEADLINE_MS", "80");
+    shop.state = { ...shop.state!, quelle: "tickets" };
     shopifyLangsamMs = 400;
     const r = await postWebhook(orderBody({ id: 49, tickets: 1 }));
     expect(r.status).toBe(200);
     expect(await r.json()).toMatchObject({ ok: true, status: "langsam" });
-    expect(qstashPublishes).toHaveLength(0); // Turbo kam gar nicht erst dran
+    await new Promise((res) => setTimeout(res, 500)); // die verspätete Verarbeitung zu Ende laufen lassen
+    expect(geplant.nachlaeufe).toHaveLength(0);
+    expect(nachlaufCalls).toHaveLength(0);
   });
 
   it("träge Shopify-API + TESTbestellung → 500 (Retry rettet die Neutralisierung)", async () => {
@@ -775,24 +827,15 @@ describe("Audit-Runde 4 — die Naht zur Ticket-Quelle", () => {
     expect(r.status).toBe(500);
   });
 
-  it("aufgebrauchtes Antwort-Budget überspringt den Turbo komplett", async () => {
-    // Direkt gegen die Turbo-Funktion: Budget unter der Mindestschwelle —
-    // kein einziger Publish, Shopifys Antwortfenster bleibt unangetastet.
-    const { feuerTurboTicks } = await import("@/lib/ticker/turbo");
-    const r = await feuerTurboTicks("999", 100);
-    expect(r).toEqual({ gefeuert: 0, uebersprungen: 3 });
-    expect(qstashPublishes).toHaveLength(0);
-  });
-
-  it("Testbestellungen feuern KEINEN Turbo (sie bewegen den Kurs nie)", async () => {
+  it("Testbestellungen planen KEINEN Nachlauf (sie bewegen den Kurs nie)", async () => {
     shop.state = { ...shop.state!, quelle: "tickets" };
     await postWebhook(orderBody({ id: 45, tickets: 2, test: true }));
-    expect(qstashPublishes).toHaveLength(0);
+    expect(geplant.nachlaeufe).toHaveLength(0);
   });
 
-  it("im Bestands-Modus kein Turbo — dort schreibt der Webhook selbst", async () => {
+  it("im Bestands-Modus kein Nachlauf — dort schreibt der Webhook selbst", async () => {
     await postWebhook(orderBody({ id: 46, tickets: 1 })); // Standard-Setup = bestand
-    expect(qstashPublishes).toHaveLength(0);
+    expect(geplant.nachlaeufe).toHaveLength(0);
     expect(shop.state!.soldCount).toBe(1); // der direkte Buchungspfad lebt
   });
 

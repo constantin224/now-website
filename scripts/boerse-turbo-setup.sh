@@ -1,11 +1,12 @@
 #!/bin/bash
 # Kauf-Turbo-Setup: Envs + Shopify-Webhook-Abo für orders/create.
 #
-# Was danach gilt: Bei jeder ECHTEN Ticket-Bestellung publiziert der Webhook
-# drei verzögerte QStash-Messages (Ledger +10 s, Börse +75 s/+180 s) — der
-# Preis ist ~90 s nach dem Kauf aktuell statt nach bis zu 10 min. Der
-# 5-min-Cron bleibt der Fallback; QStash bleibt im Free-Plan (~3 Messages
-# pro Verkauf).
+# Was danach gilt (seit 02.09. abends = KAUF-NACHLAUF, lib/ticker/nachlauf.ts):
+# Bei jeder ECHTEN Ticket-Bestellung antwortet der Webhook sofort und zieht
+# danach selbst nach (Ledger-Pass mit Bestell-ID, dann Börsen-Tick) — der
+# Preis ist ~10–15 s nach dem Kauf aktuell. Der 5-min-Cron bleibt der Fallback.
+# QSTASH_TOKEN braucht die App dafür NICHT mehr (wird hier noch gesetzt —
+# harmlos, historisch: der frühere Turbo publizierte drei QStash-Messages).
 #
 # REIHENFOLGE IST SICHERHEITSRELEVANT: Erst Envs, dann Deploy, ERST DANN das
 # Shopify-Abo — ein Abo auf eine Route ohne SHOPIFY_WEBHOOK_SECRET gäbe nur

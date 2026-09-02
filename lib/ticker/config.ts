@@ -89,28 +89,28 @@ export const TICKER_CONFIG = {
   // ist Absicht: Ein voll gelaufenes Metafield würde die Börse einfrieren.
   metafieldMaxBytes: 50_000,
 
-  // ---- Kauf-Turbo ----
-  // Der Webhook publiziert bei jeder ECHTEN Ticket-Bestellung verzögerte
-  // Einzel-Messages an QStash: erst den Ledger-Pass des Ticket-Systems, dann
-  // zwei Börsen-Ticks. So ist der Preis ~90 s nach dem Kauf aktuell, ohne die
-  // Cron-Grundlast (*/5, Free-Limit) anzuheben — ~3 Messages pro Verkauf.
-  // Ziele = DIESELBEN URLs wie die bestehenden QStash-Schedules (bewährt).
-  // Der zweite Börsen-Tick ist das Netz, falls der Ledger-Pass den ersten
-  // knapp verpasst; der */5-Cron bleibt ohnehin der Fallback.
-  //
-  // `mitBestellId` (seit 02.09.): Der Ledger-Pass bekommt `?order=<Bestell-ID>`
-  // angehängt und zieht GENAU diese Bestellung per ID nach. Vorher bat er nur
-  // um einen normalen Cron-Pass — dessen Shopify-Abgleich ist auf alle 10 min
-  // gedrosselt und sprang über, wenn kurz davor schon einer lief: zwei Käufe
-  // 3 min auseinander (#1426 → #1427), der zweite blieb bis zum nächsten
-  // fälligen Abgleich unsichtbar, Kurs erst 13 min später. Per ID gibt es
-  // weder Drossel noch nachhinkenden Suchindex (`order(id:)` liest direkt).
-  turboZiele: [
-    { url: "https://tonherd-tickets.vercel.app/api/cron", delay: "10s", secretEnv: "TICKETS_CRON_SECRET", mitBestellId: true },
-    { url: "https://now-music.at/api/ticker/tick", delay: "75s", secretEnv: "CRON_SECRET", mitBestellId: false },
-    { url: "https://now-music.at/api/ticker/tick", delay: "180s", secretEnv: "CRON_SECRET", mitBestellId: false },
-  ],
-  qstashPublishBase: "https://qstash-eu-central-1.upstash.io/v2/publish",
+  // ---- Kauf-Nachlauf (seit 02.09. abends, ersetzt den QStash-Turbo) ----
+  // Der Webhook antwortet Shopify sofort und zieht DANACH (Next.js `after()`,
+  // auf Vercel via waitUntil) die Kette selbst nach: Ledger-Pass des
+  // Ticket-Systems MIT Bestell-ID (`?order=<id>` — zieht genau diese Bestellung
+  // per ID nach, kein gedrosselter Voll-Abgleich, kein Suchindex), dann der
+  // Börsen-Tick. Preis ~10–15 s nach dem Kauf, NULL QStash-Messages (das
+  // Free-Limit von 1000/Tag gehört damit allein den drei Schedules).
+  // Ziele = DIESELBEN URLs wie die QStash-Schedules (bewährt; kanonische
+  // Domains — über einen Redirect ginge der Authorization-Header verloren).
+  // Der 5-min-Cron beider Systeme bleibt der Fallback; siehe lib/ticker/nachlauf.ts.
+  nachlauf: {
+    ledgerUrl: "https://tonherd-tickets.vercel.app/api/cron",
+    tickUrl: "https://now-music.at/api/ticker/tick",
+    // Vorlauf vor dem ersten Ledger-Pass: `orders/create` feuert beim Anlegen —
+    // Karte/Shop Pay sind da schon „paid", PayPal manchmal erst Sekunden später.
+    vorlaufMs: 5_000,
+    // Zweiter Ledger-Versuch, wenn der erste die Bestellung nicht bestätigt.
+    wiederholungMs: 8_000,
+    ledgerTimeoutMs: 8_000,
+    tickTimeoutMs: 15_000,
+    // Summe im schlimmsten Fall: 5 + 8 + 8 + 8 + 15 = 44 s < maxDuration 60 s der Webhook-Route.
+  },
 
   gigDateIso: "2026-10-17T19:00:00+02:00",
   shopProductUrl:

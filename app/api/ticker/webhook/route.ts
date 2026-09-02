@@ -12,7 +12,7 @@ import {
   tick,
 } from "@/lib/ticker/engine";
 import { tickerEnabled } from "@/lib/ticker/guards";
-import { feuerTurboTicks } from "@/lib/ticker/turbo";
+import { planeNachlauf } from "@/lib/ticker/nachlauf";
 import { verifyShopifyHmac } from "@/lib/ticker/hmac";
 import {
   readTicker,
@@ -21,6 +21,9 @@ import {
 } from "@/lib/ticker/shopify-admin";
 
 export const dynamic = "force-dynamic";
+// Der Kauf-Nachlauf (lib/ticker/nachlauf.ts) läuft NACH der Antwort weiter —
+// bis zu 60 s (Hobby-Maximum; Kette im Normalfall 10–15 s, schlimmstenfalls ~44 s).
+export const maxDuration = 60;
 
 interface OrderInfo {
   /** Shopifys Bestell-ID — der Schlüssel gegen Doppelzustellung. */
@@ -121,24 +124,27 @@ export async function POST(request: NextRequest) {
   // eine Doppel-Neutralisierung, falls der erste Lauf doch durchkam.
   const deadlineMs = Number(process.env.WEBHOOK_DEADLINE_MS ?? "4000");
   let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+  // Ist die Antwort schon raus (Deadline), darf der Nachlauf NICHT mehr eingeplant
+  // werden: `after()` nach dem Antwortende läuft nicht zuverlässig. Dann übernimmt
+  // der Cron — wie vorher beim Turbo („kam gar nicht erst dran").
+  let beantwortet = false;
   const deadline = new Promise<NextResponse>((resolve) => {
-    deadlineTimer = setTimeout(
-      () =>
-        resolve(
-          order.isTest
-            ? NextResponse.json({ error: "timeout — retry erwünscht" }, { status: 500 })
-            : NextResponse.json({
-                ok: true,
-                status: "langsam",
-                note: "Shopify antwortet träge — der Cron zieht den Verkauf nach",
-              })
-        ),
-      deadlineMs
-    );
+    deadlineTimer = setTimeout(() => {
+      beantwortet = true;
+      resolve(
+        order.isTest
+          ? NextResponse.json({ error: "timeout — retry erwünscht" }, { status: 500 })
+          : NextResponse.json({
+              ok: true,
+              status: "langsam",
+              note: "Shopify antwortet träge — der Cron zieht den Verkauf nach",
+            })
+      );
+    }, deadlineMs);
   });
   try {
     return await Promise.race([
-      verarbeiteBestellung(order.id, order.tickets, order.isTest),
+      verarbeiteBestellung(order.id, order.tickets, order.isTest, () => !beantwortet),
       deadline,
     ]);
   } finally {
@@ -146,10 +152,15 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function verarbeiteBestellung(orderId: string, tickets: number, isTest: boolean) {
+async function verarbeiteBestellung(
+  orderId: string,
+  tickets: number,
+  isTest: boolean,
+  darfPlanen: () => boolean
+) {
   for (let versuch = 0; versuch < 3; versuch++) {
     try {
-      return await handleOrder(orderId, tickets, isTest);
+      return await handleOrder(orderId, tickets, isTest, darfPlanen);
     } catch (err) {
       if (err instanceof TickerConflictError && versuch < 2) {
         console.warn("[ticker/webhook] Zustand war veraltet — lese neu");
@@ -171,7 +182,12 @@ async function verarbeiteBestellung(orderId: string, tickets: number, isTest: bo
   return NextResponse.json({ error: "webhook failed" }, { status: 500 });
 }
 
-async function handleOrder(orderId: string, tickets: number, isTest: boolean) {
+async function handleOrder(
+  orderId: string,
+  tickets: number,
+  isTest: boolean,
+  darfPlanen: () => boolean
+) {
   const now = new Date();
   const { state, currentPriceEuro, currentInventory, inventoryTracked, compareDigest } =
     await readTicker();
@@ -243,24 +259,19 @@ async function handleOrder(orderId: string, tickets: number, isTest: boolean) {
   // doppelt. Der Webhook beschleunigte nur den Preissprung — darauf verzichten
   // wir; kein Schreibvorgang, idempotent.
   //
-  // Verzögerung: Der Preissprung kommt mit dem nächsten Börsen-Cron. Der läuft
-  // über QStash alle 5 Minuten (Vercel-Hobby-Crons können nur 1×/Tag; Anlage
-  // siehe Handoff/Go-Live) — schlimmstenfalls also ~10 Minuten nach dem Kauf
-  // (Ticket-System-Ledger 5 min + Börsen-Tick 5 min). Für die Parodie egal.
+  // Beschleunigung: der KAUF-NACHLAUF (lib/ticker/nachlauf.ts, seit 02.09.
+  // abends; davor QStash-Turbo). Der Webhook bucht weiterhin nichts (Blocker
+  // 21) — er plant für NACH seiner Antwort die Kette ein: Ledger-Pass des
+  // Ticket-Systems mit Bestell-ID, dann Börsen-Tick. Preis ~10–15 s nach dem
+  // Kauf, null QStash-Messages, Shopifys ~5-s-Antwortfenster nie in Gefahr.
+  // Fehler sind folgenlos, der 5-min-Cron bleibt der Fallback.
   if (state.quelle === "tickets") {
-    // KAUF-TURBO: Der Webhook bucht weiterhin nichts (Blocker 21) — er bittet
-    // die idempotenten Cron-Pfade per verzögerter QStash-Message um frühere
-    // Läufe (Ledger +10 s, Börse +75 s/+180 s). Fehler sind folgenlos, der
-    // 5-min-Cron bleibt der Fallback. Synchron, aber mit REQUEST-Budget:
-    // Was readTicker (kalter Token: mehrere Sekunden möglich) schon
-    // verbraucht hat, wird abgezogen — Shopifys ~5-s-Antwortfenster reißt nie.
-    const budgetMs = 4_000 - (Date.now() - now.getTime());
-    const turbo = await feuerTurboTicks(orderId, budgetMs);
+    const nachlauf = darfPlanen() ? planeNachlauf(orderId) : "nicht_geplant";
     return NextResponse.json({
       ok: true,
-      note: "Ticket-System ist die Quelle — Turbo-Ticks angestoßen, der Cron zieht den Verkauf nach",
+      note: "Ticket-System ist die Quelle — Nachlauf eingeplant, der Cron bleibt das Netz",
       tickets,
-      turbo,
+      nachlauf,
     });
   }
 
