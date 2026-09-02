@@ -133,7 +133,9 @@
       "start": "Handelsstart",
       "today": "Heute",
       "refund": "Storno",
-      "rebaseline": "Korrektur"
+      "rebaseline": "Korrektur",
+      "ticket": "{n} Ticket",
+      "tickets": "{n} Tickets"
     },
     "tape": {
       "price": "Aktueller Ticketpreis: {price} {arrow} {pct} in 24h",

@@ -2,9 +2,14 @@
 
 import { useMemo, useRef, useState } from "react";
 import { shopPrice, type HistoryPoint } from "@/lib/ticker/engine";
+import { aggregateDays, formatDay } from "@/lib/ticker/chart-days";
 
 interface Props {
   history: HistoryPoint[];
+  /** Der Live-Kurs — der heutige Punkt des Charts. */
+  currentPrice: number;
+  /** Request-Zeit als ISO-String (Server und Client rechnen denselben „heute"). */
+  nowIso: string;
   /**
    * Lage der 24h-Kennzahl. Farb-Semantik gegenüber einem echten Börsen-Chart
    * bewusst GEDREHT: "down" = die Community kauft den Preis runter = grün;
@@ -16,12 +21,10 @@ interface Props {
   locale: string;
   labels: {
     floor: string;
-    sale: string;
-    drift: string;
-    refund: string;
-    rebaseline: string;
     start: string;
     today: string;
+    ticket: string; // "{n} Ticket"
+    tickets: string; // "{n} Tickets"
   };
 }
 
@@ -34,11 +37,10 @@ const GRID = "rgba(212, 203, 190, 0.07)";
 const INK_MUTED = "rgba(212, 203, 190, 0.42)";
 const SURFACE = "#161210";
 
-
-
 const W = 960;
-const H = 380;
-const PAD = { top: 34, right: 20, bottom: 30, left: 62 };
+const H = 400;
+// Unten Platz für zwei Zeilen: Ticketzahl je Tag + Datum
+const PAD = { top: 34, right: 20, bottom: 52, left: 62 };
 
 // Linear verbunden — bei Kurs-Daten Best Practice: kein Smoothing,
 // das Zwischenwerte erfindet oder an Sprüngen überschwingt.
@@ -46,9 +48,21 @@ function linePathOf(pts: { x: number; y: number }[]): string {
   return `M ${pts.map((p) => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" L ")}`;
 }
 
-// Interaktiver Börsen-Chart: Kurs-Linie + Fläche, Grid, Boden-Linie,
-// Verkaufs-Events — und Crosshair mit Tooltip beim Zeigen/Streichen.
-export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: Props) {
+/**
+ * Tagesansicht (seit 02.09.): ein Punkt pro Kalendertag, Kurs am Tagesende,
+ * darunter die verkauften Tickets des Tages. Constantin: „nicht genau mit
+ * Uhrzeit, sondern immer Tag und Ticketkauf". Die Uhrzeit-Historie bleibt im
+ * Zustand — hier wird nur anders gezeigt (lib/ticker/chart-days.ts).
+ */
+export function PriceChart({
+  history,
+  currentPrice,
+  nowIso,
+  trend,
+  floorEuro,
+  locale,
+  labels,
+}: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<number | null>(null);
 
@@ -66,31 +80,19 @@ export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: P
   }, [locale]);
 
   const geo = useMemo(() => {
-    // Launch-Tag: nur ein History-Punkt → zu einer flachen Linie verdoppeln,
-    // damit der Chart nicht komplett verschwindet.
-    const history =
-      raw.length === 1
-        ? [
-            raw[0],
-            {
-              ...raw[0],
-              t: new Date(new Date(raw[0].t).getTime() + 3_600_000).toISOString(),
-            },
-          ]
-        : raw;
+    const tage = aggregateDays(history, nowIso, currentPrice);
+    // Launch-Tag: nur ein Tag → zu einer flachen Linie verdoppeln, damit der
+    // Chart nicht komplett verschwindet.
+    const days = tage.length === 1 ? [tage[0], { ...tage[0] }] : tage;
     const iw = W - PAD.left - PAD.right;
     const ih = H - PAD.top - PAD.bottom;
-    // `von` (Kurs vor einem Kauf) gehört mit in die Y-Spanne — sonst ragte die
-    // Stufe über den Rand.
-    const prices = history.flatMap((p) => (p.von !== undefined ? [p.price, p.von] : [p.price]));
+    const prices = days.map((d) => d.price);
     const dataMax = Math.max(...prices);
     const dataMin = Math.min(...prices);
     // Y-Achse ZOOMT AUF DIE DATEN statt immer bis zum Boden zu spannen:
-    // Beim Kurs um 21–22 € läge sonst der ganze untere Chart leer und der
-    // 1-€-Community-Sprung wäre eine kaum sichtbare Stufe. Mindestspanne
-    // 5 €, damit die Cent-Drifts des Zeit-Anteils flach bleiben (1 € Sprung
-    // = 20 % der Höhe). Die Boden-Linie kommt automatisch ins Bild, sobald
-    // der Kurs ihr nahekommt (yMin klemmt nie unter floor − 0,5).
+    // Mindestspanne 5 €, damit ein 1-€-Community-Sprung sichtbar bleibt
+    // (20 % der Höhe) und Cent-Drifts flach. Die Boden-Linie kommt automatisch
+    // ins Bild, sobald der Kurs ihr nahekommt (yMin klemmt nie unter floor − 0,5).
     let yMin = dataMin - 0.75;
     let yMax = dataMax + 0.75;
     const fehlt = 5 - (yMax - yMin);
@@ -99,32 +101,25 @@ export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: P
       yMax += fehlt / 2;
     }
     yMin = Math.max(yMin, floorEuro - 0.5);
-    const t0 = new Date(history[0].t).getTime();
-    const t1 = new Date(history[history.length - 1].t).getTime();
-    const tSpan = Math.max(t1 - t0, 1);
     const yOf = (v: number) => PAD.top + (1 - (v - yMin) / (yMax - yMin)) * ih;
-    const pts = history.map((p) => ({
-      x: PAD.left + ((new Date(p.t).getTime() - t0) / tSpan) * iw,
-      y: yOf(p.price),
-      p,
+    // Tage gleich breit — Zeit bleibt linear, nur ohne Uhrzeit-Zittern.
+    const pts = days.map((d, i) => ({
+      x: PAD.left + (i / (days.length - 1)) * iw,
+      y: yOf(d.price),
+      d,
     }));
-    // Die LINIE bekommt vor jedem Kauf/Storno einen Zwischenpunkt auf dem
-    // Kurs davor (`von`): senkrechte Stufe im Kauf-Moment. Am Deckel liegt der
-    // letzte echte Punkt sonst tagelang zurück, und aus dem Kauf würde eine
-    // schleichende Schräge. Hover/Tooltip arbeiten weiter auf den echten Punkten.
-    const linePts = pts.flatMap((q) =>
-      q.p.von !== undefined && q.p.von !== q.p.price
-        ? [{ x: q.x, y: yOf(q.p.von) }, { x: q.x, y: q.y }]
-        : [{ x: q.x, y: q.y }]
-    );
-    return { iw, ih, yMin, yMax, pts, linePts };
-  }, [raw, floorEuro]);
+    // Datums-Beschriftung: ~5 Stützstellen + „Heute" ganz rechts; kein Datum
+    // direkt neben „Heute" (sonst überlappt es).
+    const step = Math.max(1, Math.ceil((days.length - 1) / 5));
+    const dateIdx = pts
+      .map((_, i) => i)
+      .filter((i) => i % step === 0 && i < days.length - 1 && days.length - 1 - i > step / 2);
+    return { iw, ih, yMin, yMax, pts, dateIdx };
+  }, [history, nowIso, currentPrice, floorEuro]);
 
-  // Am Launch-Tag existiert nur EIN Punkt — dann eine flache Linie zeigen,
-  // statt den Chart ganz verschwinden zu lassen.
-  if (raw.length === 0) return null;
+  if (history.length === 0) return null;
 
-  const { ih, yMin, yMax, pts, linePts } = geo;
+  const { ih, yMin, yMax, pts, dateIdx } = geo;
   const y = (v: number) => PAD.top + (1 - (v - yMin) / (yMax - yMin)) * ih;
   const color = trend === "down" ? UP : trend === "up" ? DOWN : FLAT;
   const gradId =
@@ -133,14 +128,16 @@ export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: P
   // Boden-Linie nur zeichnen, wenn der Boden im sichtbaren Ausschnitt liegt
   const zeigeBoden = floorEuro >= yMin;
   const floorY = y(floorEuro);
-  const linePath = linePathOf(linePts);
+  const linePath = linePathOf(pts);
   const areaPath = `${linePath} L ${(W - PAD.right).toFixed(1)} ${(PAD.top + ih).toFixed(1)} L ${PAD.left.toFixed(1)} ${(PAD.top + ih).toFixed(1)} Z`;
+  const first = pts[0];
   const last = pts[pts.length - 1];
-  // ATH/ATL direkt am Chart annotieren
-  const athPt = pts.reduce((a, b) => (b.p.price > a.p.price ? b : a));
-  const atlPt = pts.reduce((a, b) => (b.p.price < a.p.price ? b : a));
+  // ATH/ATL direkt am Chart annotieren (erster Tag mit dem Extrem)
+  const athPt = pts.reduce((a, b) => (b.d.price > a.d.price ? b : a));
+  const atlPt = pts.reduce((a, b) => (b.d.price < a.d.price ? b : a));
+  const ticketLabel = (n: number) => (n === 1 ? labels.ticket : labels.tickets).replace("{n}", String(n));
 
-  // Pointer → nächstliegender Datenpunkt (binäre Suche unnötig, Punktzahl klein)
+  // Pointer → nächstliegender Tag
   function onPointer(e: React.PointerEvent<HTMLDivElement>) {
     const el = wrapRef.current;
     if (!el) return;
@@ -150,9 +147,7 @@ export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: P
     let bestD = Infinity;
     for (let i = 0; i < pts.length; i++) {
       const d = Math.abs(pts[i].x - px);
-      // Gleichstand (Drift und Kauf im selben Tick = gleiches x): das
-      // EREIGNIS gewinnt — sonst wäre der Kauf-Tooltip nie erreichbar.
-      if (d < bestD || (d === bestD && pts[i].p.event !== "drift")) {
+      if (d < bestD) {
         bestD = d;
         best = i;
       }
@@ -161,22 +156,9 @@ export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: P
   }
 
   const hv = hover !== null ? pts[hover] : null;
-  // Delta: bei Kauf/Storno gegen den Kurs UNMITTELBAR davor (`von`) — sonst
-  // gegen den Vorgänger-Punkt. Macht jeden Punkt zur Mini-Story (Kauf/Flaute).
-  const hvDelta =
-    hv && hv.p.von !== undefined
-      ? hv.p.price - hv.p.von
-      : hover !== null && hover > 0
-        ? pts[hover].p.price - pts[hover - 1].p.price
-        : null;
-  const hvDate = hv
-    ? new Date(hv.p.t).toLocaleDateString(locale === "en" ? "en-GB" : "de-AT", {
-        day: "numeric",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "";
+  // Delta zum Vortag: macht jeden Tag zur Mini-Story (Käufe drücken, Flaute hebt)
+  const hvDelta = hover !== null && hover > 0 ? pts[hover].d.price - pts[hover - 1].d.price : null;
+  const hvDate = hv ? (hv.d.heute ? labels.today : formatDay(hv.d.key, locale, true)) : "";
   // Tooltip-Position in % (skaliert mit responsivem SVG)
   // In den sichtbaren Bereich klemmen, sonst wird der Tooltip am Rand abgeschnitten
   const tipLeft = hv ? Math.min(88, Math.max(12, (hv.x / W) * 100)) : 0;
@@ -194,7 +176,7 @@ export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: P
         viewBox={`0 0 ${W} ${H}`}
         className="w-full h-auto"
         role="img"
-        aria-label={`${labels.start}: ${fmt(raw[0].price)} — ${labels.today}: ${fmt(raw[raw.length - 1].price)}`}
+        aria-label={`${labels.start}: ${fmt(first.d.price)} — ${labels.today}: ${fmt(last.d.price)}`}
       >
         <defs>
           {/* Fläche läuft schnell auf null aus — kein „brauner Block" unter hoher Kurve */}
@@ -255,7 +237,7 @@ export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: P
           </>
         )}
 
-        {/* Fläche + weiche Kurs-Linie (zeichnet sich beim Reveal ein) */}
+        {/* Fläche + Kurs-Linie (zeichnet sich beim Reveal ein) */}
         <path d={areaPath} fill={`url(#${gradId})`} />
         <path
           d={linePath}
@@ -277,7 +259,7 @@ export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: P
           fill={INK_MUTED}
           style={{ fontVariantNumeric: "tabular-nums" }}
         >
-          ▲ {fmt(athPt.p.price)}
+          ▲ {fmt(athPt.d.price)}
         </text>
         <text
           x={Math.max(PAD.left + 44, Math.min(atlPt.x, W - PAD.right - 44))}
@@ -287,22 +269,27 @@ export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: P
           fill={INK_MUTED}
           style={{ fontVariantNumeric: "tabular-nums" }}
         >
-          ▼ {fmt(atlPt.p.price)}
+          ▼ {fmt(atlPt.d.price)}
         </text>
 
-        {/* Verkaufs-Events */}
+        {/* Kauf-Tage: Punkt auf der Linie + Ticketzahl unter der Achse */}
         {pts
-          .filter((q) => q.p.event === "sale")
+          .filter((q) => q.d.tickets > 0)
           .map((q) => (
-            <circle
-              key={q.p.t}
-              cx={q.x}
-              cy={q.y}
-              r="4.5"
-              fill={UP}
-              stroke={SURFACE}
-              strokeWidth="2"
-            />
+            <g key={q.d.key}>
+              <circle cx={q.x} cy={q.y} r="4.5" fill={UP} stroke={SURFACE} strokeWidth="2" />
+              <text
+                x={q.x}
+                y={PAD.top + ih + 18}
+                textAnchor="middle"
+                fontSize="13"
+                fontWeight="500"
+                fill={UP}
+                style={{ fontVariantNumeric: "tabular-nums" }}
+              >
+                {q.d.tickets}
+              </text>
+            </g>
           ))}
 
         {/* Live-Punkt am Linienende — der Kurs lebt */}
@@ -314,14 +301,7 @@ export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: P
           opacity="0.25"
           className="md:motion-safe:animate-ping [transform-box:fill-box] origin-center"
         />
-        <circle
-          cx={last.x}
-          cy={last.y}
-          r="5"
-          fill={color}
-          stroke={SURFACE}
-          strokeWidth="2"
-        />
+        <circle cx={last.x} cy={last.y} r="5" fill={color} stroke={SURFACE} strokeWidth="2" />
 
         {/* Crosshair */}
         {hv && (
@@ -335,28 +315,25 @@ export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: P
               strokeWidth="1"
               strokeDasharray="3 4"
             />
-            <circle
-              cx={hv.x}
-              cy={hv.y}
-              r="5.5"
-              fill={color}
-              stroke={SURFACE}
-              strokeWidth="2"
-            />
+            <circle cx={hv.x} cy={hv.y} r="5.5" fill={color} stroke={SURFACE} strokeWidth="2" />
           </g>
         )}
 
-        {/* Zeit-Endpunkte */}
-        <text x={PAD.left} y={H - 8} fontSize="13" fill={INK_MUTED}>
-          {labels.start}
-        </text>
-        <text
-          x={W - PAD.right}
-          y={H - 8}
-          textAnchor="end"
-          fontSize="13"
-          fill={INK_MUTED}
-        >
+        {/* Datums-Achse: einige Tage + „Heute" */}
+        {dateIdx.map((i) => (
+          <text
+            key={pts[i].d.key}
+            x={pts[i].x}
+            y={H - 8}
+            textAnchor={i === 0 ? "start" : "middle"}
+            fontSize="13"
+            fill={INK_MUTED}
+            style={{ fontVariantNumeric: "tabular-nums" }}
+          >
+            {formatDay(pts[i].d.key, locale)}
+          </text>
+        ))}
+        <text x={W - PAD.right} y={H - 8} textAnchor="end" fontSize="13" fill={INK_MUTED}>
           {labels.today}
         </text>
       </svg>
@@ -369,38 +346,29 @@ export function PriceChart({ history: raw, trend, floorEuro, locale, labels }: P
         >
           <div className="rounded-md border border-line bg-bg-card px-3 py-2 whitespace-nowrap shadow-lg">
             <p className="text-sand tabular-nums text-sm font-medium">
-              {fmt(hv.p.price)}
-              {/* Das EVENT immer benennen — ein Verkauf am Boden bewegt 0 €,
-                  bleibt aber ein Verkauf. Nur das Delta hängt an der Bewegung. */}
-              <span
-                className={`ml-2 text-xs uppercase tracking-wide tabular-nums ${
-                  // Gedrehte Semantik wie die Kurs-Linie: fallendes Delta
-                  // (= jemand hat gekauft) ist der Erfolg und wird grün.
-                  hvDelta === null || hvDelta === 0
-                    ? "text-sand/55"
-                    : hvDelta < 0
-                      ? "text-market-up"
-                      : "text-market-down"
-                }`}
-              >
-                {hvDelta !== null && hvDelta !== 0 && (
-                  <>
-                    {hvDelta > 0 ? "+" : "−"}
-                    {fmtDelta(Math.abs(hvDelta))} ·{" "}
-                  </>
-                )}
-                {hv.p.event === "sale"
-                  ? labels.sale
-                  : hv.p.event === "refund"
-                    ? labels.refund
-                    : hv.p.event === "rebaseline"
-                      ? labels.rebaseline
-                      : hv.p.event === "init"
-                        ? labels.start
-                        : labels.drift}
-              </span>
+              {fmt(hv.d.price)}
+              {hvDelta !== null && hvDelta !== 0 && (
+                <span
+                  className={`ml-2 text-xs tabular-nums ${
+                    // Gedrehte Semantik wie die Kurs-Linie: fallender Kurs
+                    // (= es wurde gekauft) ist der Erfolg und wird grün.
+                    hvDelta < 0 ? "text-market-up" : "text-market-down"
+                  }`}
+                >
+                  {hvDelta > 0 ? "+" : "−"}
+                  {fmtDelta(Math.abs(hvDelta))}
+                </span>
+              )}
             </p>
-            <p className="text-sand/50 text-[11px] mt-0.5">{hvDate}</p>
+            <p className="text-sand/50 text-[11px] mt-0.5">
+              {hvDate}
+              {hv.d.tickets > 0 && (
+                <>
+                  {" · "}
+                  <span className="text-market-up">{ticketLabel(hv.d.tickets)}</span>
+                </>
+              )}
+            </p>
           </div>
         </div>
       )}

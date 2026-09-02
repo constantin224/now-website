@@ -307,6 +307,8 @@ export default async function TicketsPage({
                 <Tilt className="md:[filter:drop-shadow(0_0_24px_rgba(192,133,82,0.18))]">
                   <PriceChart
                     history={state.history}
+                    currentPrice={price}
+                    nowIso={new Date().toISOString()}
                     trend={trend}
                     floorEuro={C.floorEuro}
                     locale={locale}

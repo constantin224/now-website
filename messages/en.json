@@ -133,7 +133,9 @@
       "start": "Trading start",
       "today": "Today",
       "refund": "Refund",
-      "rebaseline": "Adjustment"
+      "rebaseline": "Adjustment",
+      "ticket": "{n} ticket",
+      "tickets": "{n} tickets"
     },
     "tape": {
       "price": "Current ticket price: {price} {arrow} {pct} in 24h",
