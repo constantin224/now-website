@@ -109,14 +109,14 @@ export default async function PressPage({
         </div>
         <div>
           <p className="text-terracotta uppercase tracking-[4px] text-[11px] mb-2">
-            {t.press.management}
+            {t.press.press_contact}
           </p>
-          <p className="text-sand/70 text-sm mb-1">Tonherd Music</p>
+          <p className="text-sand/70 text-sm mb-1">Bence Thoroczkay</p>
           <a
-            href="mailto:label@tonherd.at"
+            href="mailto:bence@musicandmedia.at"
             className="text-sand/50 hover:text-sand transition-colors text-xs"
           >
-            label@tonherd.at
+            bence@musicandmedia.at
           </a>
         </div>
         <div>
