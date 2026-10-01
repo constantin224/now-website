@@ -186,7 +186,8 @@ const SECRET = "test-webhook-secret";
 const CRON_SECRET = "test-cron-secret";
 const VARIANT_ID = C.variantGid.split("/").pop();
 
-vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
+const revalidateSpy = vi.hoisted(() => vi.fn());
+vi.mock("next/cache", () => ({ revalidatePath: revalidateSpy }));
 
 function orderBody(opts: { id: number; tickets: number; test?: boolean }) {
   return JSON.stringify({
@@ -268,6 +269,27 @@ beforeEach(() => {
 });
 
 // --- die Tests ------------------------------------------------------------
+
+describe("Tick — ISR-Writes sparen", () => {
+  it("Leerlauf-Tick ohne sichtbare Änderung erzeugt die Seite NICHT neu", async () => {
+    await (await getTick()).json(); // holt die angelaufene Stunde nach
+    revalidateSpy.mockClear();
+    const writesVorher = shop.stateWrites;
+    await (await getTick()).json(); // sofort danach: nur lastTickAt bewegt sich
+    expect(shop.stateWrites).toBeGreaterThan(writesVorher); // Zustand wird weiter geschrieben
+    expect(revalidateSpy).not.toHaveBeenCalled();
+  });
+
+  it("Verkauf erzeugt die Seite neu", async () => {
+    await (await getTick()).json();
+    revalidateSpy.mockClear();
+    shop.inventory -= 2;
+    await (await getTick()).json();
+    expect(shop.state!.soldCount).toBe(2);
+    expect(revalidateSpy).toHaveBeenCalledWith("/de/tickets");
+    expect(revalidateSpy).toHaveBeenCalledWith("/en/tickets");
+  });
+});
 
 describe("Webhook — Doppelzustellung", () => {
   it("dieselbe Bestellung zweimal zugestellt zählt NUR EINMAL", async () => {

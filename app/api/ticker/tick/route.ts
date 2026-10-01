@@ -452,8 +452,16 @@ async function runTick(
       compareDigest,
       now
     );
-    revalidatePath("/de/tickets");
-    revalidatePath("/en/tickets");
+    // Seite nur neu erzeugen, wenn sich etwas SICHTBARES ändert. `tick()` setzt
+    // bei jedem Lauf `lastTickAt`, `next !== state` ist darum praktisch immer
+    // wahr — beim 5-Minuten-Takt waren das 576 Neuerzeugungen pro Tag und über
+    // die Hälfte des Hobby-Limits für ISR Writes (Vercel-Warnmail 01.10.2026).
+    // Die Tagesänderung (%) läuft ohne Tick weiter; dafür reicht das
+    // `revalidate = 3600` der Seite.
+    if (!state || preisWeichtAb || nachtragStatus === "nachgetragen" || sichtbarGeaendert(state, next)) {
+      revalidatePath("/de/tickets");
+      revalidatePath("/en/tickets");
+    }
   }
 
   return NextResponse.json({
@@ -467,4 +475,18 @@ async function runTick(
     soldCount: next.soldCount,
     event: next.history.at(-1)?.event,
   });
+}
+
+/**
+ * Hat der Tick etwas geändert, das die Ticket-Seite zeigt? Verkaufszahl,
+ * Chart-Punkte (Kauf, Storno, Drift-Endpunkt) — nicht aber `lastTickAt` oder
+ * die Sättigung allein, die nur in den Kurs einfließen (und der Kurs zählt
+ * über `preisWeichtAb` schon mit).
+ */
+function sichtbarGeaendert(vorher: TickerState, nachher: TickerState): boolean {
+  if (vorher.soldCount !== nachher.soldCount) return true;
+  if (vorher.history.length !== nachher.history.length) return true;
+  const a = vorher.history.at(-1);
+  const b = nachher.history.at(-1);
+  return a?.t !== b?.t || a?.price !== b?.price || a?.event !== b?.event;
 }
