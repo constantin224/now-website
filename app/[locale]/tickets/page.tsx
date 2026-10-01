@@ -5,6 +5,7 @@ import { localeMetadata } from "@/lib/seo";
 import { TICKER_CONFIG as C } from "@/lib/ticker/config";
 import { priceOf, shopPrice, type TickerState } from "@/lib/ticker/engine";
 import { readTicker } from "@/lib/ticker/shopify-admin";
+import { heuteIso } from "@/lib/ticker/chart-days";
 import { PriceChart } from "@/components/ticker/price-chart";
 import { PriceHero } from "@/components/ticker/price-hero";
 import { TickerTape } from "@/components/ticker/ticker-tape";
@@ -308,7 +309,7 @@ export default async function TicketsPage({
                   <PriceChart
                     history={state.history}
                     currentPrice={price}
-                    nowIso={new Date().toISOString()}
+                    nowIso={heuteIso(now)}
                     trend={trend}
                     floorEuro={C.floorEuro}
                     locale={locale}

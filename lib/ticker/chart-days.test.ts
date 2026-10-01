@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aggregateDays, dayKey, formatDay } from "./chart-days";
+import { aggregateDays, dayKey, formatDay, heuteIso } from "./chart-days";
 import { nachtrag, parseState, type HistoryPoint } from "./engine";
 import live from "./fixtures/boerse-live-2026-09-02.json";
 
@@ -103,5 +103,44 @@ describe("formatDay", () => {
     expect(formatDay("2026-08-14", "de")).toBe("14.8.");
     expect(formatDay("2026-08-14", "en")).toBe("14/08");
     expect(formatDay("2026-09-02", "de", true)).toMatch(/^Mi\.?,? 2\.9\.$/);
+  });
+});
+
+describe("heuteIso — Chart bleibt identisch", () => {
+  // Historie über die Zeitumstellung (25.10.2026) hinweg, mit Käufen kurz vor
+  // und nach Wiener Mitternacht.
+  const history = [
+    { t: "2026-10-01T09:00:00.000Z", price: 22, event: "start" as const },
+    { t: "2026-10-03T21:55:00.000Z", price: 21, event: "sale" as const, qty: 1 },
+    { t: "2026-10-03T22:05:00.000Z", price: 20, event: "sale" as const, qty: 1 },
+    { t: "2026-10-10T12:00:00.000Z", price: 20.5, event: "drift" as const },
+    { t: "2026-10-24T22:30:00.000Z", price: 19, event: "sale" as const, qty: 2 },
+    { t: "2026-10-25T23:10:00.000Z", price: 19.4, event: "drift" as const },
+  ] as HistoryPoint[];
+
+  it("liefert für jeden Zeitpunkt dieselben Tage wie die volle Uhrzeit", () => {
+    const start = Date.parse("2026-10-01T09:00:00.000Z");
+    const ende = Date.parse("2026-10-31T00:00:00.000Z");
+    let geprueft = 0;
+    for (let t = start; t < ende; t += 37 * 60_000) {
+      const now = new Date(t);
+      for (const preis of [19.4, 22, 25]) {
+        expect(aggregateDays(history, heuteIso(now), preis)).toEqual(
+          aggregateDays(history, now.toISOString(), preis)
+        );
+      }
+      expect(dayKey(heuteIso(now))).toBe(dayKey(now));
+      geprueft++;
+    }
+    expect(geprueft).toBeGreaterThan(1100);
+  }, 60_000); // Intl.DateTimeFormat je Aufruf ist langsam
+
+  it("ist innerhalb eines Wiener Tages konstant", () => {
+    expect(heuteIso(new Date("2026-10-03T22:01:00.000Z"))).toBe(
+      heuteIso(new Date("2026-10-04T21:59:00.000Z"))
+    );
+    expect(heuteIso(new Date("2026-10-03T21:59:00.000Z"))).not.toBe(
+      heuteIso(new Date("2026-10-03T22:01:00.000Z"))
+    );
   });
 });

@@ -34,6 +34,20 @@ export function dayKey(t: string | number | Date, timeZone = TZ): string {
   }).format(d);
 }
 
+/**
+ * „Jetzt" für den Chart, auf den Wiener Kalendertag reduziert. `aggregateDays`
+ * braucht von „jetzt" nur, welcher Tag „Heute" ist (die Uhrzeit nur als
+ * Rückfall ohne gültigen aktuellen Preis — den liefert die Ticket-Seite
+ * immer). Die volle Uhrzeit landete im RSC-Payload und machte jede
+ * Neuerzeugung der Seite zu einer neuen Fassung: Der 5-Minuten-Tick
+ * revalidiert, und Vercel zählt einen ISR Write, sobald sich der Inhalt
+ * ändert — 576 Writes/Tag ohne sichtbare Änderung (Warnmail 01.10.2026).
+ * 12:00 UTC liegt in Wien immer im selben Kalendertag (13:00 bzw. 14:00 Uhr).
+ */
+export function heuteIso(now: Date, timeZone = TZ): string {
+  return `${dayKey(now, timeZone)}T12:00:00.000Z`;
+}
+
 function keyParts(key: string): [number, number, number] {
   const [y, m, d] = key.split("-").map(Number);
   return [y, m, d];
