@@ -68,7 +68,7 @@ export default async function MusicPage({
                 <div className="relative aspect-square max-w-md mx-auto md:mx-0 w-full rounded-lg overflow-hidden shadow-2xl shadow-black/40 group">
                   <Image
                     src={featured.cover}
-                    alt={`${featured.title} — Now. ${typeLabel(featured.type, locale)} (${featured.releaseDate.slice(0, 4)})`}
+                    alt={`${featured.title} - Now. ${typeLabel(featured.type, locale)} (${featured.releaseDate.slice(0, 4)})`}
                     fill
                     sizes="(max-width: 768px) 90vw, 400px"
                     className="object-cover group-hover:scale-105 transition-transform duration-500"
@@ -120,7 +120,7 @@ export default async function MusicPage({
                   <div className="relative aspect-square rounded-lg overflow-hidden mb-3 shadow-lg shadow-black/30">
                     <Image
                       src={release.cover}
-                      alt={`${release.title} — Now. ${typeLabel(release.type, locale)} (${release.releaseDate.slice(0, 4)})`}
+                      alt={`${release.title} - Now. ${typeLabel(release.type, locale)} (${release.releaseDate.slice(0, 4)})`}
                       fill
                       sizes="(max-width: 640px) 45vw, (max-width: 768px) 30vw, 220px"
                       className="object-cover group-hover:scale-105 transition-transform duration-500"
@@ -185,14 +185,14 @@ export default async function MusicPage({
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "ItemList",
-            name: "Now. — Musikvideos",
+            name: "Now. - Musikvideos",
             itemListElement: videos.map((video, i) => ({
               "@type": "ListItem",
               position: i + 1,
               item: {
                 "@type": "VideoObject",
                 name: video.title,
-                description: `${video.title} — Offizielles Musikvideo von Now., Pop-Rock-Band aus Wien`,
+                description: `${video.title} - Offizielles Musikvideo von Now., Pop-Rock-Band aus Wien`,
                 thumbnailUrl: `https://img.youtube.com/vi/${video.youtubeId}/maxresdefault.jpg`,
                 embedUrl: `https://www.youtube.com/embed/${video.youtubeId}`,
                 contentUrl: `https://www.youtube.com/watch?v=${video.youtubeId}`,
@@ -218,7 +218,7 @@ export default async function MusicPage({
             albumProductionType: "https://schema.org/StudioAlbum",
             albumReleaseType: "https://schema.org/AlbumRelease",
             image: "https://now-music.at/album-cover-out.jpg",
-            description: "Debütalbum von Now. — 15 Songs die Ehrlichkeit, Tiefe und Leichtigkeit verbinden. Erschienen im Oktober 2024 via Tonherd Music.",
+            description: "Debütalbum von Now., 15 Songs die Ehrlichkeit, Tiefe und Leichtigkeit verbinden. Erschienen im Oktober 2024 via Tonherd Music.",
             recordLabel: { "@type": "Organization", name: "Tonherd Music", url: "https://tonherd.com" },
             url: "https://hypeddit.com/now-music",
             track: [

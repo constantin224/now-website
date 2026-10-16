@@ -18,17 +18,17 @@
   },
   "about": {
     "title": "About",
-    "description": "Über Now. — Pop-Rock-Band aus Wien",
-    "bio_1": "Now. sind eine Pop-Rock-Band aus Wien. Valentin Bröderbauer (Gesang, Gitarre), Constantin Kaiser (Bass, Synth) und Chris Sztrakati (Schlagzeug) schreiben englischsprachige Songs über Selbstzweifel, Nähe und Loslassen — aufgenommen im eigenen Studio, live ohne Backing Tracks.",
-    "bio_2": "Jahrelang haben die Musiker an den Songs anderer gearbeitet, im Studio und auf Tour — unter anderem für Josh., Ina Regen, Thorsteinn Einarsson und Lemo. Der Name entstand 2020 aus dem Entschluss der Gründungsmitglieder, die eigenen Songs nicht länger aufzuschieben.",
-    "bio_3": "Die Debütsingle „Wastin' Days“ fand direkt ihren Weg ins Airplay mehrerer österreichischer Radiostationen. Mit weiteren Releases wie „Stay“, „Let Go“ und „Lay It Down“ festigte die Band ihren Sound — regelmäßig in Playlists und auf Sendern wie Radio Wien, 88.6 und Life Radio.",
+    "description": "Über Now. - Pop-Rock-Band aus Wien",
+    "bio_1": "Now. sind eine Pop-Rock-Band aus Wien. Valentin Bröderbauer (Gesang, Gitarre), Constantin Kaiser (Bass, Synth) und Chris Sztrakati (Schlagzeug) schreiben englischsprachige Songs über Selbstzweifel, Nähe und Loslassen. Aufgenommen im eigenen Studio, live ohne Backing Tracks.",
+    "bio_2": "Jahrelang haben die Musiker an den Songs anderer gearbeitet, im Studio und auf Tour, unter anderem für Josh., Ina Regen, Thorsteinn Einarsson und Lemo. Der Name entstand 2020 aus dem Entschluss der Gründungsmitglieder, die eigenen Songs nicht länger aufzuschieben.",
+    "bio_3": "Die Debütsingle „Wastin' Days“ fand direkt ihren Weg ins Airplay mehrerer österreichischer Radiostationen. Mit weiteren Releases wie „Stay“, „Let Go“ und „Lay It Down“ festigte die Band ihren Sound, regelmäßig in Playlists und auf Sendern wie Radio Wien, 88.6 und Life Radio.",
     "bio_4": "Im Oktober 2024 erschien das Debütalbum „OUT“: 15 Songs, produziert mit Gründungsmitglied Florian Koch. Das Release-Konzert im Aera Wien war ausverkauft. 2025 übernahm Chris Sztrakati das Schlagzeug.",
-    "bio_5": "Am 28. August 2026 erschien das zweite Album „A Little Love“: 12 Songs, aufgenommen im eigenen Tonherd-Studio im 9. Bezirk, mit ausgewählten Mitwirkenden. Der Titelsong hat es auf Ö3 geschafft — und im Herbst auf die Bühnen in ganz Österreich.",
-    "bio_members": "Valentin Bröderbauer — Gesang, Gitarre\nChris Sztrakati — Drums\nConstantin Kaiser — Bass, Synth"
+    "bio_5": "Am 28. August 2026 erschien das zweite Album „A Little Love“: 12 Songs, aufgenommen im eigenen Tonherd-Studio im 9. Bezirk, mit ausgewählten Mitwirkenden. Der Titelsong hat es auf Ö3 geschafft, im Herbst geht's damit auf die Bühnen in ganz Österreich.",
+    "bio_members": "Valentin Bröderbauer - Gesang, Gitarre\nChris Sztrakati - Drums\nConstantin Kaiser - Bass, Synth"
   },
   "music": {
     "title": "Music",
-    "description": "Diskografie, Musikvideos und Streaming-Links von Now. — Pop-Rock-Band aus Wien",
+    "description": "Diskografie, Musikvideos und Streaming-Links von Now. - Pop-Rock-Band aus Wien",
     "discography": "Discography",
     "latest_release": "Aktuelles Release",
     "videos_label": "Videos",
@@ -37,7 +37,7 @@
   },
   "shows": {
     "title": "Shows",
-    "description": "Live-Termine und Konzerte von Now. — Pop-Rock-Band aus Wien. Tickets und Booking-Infos.",
+    "description": "Live-Termine und Konzerte von Now. - Pop-Rock-Band aus Wien. Tickets und Booking-Infos.",
     "upcoming": "Kommende Shows",
     "past": "Vergangene Shows",
     "tickets": "Tickets",
@@ -47,16 +47,16 @@
     "booking_cta": "Für Booking-Anfragen:",
     "booking_label": "Booking:",
     "booking_email": "booking@now-music.at",
-    "tickerBanner": "Wien 17.10.: Ticketpreis wird live vom Markt bestimmt — aktueller Kurs auf der Ticket-Börse →",
+    "tickerBanner": "Wien 17.10.: Ticketpreis wird live vom Markt bestimmt. Aktueller Kurs auf der Ticket-Börse →",
     "tickets_soon": "Tickets folgen",
     "rsvp": "Ich komme (RSVP)",
     "follow": "Auf Bandsintown folgen",
-    "follow_hint": "Bandsintown-Follower bekommen neue Termine automatisch — auch in Spotify.",
+    "follow_hint": "Bandsintown-Follower bekommen neue Termine automatisch, auch in Spotify.",
     "load_error": "Termine konnten gerade nicht geladen werden. Alle Shows auf"
   },
   "press": {
     "title": "Press / EPK",
-    "description": "Electronic Press Kit — Now.",
+    "description": "Electronic Press Kit - Now.",
     "photo_label": "Pressefoto 2",
     "download_all": "Alle Pressefotos herunterladen (ZIP)",
     "download_onesheet": "One-Sheet herunterladen (PDF)",
@@ -65,35 +65,35 @@
     "booking_alt": "oder direkt bei",
     "press_contact": "Presse",
     "label": "Label",
-    "press_bio": "Now. sind eine Pop-Rock-Band aus Wien. Gegründet 2020, besteht die Band aus Valentin Bröderbauer (Gesang, Gitarre), Constantin Kaiser (Bass, Synth) und Chris Sztrakati (Schlagzeug). Jahrelang haben die Musiker an den Songs anderer gearbeitet, im Studio und auf Tour. Der Name entstand aus dem Entschluss der Gründungsmitglieder, die eigenen Songs nicht länger aufzuschieben. Ihre englischsprachigen Songs handeln von Selbstzweifeln, Beziehungen und Loslassen. Nach „OUT“ (2024) erschien am 28. August 2026 „A Little Love“, aufgenommen im eigenen Tonherd-Studio im 9. Bezirk, mit ausgewählten Mitwirkenden. Der Titelsong hat es auf Ö3 geschafft — und im Herbst auf die Bühnen in ganz Österreich."
+    "press_bio": "Now. sind eine Pop-Rock-Band aus Wien. Gegründet 2020, besteht die Band aus Valentin Bröderbauer (Gesang, Gitarre), Constantin Kaiser (Bass, Synth) und Chris Sztrakati (Schlagzeug). Jahrelang haben die Musiker an den Songs anderer gearbeitet, im Studio und auf Tour. Der Name entstand aus dem Entschluss der Gründungsmitglieder, die eigenen Songs nicht länger aufzuschieben. Ihre englischsprachigen Songs handeln von Selbstzweifeln, Beziehungen und Loslassen. Nach „OUT“ (2024) erschien am 28. August 2026 „A Little Love“, aufgenommen im eigenen Tonherd-Studio im 9. Bezirk, mit ausgewählten Mitwirkenden. Der Titelsong hat es auf Ö3 geschafft, im Herbst geht's damit auf die Bühnen in ganz Österreich."
   },
   "shop": {
     "title": "Shop",
-    "description": "Merch und Musik von Now. — T-Shirts, CDs und mehr",
+    "description": "Merch und Musik von Now. - T-Shirts, CDs und mehr",
     "view": "Zum Produkt",
     "empty": "Aktuell keine Produkte verfügbar.",
     "checkout_hint": "Checkout & Versand über shop.tonherd.at",
     "preorder_label": "Preorder",
     "release_on": "VÖ",
     "out_now_label": "Neues Album",
-    "preorder_desc": "Das zweite Album — 12 Songs. Download am Releasetag per E-Mail, CD zum Release, Vinyl zum Tourstart im Oktober.",
+    "preorder_desc": "Das zweite Album, 12 Songs. Download am Releasetag per E-Mail, CD zum Release, Vinyl zum Tourstart im Oktober.",
     "preorder_cta": "Jetzt vorbestellen",
     "out_now_cta": "Jetzt bestellen"
   },
   "tickets": {
-    "metaTitle": "Tickets — Offizielle Ticket-Plattform | Now.",
+    "metaTitle": "Tickets - Offizielle Ticket-Plattform | Now.",
     "platformLabel": "OFFIZIELLE TICKET-PLATTFORM DER NOW. WORLD TOUR 2026 (1 TERMIN)",
     "eventTitle": "Now. // Wien",
     "dayChange": "24h-Veränderung",
-    "chartTitle": "Preisentwicklung — 100 % transparent. Im Gegensatz zu den anderen.",
+    "chartTitle": "Preisentwicklung. 100 % transparent, im Gegensatz zu den anderen.",
     "allTimeHigh": "Allzeithoch",
     "allTimeLow": "Allzeittief",
     "demandBadge": {
-      "high": "ERHÖHTE NACHFRAGE — {count} TICKETS IN 24 STUNDEN",
-      "some": "NACHFRAGE REGISTRIERT — {count} TICKET(S) IN 24 STUNDEN",
+      "high": "ERHÖHTE NACHFRAGE: {count} TICKETS IN 24 STUNDEN",
+      "some": "NACHFRAGE REGISTRIERT: {count} TICKET(S) IN 24 STUNDEN",
       "none": "VIELE TICKETS VERFÜGBAR. WIRKLICH VIELE."
     },
-    "howItWorks": "Der Preis steigt von selbst — 1 € pro Tag. Jedes verkaufte Ticket zieht sofort 1 € ab, für alle, die nach dir kaufen. Ein Ticket pro Tag hält den Kurs. Kauft ihr schneller, wird's für alle billiger.",
+    "howItWorks": "Der Preis steigt von selbst, 1 € pro Tag. Jedes verkaufte Ticket zieht sofort 1 € ab, für alle, die nach dir kaufen. Ein Ticket pro Tag hält den Kurs. Kauft ihr schneller, wird's für alle billiger.",
     "buyCta": "Tickets sichern",
     "fees": "Servicegebühr: 0 €. Bearbeitungsgebühr: 0 €. Dynamische-Preis-Gebühr: 0 €. Wir verstehen es auch nicht.",
     "disclaimer": "* Angezeigter Preis inkl. gesetzl. USt. und exkl. sämtlicher Gebühren, die wir nicht erheben.",
@@ -103,7 +103,7 @@
       "proceeding": "Du wirst zum Ticketkauf weitergeleitet …"
     },
     "countdown": {
-      "title": "NOW. LIVE IN WIEN — IN",
+      "title": "NOW. LIVE IN WIEN - IN",
       "days": "Tage",
       "hours": "Std",
       "minutes": "Min",
@@ -127,7 +127,7 @@
       "sold": "Verkauft seit Handelsstart"
     },
     "chart": {
-      "floor": "Boden {price} — tiefer geht rechtlich, aber nicht emotional",
+      "floor": "Boden {price}: tiefer geht rechtlich, aber nicht emotional",
       "sale": "Kauf",
       "drift": "Flaute",
       "start": "Handelsstart",
@@ -145,21 +145,21 @@
       "cap": "Absolute Obergrenze: {price}"
     },
     "howItWorksTitle": "So funktioniert Dynamic Pricing",
-    "closingLine": "Dynamic Pricing endet am 17. Oktober. Danach gibt es die Abendkassa — Fixpreis, wie im Mittelalter.",
-    "heroTagline": "Dynamic Pricing wie bei den Superstars — nur in die andere Richtung.",
+    "closingLine": "Dynamic Pricing endet am 17. Oktober. Danach gibt's die Abendkassa. Fixpreis, wie im Mittelalter.",
+    "heroTagline": "Dynamic Pricing wie bei den Superstars - nur in die andere Richtung.",
     "live": "LIVE",
-    "nextDrop": "Der Preis sinkt, wenn jemand kauft. Sonst steigt er — 1 € pro Tag, schleichend. Nie unter {floor}, nie über {cap}.",
+    "nextDrop": "Der Preis sinkt, wenn jemand kauft. Sonst steigt er schleichend, 1 € pro Tag. Nie unter {floor}, nie über {cap}.",
     "share": "Kurs teilen",
     "shared": "Link kopiert",
-    "shareText": "Das NOW.-Ticket steht gerade bei {price}. Dynamic Pricing wie bei den Superstars — nur in die andere Richtung:",
+    "shareText": "Das NOW.-Ticket steht gerade bei {price}. Dynamic Pricing wie bei den Superstars - nur in die andere Richtung:",
     "queueStatus": "WARTERAUM AKTIV · POSITION 1 VON 1",
-    "priceEyebrow": "Dynamischer Ticketpreis — nicht fix, ändert sich laufend",
-    "ctaPriceNote": "Es gilt der Kurs im Moment des Kaufs — bis zur Kassa kann er sich ändern. In beide Richtungen.",
+    "priceEyebrow": "Dynamischer Ticketpreis: nicht fix, ändert sich laufend",
+    "ctaPriceNote": "Es gilt der Kurs im Moment des Kaufs. Bis zur Kassa kann er sich noch ändern, in beide Richtungen.",
     "vipTitle": "VIP-Packages",
     "vip": [
       {
         "name": "PLATIN-TICKET",
-        "desc": "Dasselbe Ticket, nur teurer. Gibt es bei den Großen wirklich. Bei uns übernimmt das der Markt — in die andere Richtung."
+        "desc": "Dasselbe Ticket, nur teurer. Gibt es bei den Großen wirklich. Bei uns übernimmt das der Markt, in die andere Richtung."
       },
       {
         "name": "VIP-PACKAGE „GENAU DIESES GEFÜHL“",
@@ -208,7 +208,7 @@
         },
         {
           "stars": 5,
-          "quote": "Wollte Golden Circle buchen — war schon der ganze Raum.",
+          "quote": "Wollte Golden Circle buchen. War dann der ganze Raum.",
           "by": "noch ein Fan"
         },
         {
@@ -236,7 +236,7 @@
     "impressum": "Impressum"
   },
   "meta": {
-    "site_title": "Now. — Pop Rock aus Wien",
+    "site_title": "Now. - Pop Rock aus Wien",
     "site_description": "Now. ist eine Pop-Rock-Band aus Wien. Erdige Songs, ehrliche Texte, live auf der Bühne zuhause."
   }
 }

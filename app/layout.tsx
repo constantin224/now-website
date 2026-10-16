@@ -17,7 +17,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://now-music.at"),
-  title: { default: "Now. — Pop Rock aus Wien", template: "%s | Now." },
+  title: { default: "Now. - Pop Rock aus Wien", template: "%s | Now." },
   description:
     "Now. ist eine Pop-Rock-Band aus Wien. Erdige Songs, ehrliche Texte, live auf der Bühne zuhause.",
   openGraph: {

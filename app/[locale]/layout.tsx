@@ -36,8 +36,8 @@ export default async function LocaleLayout({
     image: "https://now-music.at/band-photo.jpg",
     description:
       locale === "de"
-        ? "Pop-Rock-Band aus Wien — erdige Songs, ehrliche Texte, live auf der Bühne zuhause."
-        : "Pop rock band from Vienna — earthy songs, honest lyrics, at home on stage.",
+        ? "Pop-Rock-Band aus Wien. Erdige Songs, ehrliche Texte, live auf der Bühne zuhause."
+        : "Pop rock band from Vienna. Earthy songs, honest lyrics, at home on stage.",
     genre: ["Pop Rock", "Pop", "Rock"],
     foundingDate: "2020",
     foundingLocation: {

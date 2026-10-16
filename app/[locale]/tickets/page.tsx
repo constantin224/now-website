@@ -434,7 +434,7 @@ export default async function TicketsPage({
                     <p className="text-base md:text-lg text-sand/75 font-light italic leading-relaxed mt-4">
                       {r.quote}
                     </p>
-                    <p className="text-xs text-sand-38 mt-3">— {r.by}</p>
+                    <p className="text-xs text-sand-38 mt-3">- {r.by}</p>
                   </li>
                 ))}
               </ul>

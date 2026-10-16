@@ -49,7 +49,7 @@ export default async function AboutPage({
         <div className="relative h-[50vh] md:h-[70vh] overflow-hidden">
           <Image
             src="/band-photo-3.jpg"
-            alt="Now. — Pop-Rock-Band aus Wien: Valentin Bröderbauer, Chris Sztrakati, Constantin Kaiser"
+            alt="Now. - Pop-Rock-Band aus Wien: Valentin Bröderbauer, Chris Sztrakati, Constantin Kaiser"
             fill
             sizes="100vw"
             className="object-cover"
@@ -162,7 +162,7 @@ export default async function AboutPage({
                 name: "Welches Genre spielt Now.?",
                 acceptedAnswer: {
                   "@type": "Answer",
-                  text: "Now. spielt erdigen Pop-Rock aus Wien — eingängige Hooks mit Tiefgang, ehrliche Texte und volle Live-Energie. Die Band vereint Einflüsse aus Pop und Rock.",
+                  text: "Now. spielt erdigen Pop-Rock aus Wien: eingängige Hooks mit Tiefgang, ehrliche Texte und volle Live-Energie. Die Band vereint Einflüsse aus Pop und Rock.",
                 },
               },
               {

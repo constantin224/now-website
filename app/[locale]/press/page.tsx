@@ -43,7 +43,7 @@ export default async function PressPage({
         >
           <Image
             src="/band-photo.jpg"
-            alt="Now. — Bandfoto"
+            alt="Now. - Bandfoto"
             fill
             sizes="(max-width: 768px) 100vw, 50vw"
             className="object-cover group-hover:scale-105 transition-transform duration-500"
@@ -59,7 +59,7 @@ export default async function PressPage({
         >
           <Image
             src="/band-photo-2.jpg"
-            alt="Now. — Bandfoto 2"
+            alt="Now. - Bandfoto 2"
             fill
             sizes="(max-width: 768px) 100vw, 50vw"
             className="object-cover group-hover:scale-105 transition-transform duration-500"

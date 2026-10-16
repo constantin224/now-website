@@ -141,7 +141,7 @@ export default async function ShopPage({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "ItemList",
-              name: "Now. — Shop",
+              name: "Now. - Shop",
               itemListElement: products.map((product, i) => ({
                 "@type": "ListItem",
                 position: i + 1,

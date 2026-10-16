@@ -176,7 +176,7 @@ export function PriceChart({
         viewBox={`0 0 ${W} ${H}`}
         className="w-full h-auto"
         role="img"
-        aria-label={`${labels.start}: ${fmt(first.d.price)} — ${labels.today}: ${fmt(last.d.price)}`}
+        aria-label={`${labels.start}: ${fmt(first.d.price)} · ${labels.today}: ${fmt(last.d.price)}`}
       >
         <defs>
           {/* Fläche läuft schnell auf null aus — kein „brauner Block" unter hoher Kurve */}

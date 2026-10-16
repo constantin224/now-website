@@ -18,17 +18,17 @@
   },
   "about": {
     "title": "About",
-    "description": "About Now. — Pop rock band from Vienna",
-    "bio_1": "Now. are a pop-rock band from Vienna. Valentin Bröderbauer (vocals, guitar), Constantin Kaiser (bass, synth) and Chris Sztrakati (drums) write songs about self-doubt, closeness and letting go — recorded in their own studio, played live without backing tracks.",
-    "bio_2": "For years the musicians worked on other people's songs, in the studio and on tour — among others for Josh., Ina Regen, Thorsteinn Einarsson and Lemo. The name was born in 2020 from the founding members' decision to stop putting their own songs off until later.",
-    "bio_3": "Their debut single 'Wastin' Days' found its way straight into airplay on several Austrian radio stations. With further releases like 'Stay', 'Let Go' and 'Lay It Down', the band solidified their sound — regularly featured in playlists and on stations like Radio Wien, 88.6 and Life Radio.",
+    "description": "About Now. - Pop rock band from Vienna",
+    "bio_1": "Now. are a pop-rock band from Vienna. Valentin Bröderbauer (vocals, guitar), Constantin Kaiser (bass, synth) and Chris Sztrakati (drums) write songs about self-doubt, closeness and letting go. Recorded in their own studio, played live without backing tracks.",
+    "bio_2": "For years the musicians worked on other people's songs, in the studio and on tour, among others for Josh., Ina Regen, Thorsteinn Einarsson and Lemo. The name was born in 2020 from the founding members' decision to stop putting their own songs off until later.",
+    "bio_3": "Their debut single 'Wastin' Days' found its way straight into airplay on several Austrian radio stations. With further releases like 'Stay', 'Let Go' and 'Lay It Down', the band solidified their sound, regularly featured in playlists and on stations like Radio Wien, 88.6 and Life Radio.",
     "bio_4": "The debut album 'OUT' came out in October 2024: 15 songs, produced with founding member Florian Koch. The release show at Aera Wien sold out. In 2025 Chris Sztrakati took over on drums.",
-    "bio_5": "On 28 August 2026 the second album 'A Little Love' was released: 12 songs, recorded in the band's own Tonherd studio in Vienna's 9th district with selected guests. The title track has made it onto Ö3 — and this autumn onto stages across Austria.",
-    "bio_members": "Valentin Bröderbauer — Vocals, Guitar\nChris Sztrakati — Drums\nConstantin Kaiser — Bass, Synth"
+    "bio_5": "On 28 August 2026 the second album 'A Little Love' was released: 12 songs, recorded in the band's own Tonherd studio in Vienna's 9th district with selected guests. The title track has made it onto Ö3, and this autumn it's going on stage across Austria.",
+    "bio_members": "Valentin Bröderbauer - Vocals, Guitar\nChris Sztrakati - Drums\nConstantin Kaiser - Bass, Synth"
   },
   "music": {
     "title": "Music",
-    "description": "Discography, music videos and streaming links from Now. — pop rock band from Vienna",
+    "description": "Discography, music videos and streaming links from Now. - pop rock band from Vienna",
     "discography": "Discography",
     "latest_release": "Latest Release",
     "videos_label": "Videos",
@@ -37,7 +37,7 @@
   },
   "shows": {
     "title": "Shows",
-    "description": "Live dates and concerts by Now. — pop rock band from Vienna. Tickets and booking info.",
+    "description": "Live dates and concerts by Now. - pop rock band from Vienna. Tickets and booking info.",
     "upcoming": "Upcoming Shows",
     "past": "Past Shows",
     "tickets": "Tickets",
@@ -47,16 +47,16 @@
     "booking_cta": "For booking inquiries:",
     "booking_label": "Booking:",
     "booking_email": "booking@now-music.at",
-    "tickerBanner": "Vienna Oct 17: ticket price is set live by the market — see the current rate →",
+    "tickerBanner": "Vienna Oct 17: ticket price is set live by the market. See the current rate →",
     "tickets_soon": "Tickets soon",
     "rsvp": "I'm going (RSVP)",
     "follow": "Follow on Bandsintown",
-    "follow_hint": "Bandsintown followers get new dates automatically — including on Spotify.",
+    "follow_hint": "Bandsintown followers get new dates automatically, including on Spotify.",
     "load_error": "Dates could not be loaded right now. All shows on"
   },
   "press": {
     "title": "Press / EPK",
-    "description": "Electronic Press Kit — Now.",
+    "description": "Electronic Press Kit - Now.",
     "photo_label": "Press Photo 2",
     "download_all": "Download all press photos (ZIP)",
     "download_onesheet": "Download one-sheet (PDF)",
@@ -65,35 +65,35 @@
     "booking_alt": "or directly via",
     "press_contact": "Press",
     "label": "Label",
-    "press_bio": "Now. are a pop-rock band from Vienna. Founded in 2020, the band consists of Valentin Bröderbauer (vocals, guitar), Constantin Kaiser (bass, synth) and Chris Sztrakati (drums). For years the musicians worked on other people's songs, in the studio and on tour. The name was born from the founding members' decision to stop putting their own songs off until later. Their songs deal with self-doubt, relationships and letting go. After 'OUT' (2024), 'A Little Love' was released on 28 August 2026, recorded in the band's own Tonherd studio in Vienna's 9th district with selected guests. The title track has made it onto Ö3 — and this autumn onto stages across Austria."
+    "press_bio": "Now. are a pop-rock band from Vienna. Founded in 2020, the band consists of Valentin Bröderbauer (vocals, guitar), Constantin Kaiser (bass, synth) and Chris Sztrakati (drums). For years the musicians worked on other people's songs, in the studio and on tour. The name was born from the founding members' decision to stop putting their own songs off until later. Their songs deal with self-doubt, relationships and letting go. After 'OUT' (2024), 'A Little Love' was released on 28 August 2026, recorded in the band's own Tonherd studio in Vienna's 9th district with selected guests. The title track has made it onto Ö3, and this autumn it's going on stage across Austria."
   },
   "shop": {
     "title": "Shop",
-    "description": "Merch and music from Now. — T-shirts, CDs and more",
+    "description": "Merch and music from Now. - T-shirts, CDs and more",
     "view": "View Product",
     "empty": "No products available at the moment.",
     "checkout_hint": "Checkout & shipping via shop.tonherd.at",
     "preorder_label": "Pre-order",
     "release_on": "out",
     "out_now_label": "New album",
-    "preorder_desc": "The second album — 12 songs. Download delivered by e-mail on release day, CD ships at release, vinyl at the start of the tour in October.",
+    "preorder_desc": "The second album, 12 songs. Download delivered by e-mail on release day, CD ships at release, vinyl at the start of the tour in October.",
     "preorder_cta": "Pre-order now",
     "out_now_cta": "Order now"
   },
   "tickets": {
-    "metaTitle": "Tickets — Official Ticket Platform | Now.",
+    "metaTitle": "Tickets - Official Ticket Platform | Now.",
     "platformLabel": "OFFICIAL TICKET PLATFORM OF THE NOW. WORLD TOUR 2026 (1 DATE)",
     "eventTitle": "Now. // Vienna",
     "dayChange": "24h change",
-    "chartTitle": "Price history — 100% transparent. Unlike the others.",
+    "chartTitle": "Price history. 100% transparent, unlike the others.",
     "allTimeHigh": "All-time high",
     "allTimeLow": "All-time low",
     "demandBadge": {
-      "high": "HIGH DEMAND — {count} TICKETS IN 24 HOURS",
-      "some": "DEMAND DETECTED — {count} TICKET(S) IN 24 HOURS",
+      "high": "HIGH DEMAND: {count} TICKETS IN 24 HOURS",
+      "some": "DEMAND DETECTED: {count} TICKET(S) IN 24 HOURS",
       "none": "PLENTY OF TICKETS AVAILABLE. GENUINELY PLENTY."
     },
-    "howItWorks": "The price climbs on its own — €1 per day. Every ticket sold immediately takes €1 back off, for everyone buying after you. One ticket a day holds the line. Buy faster and it gets cheaper for everyone.",
+    "howItWorks": "The price climbs on its own, €1 per day. Every ticket sold immediately takes €1 back off, for everyone buying after you. One ticket a day holds the line. Buy faster and it gets cheaper for everyone.",
     "buyCta": "Secure tickets",
     "fees": "Service fee: €0. Handling fee: €0. Dynamic pricing fee: €0. We don't understand it either.",
     "disclaimer": "* Price includes VAT and excludes all the fees we don't charge.",
@@ -103,7 +103,7 @@
       "proceeding": "Redirecting you to checkout …"
     },
     "countdown": {
-      "title": "NOW. LIVE IN VIENNA — IN",
+      "title": "NOW. LIVE IN VIENNA - IN",
       "days": "Days",
       "hours": "Hrs",
       "minutes": "Min",
@@ -127,7 +127,7 @@
       "sold": "Sold since trading start"
     },
     "chart": {
-      "floor": "Floor {price} — legally it could go lower, emotionally it can't",
+      "floor": "Floor {price}: legally it could go lower, emotionally it can't",
       "sale": "Sale",
       "drift": "Lull",
       "start": "Trading start",
@@ -145,21 +145,21 @@
       "cap": "Absolute ceiling: {price}"
     },
     "howItWorksTitle": "How dynamic pricing works",
-    "closingLine": "Dynamic pricing ends on October 17. After that: box office — fixed price, like in the Middle Ages.",
-    "heroTagline": "Dynamic pricing like the superstars — only in the other direction.",
+    "closingLine": "Dynamic pricing ends on October 17. After that it's the box office. Fixed price, like in the Middle Ages.",
+    "heroTagline": "Dynamic pricing like the superstars - only in the other direction.",
     "live": "LIVE",
-    "nextDrop": "The price drops when somebody buys. Otherwise it climbs — €1 a day, slowly. Never below {floor}, never above {cap}.",
+    "nextDrop": "The price drops when somebody buys. Otherwise it climbs slowly, €1 a day. Never below {floor}, never above {cap}.",
     "share": "Share rate",
     "shared": "Link copied",
-    "shareText": "The NOW. ticket is currently at {price}. Dynamic pricing like the superstars — only in the other direction:",
+    "shareText": "The NOW. ticket is currently at {price}. Dynamic pricing like the superstars - only in the other direction:",
     "queueStatus": "WAITING ROOM ACTIVE · POSITION 1 OF 1",
-    "priceEyebrow": "Dynamic ticket price — not fixed, keeps moving",
-    "ctaPriceNote": "You pay the rate at the moment of purchase — it can change until checkout. In both directions.",
+    "priceEyebrow": "Dynamic ticket price: not fixed, keeps moving",
+    "ctaPriceNote": "You pay the rate at the moment of purchase. It can still change until checkout, in both directions.",
     "vipTitle": "VIP packages",
     "vip": [
       {
         "name": "PLATINUM TICKET",
-        "desc": "The same ticket, just more expensive. The big players actually sell this. Here the market does it — in the other direction."
+        "desc": "The same ticket, just more expensive. The big players actually sell this. Here the market does it, in the other direction."
       },
       {
         "name": "VIP PACKAGE “THIS EXACT FEELING”",
@@ -208,7 +208,7 @@
         },
         {
           "stars": 5,
-          "quote": "Wanted to book Golden Circle — turned out it was the whole room.",
+          "quote": "Wanted to book Golden Circle. Turned out it was the whole room.",
           "by": "another fan"
         },
         {
@@ -236,7 +236,7 @@
     "impressum": "Legal Notice"
   },
   "meta": {
-    "site_title": "Now. — Pop Rock from Vienna",
+    "site_title": "Now. - Pop Rock from Vienna",
     "site_description": "Now. is a pop rock band from Vienna. Earthy songs, honest lyrics, at home on stage."
   }
 }
