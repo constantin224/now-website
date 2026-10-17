@@ -113,6 +113,12 @@ export const TICKER_CONFIG = {
   },
 
   gigDateIso: "2026-10-17T19:00:00+02:00",
+  // Online-Vorverkauf von Hand beendet (17.10. ~13:05, Owner-Entscheidung „ab jetzt nur noch
+  // Abendkassa"). Ab hier: Börse schreibt keinen Preis mehr (Tick + Status = „beendet"),
+  // /tickets zeigt die Abendkassa statt des Kurses. Der Variantenpreis im Shop ist ab dann der
+  // Abendkassa-Preis (tonherd-tickets RUNBOOK „AK-Preis = Shopify-Variantenpreis").
+  verkaufsstoppIso: "2026-10-17T13:00:00+02:00",
+  abendkasseEuro: 25.0,
   shopProductUrl:
     "https://shop.tonherd.at/products/17-10-2026-now-album-prasentation",
 } as const;

@@ -48,11 +48,13 @@ export const showOverrides: Record<string, ShowOverride> = {
     city: "Graz",
     note: { de: "Spotting presents: Now. // K.Cit", en: "Spotting presents: Now. // K.Cit" },
   },
-  // Sa 17.10.2026 — The Loft Wien → eigene Ticket-Börse (Community-Pricing)
+  // Sa 17.10.2026 — The Loft Wien → eigene Ticket-Börse (Community-Pricing); VVK am 17.10. mittags
+  // beendet, /tickets zeigt seither die Abendkassa (lib/ticker/config.ts verkaufsstoppIso)
   "107876475": {
     tickets: "/tickets",
     venue: "The Loft",
     city: "Wien",
+    note: { de: "Vorverkauf beendet. Tickets an der Abendkassa, 25 €", en: "Presale closed. Tickets at the box office, €25" },
   },
   // Fr 27.11.2026 — Kulturhof Linz, Ausweichspielstätte Volkshaus Franckviertel (Sanierung), VVK 21 €
   "107876739": {

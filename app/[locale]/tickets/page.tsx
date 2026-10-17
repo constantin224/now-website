@@ -84,6 +84,106 @@ export default async function TicketsPage({
       }
     );
 
+  // ABENDKASSA-MODUS: Der Online-Vorverkauf ist beendet (C.verkaufsstoppIso) — kein Kurs, kein
+  // Kauf-Button mehr (das Produkt ist aus dem Shop genommen, der Link liefe ins Leere). Stattdessen:
+  // Abendkassa-Preis aus der Config + Schlusskurs der Börse als Erinnerung, falls Historie da ist.
+  if (now.getTime() >= new Date(C.verkaufsstoppIso).getTime()) {
+    const a = t.abendkasse;
+    // Schlusskurs = Kurs zum Verkaufsstopp (NICHT der aktuelle Shop-Preis — der ist jetzt der
+    // Abendkassa-Preis und hat mit der Börse nichts mehr zu tun).
+    const schlussKurs = state ? shopPrice(priceOf(state, new Date(C.verkaufsstoppIso))) : null;
+    return (
+      <>
+        <section className="relative min-h-[80svh] flex flex-col">
+          <div className="absolute inset-0 overflow-hidden">
+            <Image
+              src="/video-poster.jpg"
+              alt=""
+              fill
+              priority
+              className="object-cover opacity-60 [object-position:center_42%]"
+              sizes="100vw"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-bg-base/75 via-bg-base/35 to-bg-base" />
+          </div>
+
+          <div className="relative flex-1 flex flex-col items-center justify-center text-center max-w-4xl mx-auto w-full px-6 pt-28 pb-16">
+            <p className="text-[10px] md:text-xs tracking-[0.25em] uppercase text-sand/55 animate-fade-in">
+              {a.eyebrow}
+            </p>
+            <h1 className="font-light text-2xl md:text-3xl text-sand/85 mt-5 animate-fade-in">
+              {t.eventTitle}
+              <span className="block text-xs md:text-sm font-[family-name:var(--font-body)] tracking-wide text-sand/50 mt-2">
+                {t.eventMeta}
+              </span>
+            </h1>
+
+            <div className="mt-10 md:mt-14 animate-fade-in-delay">
+              <p className="text-[10px] md:text-xs tracking-[0.25em] uppercase text-sand/55 mb-4">
+                {a.priceLabel}
+              </p>
+              <p className="font-extralight text-[clamp(4.5rem,14vw,12rem)] leading-none tracking-tight text-sand tabular-nums">
+                {euro(C.abendkasseEuro)}
+              </p>
+              <p className="text-sm text-sand/50 mt-4">{a.priceNote}</p>
+            </div>
+
+            <p className="mt-10 md:mt-12 max-w-lg text-base md:text-lg text-sand/70 leading-relaxed animate-fade-in-delay">
+              {a.text}
+            </p>
+            <p className="text-sm text-sand/50 mt-3 animate-fade-in-delay">{a.address}</p>
+
+            <div className="mt-10 animate-fade-in-delay">
+              <a
+                href={`/${locale}/shows`}
+                className="inline-block border border-terracotta/30 bg-terracotta/10 text-terracotta px-8 py-3 text-[11px] tracking-[3px] uppercase hover:bg-terracotta/20 transition-colors rounded-full"
+              >
+                {a.showsCta}
+              </a>
+            </div>
+          </div>
+        </section>
+
+        {state && schlussKurs !== null && (
+          <section className="pt-[var(--spacing-block)] pb-[var(--spacing-section)]">
+            <div className="max-w-6xl mx-auto px-6">
+              <ScrollReveal y={24}>
+                <p className="text-[10px] md:text-xs tracking-[0.25em] uppercase text-sand/50 mb-6">
+                  {a.chartTitle}
+                </p>
+                <Tilt className="md:[filter:drop-shadow(0_0_24px_rgba(192,133,82,0.18))]">
+                  <PriceChart
+                    history={state.history}
+                    currentPrice={schlussKurs}
+                    nowIso={heuteIso(now)}
+                    trend="flat"
+                    floorEuro={C.floorEuro}
+                    locale={locale}
+                    labels={t.chart}
+                  />
+                </Tilt>
+                <dl className="mt-10 grid grid-cols-2 md:grid-cols-3 gap-y-6 border-t border-line pt-6">
+                  {(
+                    [
+                      [t.allTimeHigh, euro(Math.max(...state.history.map((p) => shopPrice(p.price)), schlussKurs))],
+                      [t.allTimeLow, euro(Math.min(...state.history.map((p) => shopPrice(p.price)), schlussKurs))],
+                      [t.stats.sold, String(Math.max(0, state.soldCount))],
+                    ] as [string, string][]
+                  ).map(([label, value]) => (
+                    <div key={label}>
+                      <dt className="text-[10px] tracking-[0.2em] uppercase text-sand/45">{label}</dt>
+                      <dd className="tabular-nums text-2xl md:text-3xl font-light mt-2 text-sand">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </ScrollReveal>
+            </div>
+          </section>
+        )}
+      </>
+    );
+  }
+
   // Börse noch nicht initialisiert / API-Fehler → nüchterner Fallback
   if (!state) {
     return (

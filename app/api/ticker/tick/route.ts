@@ -233,11 +233,16 @@ async function runTick(
   // Bestandssturz — vor der Härtung hätte sie ihn als Ausverkauf gelesen und den
   // Kurs beim eigenen Konzert auf den Boden gedrückt. Also: vorher aufhören.
   // Der Preis bleibt stehen, wo er war; verkauft wird ohnehin nicht mehr.
-  const schluss = new Date(ticketZahl?.doorsUtc ?? C.gigDateIso).getTime();
+  // Seit dem manuellen Verkaufsstopp (C.verkaufsstoppIso) gilt zusätzlich: ab da darf der Tick den
+  // Variantenpreis nicht mehr anfassen — er IST jetzt der Abendkassa-Preis.
+  const schluss = Math.min(
+    new Date(ticketZahl?.doorsUtc ?? C.gigDateIso).getTime(),
+    new Date(C.verkaufsstoppIso).getTime()
+  );
   if (now.getTime() >= schluss) {
     return NextResponse.json({
       status: "beendet",
-      reason: "Türöffnung erreicht — die Börse ist geschlossen, der Preis bleibt stehen.",
+      reason: "Verkaufsstopp/Türöffnung erreicht — die Börse ist geschlossen, der Preis bleibt stehen.",
       // Der ECHTE Shop-Preis: Geschrieben wird hier nichts mehr, der
       // abgeleitete Kurs zu `now` kann also vom Checkout abweichen.
       price: currentPriceEuro > 0 || !state ? currentPriceEuro : shopPrice(priceOf(state, now)),

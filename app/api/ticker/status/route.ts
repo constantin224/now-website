@@ -91,7 +91,11 @@ export async function GET(request: NextRequest) {
 
   // Nach der Türöffnung tickt nichts mehr — lastTickAt friert dann ein, und
   // das ist KEIN Ausfall.
-  const schluss = new Date(ticketZahl?.doorsUtc ?? C.gigDateIso).getTime();
+  // Gleiche Schlussregel wie der Tick: auch der manuelle Verkaufsstopp beendet die Börse.
+  const schluss = Math.min(
+    new Date(ticketZahl?.doorsUtc ?? C.gigDateIso).getTime(),
+    new Date(C.verkaufsstoppIso).getTime()
+  );
   if (now.getTime() >= schluss) {
     return NextResponse.json({ status: "beendet" });
   }

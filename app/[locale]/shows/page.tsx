@@ -4,8 +4,12 @@ import { localeMetadata } from "@/lib/seo";
 import { fetchShows, resolveShow, type BandsintownEvent } from "@/lib/shows";
 import { ShowList } from "@/components/show-list";
 import { ScrollReveal } from "@/components/scroll-reveal";
+import { TICKER_CONFIG as C } from "@/lib/ticker/config";
 
 const SITE = "https://now-music.at";
+
+// Banner zur Wien-Abendkassa nur bis zum Konzertabend (Beginn + 6 h) — danach wäre er eine Lüge.
+const BANNER_BIS_MS = new Date(C.gigDateIso).getTime() + 6 * 3_600_000;
 
 // MusicEvent JSON-LD — Offer-URL zeigt auf den echten Ticketshop (Override > Bandsintown)
 function buildEventsJsonLd(events: BandsintownEvent[], locale: Locale) {
@@ -104,13 +108,15 @@ export default async function ShowsPage({
             {t.shows.title}
           </h1>
 
-          {/* Hinweis-Banner zur Ticket-Börse — dezent, aber auffindbar */}
-          <a
-            href={`/${locale}/tickets`}
-            className="block border border-line rounded-lg px-5 py-3 text-sm text-sand/70 hover:text-terracotta hover:border-terracotta/30 transition-colors mb-10"
-          >
-            {t.shows.tickerBanner}
-          </a>
+          {/* Hinweis-Banner zur Wien-Abendkassa — dezent, aber auffindbar; nur bis zum Konzertabend */}
+          {Date.now() < BANNER_BIS_MS && (
+            <a
+              href={`/${locale}/tickets`}
+              className="block border border-line rounded-lg px-5 py-3 text-sm text-sand/70 hover:text-terracotta hover:border-terracotta/30 transition-colors mb-10"
+            >
+              {t.shows.tickerBanner}
+            </a>
+          )}
 
           {/* Show-Liste — Bandsintown-Daten, eigenes Rendering */}
           <ScrollReveal className="min-h-[200px]">

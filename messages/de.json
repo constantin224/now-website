@@ -47,7 +47,7 @@
     "booking_cta": "Für Booking-Anfragen:",
     "booking_label": "Booking:",
     "booking_email": "booking@now-music.at",
-    "tickerBanner": "Wien 17.10.: Ticketpreis wird live vom Markt bestimmt. Aktueller Kurs auf der Ticket-Börse →",
+    "tickerBanner": "Wien 17.10.: Vorverkauf beendet. Tickets heute Abend an der Abendkassa im The Loft, 25 € →",
     "tickets_soon": "Tickets folgen",
     "rsvp": "Ich komme (RSVP)",
     "follow": "Auf Bandsintown folgen",
@@ -218,7 +218,16 @@
         }
       ]
     },
-    "unavailableNote": "Der Live-Kurs ist gerade nicht erreichbar. Im Shop gilt wie immer der Preis an der Kassa."
+    "unavailableNote": "Der Live-Kurs ist gerade nicht erreichbar. Im Shop gilt wie immer der Preis an der Kassa.",
+    "abendkasse": {
+      "eyebrow": "Vorverkauf beendet",
+      "text": "Der Vorverkauf ist zu. Tickets gibt es heute Abend direkt an der Abendkassa im The Loft. Fixpreis, wie im Mittelalter.",
+      "priceLabel": "Abendkassa",
+      "priceNote": "Direkt an der Tür, solange Platz ist.",
+      "address": "The Loft · Lerchenfelder Gürtel 37, 1160 Wien",
+      "chartTitle": "Schlusskurs der Ticket-Börse. Der Markt hat gesprochen.",
+      "showsCta": "Alle Termine"
+    }
   },
   "impressum": {
     "title": "Impressum",

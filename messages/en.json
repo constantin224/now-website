@@ -47,7 +47,7 @@
     "booking_cta": "For booking inquiries:",
     "booking_label": "Booking:",
     "booking_email": "booking@now-music.at",
-    "tickerBanner": "Vienna Oct 17: ticket price is set live by the market. See the current rate →",
+    "tickerBanner": "Vienna Oct 17: presale closed. Tickets tonight at the box office at The Loft, €25 →",
     "tickets_soon": "Tickets soon",
     "rsvp": "I'm going (RSVP)",
     "follow": "Follow on Bandsintown",
@@ -218,7 +218,16 @@
         }
       ]
     },
-    "unavailableNote": "The live price is unavailable right now. As always, the checkout price is what counts."
+    "unavailableNote": "The live price is unavailable right now. As always, the checkout price is what counts.",
+    "abendkasse": {
+      "eyebrow": "Presale closed",
+      "text": "Presale is over. Tickets are available tonight at the box office at The Loft. Fixed price, like in the Middle Ages.",
+      "priceLabel": "Box office",
+      "priceNote": "Right at the door, while there's room.",
+      "address": "The Loft · Lerchenfelder Gürtel 37, 1160 Vienna",
+      "chartTitle": "Final rate of the ticket exchange. The market has spoken.",
+      "showsCta": "All dates"
+    }
   },
   "impressum": {
     "title": "Legal Notice",

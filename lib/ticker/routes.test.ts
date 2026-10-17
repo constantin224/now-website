@@ -188,6 +188,16 @@ const VARIANT_ID = C.variantGid.split("/").pop();
 
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 
+// Der manuelle Verkaufsstopp (17.10.2026 13:00, config.verkaufsstoppIso) liegt für diese Tests in
+// ferner Zukunft — sie laufen mit der ECHTEN Uhr und prüfen den Betrieb VOR dem Stopp. (Dasselbe
+// gilt seit jeher für gigDateIso: nach der Türöffnung wäre die ganze Suite „beendet".)
+vi.mock("@/lib/ticker/config", async (importOriginal) => {
+  const orig = await importOriginal<typeof import("@/lib/ticker/config")>();
+  return {
+    TICKER_CONFIG: { ...orig.TICKER_CONFIG, verkaufsstoppIso: "2099-01-01T00:00:00+01:00" },
+  };
+});
+
 function orderBody(opts: { id: number; tickets: number; test?: boolean }) {
   return JSON.stringify({
     id: opts.id,
