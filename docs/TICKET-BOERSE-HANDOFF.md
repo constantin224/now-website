@@ -2,7 +2,11 @@
 
 **Stand: 2026-09-02 abends** · alles auf `main` + gepusht · 204/204 Tests, Build/tsc/Lint grün · **seit 02.09.: Sättigung an Deckel+Boden, Kauf-Stufen im Chart, Kauf-Turbo erstmals wirklich aktiv, abends ersetzt durch den Kauf-Nachlauf ohne QStash (Preis ~10–15 s nach Kauf)** (§Sättigung, §Kauf-Nachlauf) · **Preismodell seit 10.08.: Community-Pricing** (Spec: `docs/superpowers/specs/2026-08-10-boerse-community-pricing-design.md`)
 
-> ## 🚀 DIE BÖRSE IST LIVE (seit 11.08. ~14:09)
+> ## ⏸️ STILLGELEGT seit 31.10.2026 — war live 11.08.–31.10. (Konzert 17.10., The Loft)
+>
+> Konzerte vorbei, Börse bewusst beendet (Constantin 31.10.): QStash-Schedule gelöscht, `TICKER_ENABLED=0`, `TICKER_EXPECTED_RUNNING=0`. Code, Webhook-Abo und Doku bleiben unangetastet — **sie kommt fix wieder.** Wiederinbetriebnahme Schritt für Schritt: §„Stilllegung 31.10.2026 und Wiederinbetriebnahme“ unten. Der Block darunter beschreibt den Live-Zustand bis 31.10.
+>
+> ## 🚀 DIE BÖRSE WAR LIVE (11.08. ~14:09 bis 31.10.)
 >
 > - Go-Live via `./scripts/boerse-golive.sh` (67 s, alle 9 Schritte sauber): Baseline **28 Alt-Tickets**, `quelle: tickets`, Start 22,00 €, QStash-Schedule `scd_69AA2q822WkqRKTdpZsHWFECP7ge` (*/5).
 > - **Erster echter Kauf real bewiesen** (11.08. mittags): 22,00 → 21,00 € in 8 min, sale-Punkt im Chart, Shopify + Seite synchron. Ein Storno höbe exakt zurück.
@@ -342,7 +346,7 @@ Den Preis allein zurückzustellen **reicht nicht** — der nächste Tick übersc
 | 🟢 **Turbo-Order live bewiesen** | 02.09.: #1429 (2 Tickets) bestellt 19:41:08 UTC → Ticket-System `standVon` 19:41:23 (Turbo-Pass mit ID, +15 s) → Börse `sale qty 2` 19:42:28 (Tick +75 s), 11,90 → 9,90 € — **80 s**. |
 | 🟢 **Nachlauf live bewiesen** | 02.09. 20:11 UTC, selbstsignierter Webhook für #1429 (bereits gezählt, idempotent): Antwort 200 in 1,0 s, danach Vercel-Log `[ticker/nachlauf] Bestellung 13155814310219: {"ledger":"erledigt","ledgerVersuche":1,"tick":"ok","dauerMs":6246}`; Ticket-System-Log `Cron: Turbo-Order … sofort nachziehen` +6 s. Offen: erster ECHTER Kauf mit Sale-Punkt ~10–15 s nach Bestellzeit (Vercel-Log wie oben). |
 | 🟢 **QStash-Quota** | **entschärft (02.09. abends)** — der Nachlauf braucht keine QStash-Messages mehr; die drei Schedules (~672/Tag) bleiben allein unter dem Free-Limit von 1000. Optional weiter senken: Börsen-Cron */10 statt */5 (Preis hängt an der Uhr, nicht am Takt) und Sync */30. Pay-as-you-go (~1 $/100k) bleibt das Netz. |
-| 🟡 **Reel-Skript v4** | `tonherd-instagram/analysis/reel-skript-ticket-boerse.md` (31.08.) erwähnt evtl. den Deckel-Überhang — gegenlesen, Mechanik ist jetzt wie versprochen. |
+| 🟡 **Reel-Skript v4** | `tonherd-instagram/now/reel-skripte/ticket-boerse-dynamic-pricing.md` (31.08.) erwähnt evtl. den Deckel-Überhang — gegenlesen, Mechanik ist jetzt wie versprochen. |
 | 🟢 **Go-Live** | **vorbereitet (06.08.)** — Evey-Ablösung ist durch (27.07.); Ausführung = `./scripts/boerse-golive.sh` + Apps-Script-Property. ⚠️ Schritt „Ticket-System scharfschalten" heißt heute konkret: **Wien manuell armen** — das Auto-Arming des Ticket-Systems (seit 18.07., `lib/veranstalter-sync.ts`) greift erst doors−12h; bis dahin liefert `/api/verkaufszahl` `scharf:false`, der Start würde 503 verweigern. Das Script erledigt das. |
 | 🟢 **Testbestellungen im Ledger** | **erledigt (18.07.)** — `entitlementsForOrder` schließt `test:true` global aus; `ignoredTickets` im Ticket-Modus obsolet. |
 | 🟢 **Endpunkt mergen** | **erledigt (18.07.)** — `/api/verkaufszahl` ist gemergt + live (Codex fand beim Merge 2 Bugs: `used` ist HASH → hlen; `__leer__`-Sentinel zählte mit). |
@@ -350,6 +354,35 @@ Den Preis allein zurückzustellen **reicht nicht** — der nächste Tick übersc
 | 🟢 **`read_all_orders`** | **erledigt** — gewährt über die gemeinsame App „Claude Code Admin". Die 60-Tage-Blende ist weg. |
 | 🟢 **Rechtlich** | geklärt: Dynamic Pricing ist legal (nicht personalisiert, Checkout-Preis bindend). Leitplanken: nie als „Rabatt"/Statt-Preis bewerben (30-Tage-Regel), keine erfundene Knappheit. |
 | 🟢 **Steuern** | 13 % (ermäßigt) kommen automatisch — Kategorie „Concerts & Entertainment Events" + Shopify Tax aktiv. |
+
+---
+
+## Stilllegung 31.10.2026 und Wiederinbetriebnahme
+
+**Warum:** Die Now.-Konzerte 2026 sind vorbei (Wien 17.10. war das letzte mit Börse). Der Tick lief trotzdem weiter: QStash alle 5 Minuten auf `/api/ticker/tick`, der Apps-Script-Wächter alle 5 Minuten auf `/api/ticker/status` — beide lasen bei Shopify. Das waren 576 Funktionsaufrufe am Tag für nichts und **1 h 32 min Fluid Active CPU in 30 Tagen = 49 % des gesamten Vercel-Hobby-Verbrauchs** (Limit 4 h, Stand 31.10.: 3 h 09 min über alle vier Projekte). Constantin am 31.10.: „die now. konzerte sind wirklich vorbei – wir werden das fix nochmal machen also gut dokumentieren aber für jetzt beenden.“
+
+### Was am 31.10.2026 gemacht wurde (Claude, mit Freigabe)
+
+| Schritt | Was | Stand |
+|---|---|---|
+| 1 | **QStash-Schedule `scd_69AA2q822WkqRKTdpZsHWFECP7ge`** (`*/5`, `https://now-music.at/api/ticker/tick`) per `DELETE /v2/schedules/<id>` gelöscht (Token: Schlüsselbund `tonherd-tickets-qstash-token`). Die beiden Ticket-System-Schedules (`/api/cron` */5, `/api/cron/sync` */15) laufen weiter. | ✅ HTTP 200 |
+| 2 | **Vercel-Env (Production, now-website):** `TICKER_ENABLED=0`, `TICKER_EXPECTED_RUNNING=0` (`vercel env rm` + `vercel env add`). ⚠️ Env-Änderungen greifen auf Vercel erst mit dem **nächsten Deploy** — das laufende Deployment hat noch `1/1`. Ohne Schedule ruft aber niemand mehr den Tick, und beim nächsten Deploy ist der Zustand sauber. | ✅ |
+| 3 | **Wächter (Apps-Script „Tonherd Tickets Waechter“, Konto info@tonherd.com):** Script-Property `BOERSE_MONITOR_SECRET` **löschen** → die Börse wird still übersprungen (`Code.gs`: fehlt das Secret, wird nur das Ticket-System geprüft). Bis dahin meldet der Wächter einmalig 503 „Cron steht über 30 min“ per Mail an system@tonherd.com — erwartet, kein Handlungsbedarf. | ⏳ Constantin (Script Properties nur im Apps-Script-Editor) |
+| 4 | **Nicht angefasst, mit Absicht:** Shopify-Webhook-Abo `orders/create → /api/ticker/webhook` (feuert nur je Bestellung, der Nachlauf endet an `TICKER_ENABLED=0` — harmlos), Metafield `ticker.state` (letzter Kurs bleibt als Historie), `/tickets`-Seite (zeigt seit 17.10. Abendkassa), Code und Tests. | — |
+
+### Wiederinbetriebnahme (nächste Tour) — in dieser Reihenfolge
+
+Voraussetzung wie immer: das Ticket-System liefert die Verkaufszahl (§„Woher die Verkaufszahl kommt“), das Event ist dort angelegt. Dann:
+
+1. **Generalprobe** `scripts/boerse-generalprobe.ts` (§Go-Live, Schritt 0) — prüft Shopify-Zugang, Envs und Ticket-System real, nicht gemockt.
+2. **Envs zurück:** `TICKER_ENABLED=1`, `TICKER_EXPECTED_RUNNING=1` (Production), danach **deployen** (Env greift erst mit Deploy; Skill `tonherd-web-deploy`).
+3. **Altes Metafield entscheiden:** `ticker.state` trägt noch den Zustand der Tour 2026 (Baseline, Kurs, Verkaufspunkte). Für ein neues Konzert **löschen**, sonst rechnet der erste Tick mit alten Verkäufen weiter (§Notfall-Rollback, Schritt 2 — dieselbe Operation). Startpreis/Deckel/Boden in `lib/ticker/config.ts` prüfen (2026: 22 € Start, 1 €/Tag Drift, 1 € je Verkauf).
+4. **QStash-Schedule neu anlegen** (§Go-Live, Schritt 6 — `Upstash-Method: GET` zwingend, `Upstash-Forward-Authorization: Bearer <CRON_SECRET>`). Neue Schedule-ID oben in den Statusblock eintragen.
+5. **Wächter:** Script-Property `BOERSE_MONITOR_SECRET` = Vercel-Env `MONITOR_SECRET` (now-website) wieder setzen, einmal `pruefe` laufen lassen.
+6. **Start** mit `?start=1` auf dem Tick (friert die bis dahin verkauften Tickets als Baseline ein — Frühkäufer werden nicht bestraft). 503 beim Start = Ticket-System liefert keine Zahl → erst dort armen (§Go-Live, Hinweis „Wien manuell armen“).
+7. **Erster Beweis** wie 11.08./02.09.: Testkauf → Sale-Punkt im Chart binnen ~15 s (Nachlauf) bzw. spätestens 5 min (Cron). Webhook-401-Falle beachten (§Kauf-Nachlauf: Shopify signiert mit dem **ältesten** Client-Secret).
+
+Was sich bis dahin geändert haben kann und vorher zu prüfen ist: Shopify-Client-Secrets (Rotation → Webhook 401), Ticket-System-Endpunkt `/api/verkaufszahl` (Kopplung, siehe `TICKET-BOERSE-x-TICKETSYSTEM.md`), QStash-Free-Limit (1000 Messages/Tag; drei Schedules = ~672), Vercel-Hobby-CPU (die Börse allein kostet ~1,5 h/Monat von 4 h — bei knappem Budget Tick auf `*/10`, der Preis hängt an der Uhr, nicht am Takt).
 
 ---
 
