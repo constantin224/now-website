@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Script from "next/script";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { fontVariables } from "@/app/layout";
 import Navigation from "@/components/navigation";
@@ -105,6 +106,12 @@ export default async function LocaleLayout({
         {latestRelease && (
           <NewReleasePopup release={latestRelease} locale={locale} />
         )}
+        {/* Besucherstatistik: Umami, eigene Instanz, cookielos, keine IP-Speicherung (Impressum, Datenschutz) */}
+        <Script
+          src="https://tonherd-umami.vercel.app/script.js"
+          data-website-id="f6bd28f6-982d-4ce6-a13b-ea1a3ba4eb08"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );

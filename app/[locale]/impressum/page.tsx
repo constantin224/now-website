@@ -65,6 +65,7 @@ export default async function ImpressumPage({
       <div className="text-sand/50 text-sm space-y-4">
         <p>{t.impressum.privacy_text_1}</p>
         <p>{t.impressum.privacy_text_2}</p>
+        <p>{t.impressum.privacy_text_3}</p>
       </div>
     </section>
   );

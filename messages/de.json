@@ -236,6 +236,7 @@
     "privacy_title": "Datenschutz",
     "privacy_text_1": "Diese Website verwendet keine Cookies und sammelt keine personenbezogenen Daten.",
     "privacy_text_2": "Externe Inhalte (YouTube, Spotify) werden erst nach Interaktion geladen.",
+    "privacy_text_3": "Zur Reichweitenmessung nutzen wir Umami, eine Open-Source-Software, die die Tonherd OG selbst betreibt (Hosting Vercel, Datenbank bei Neon in Frankfurt). Umami setzt keine Cookies und speichert keine IP-Adressen; erfasst werden Seitenaufrufe, Verweisquelle, Land, Gerätetyp und Browser. Rechtsgrundlage ist unser berechtigtes Interesse an einer funktionierenden Website (Art. 6 Abs. 1 lit. f DSGVO).",
     "label_contact": "Kontakt",
     "label_partners": "Gesellschafter",
     "label_liability": "(persönlich haftend, einzelvertretungsbefugt)"

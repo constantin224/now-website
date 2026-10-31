@@ -236,6 +236,7 @@
     "privacy_title": "Privacy",
     "privacy_text_1": "This website does not use cookies and does not collect personal data.",
     "privacy_text_2": "External content (YouTube, Spotify) is only loaded after interaction.",
+    "privacy_text_3": "For audience measurement we use Umami, open-source software operated by Tonherd OG itself (hosted on Vercel, database at Neon in Frankfurt). Umami sets no cookies and stores no IP addresses; it records page views, referrer, country, device type and browser. The legal basis is our legitimate interest in a working website (Art. 6(1)(f) GDPR).",
     "label_contact": "Contact",
     "label_partners": "Partners",
     "label_liability": "(personally liable, individually authorized to represent)"
